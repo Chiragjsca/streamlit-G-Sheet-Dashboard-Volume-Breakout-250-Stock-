@@ -11,24 +11,52 @@ st.set_page_config(page_title="NSE Stock Dashboard", layout="wide")
 st.title("📊 NSE Stock Market Dashboard")
 st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# ---------- Helper: extract URL from Google Sheets HYPERLINK formula ----------
-def extract_hyperlink(url_or_formula):
-    """
-    If the cell contains =HYPERLINK("url","label") -> return the url.
-    Otherwise return the original value.
-    """
-    if isinstance(url_or_formula, str) and url_or_formula.startswith("=HYPERLINK("):
-        # extract the first quoted string after the opening parenthesis
-        match = re.search(r'=HYPERLINK\("([^"]+)"', url_or_formula)
-        if match:
-            return match.group(1)
-    return url_or_formula
+# ---------- Custom CSS to reduce column spacing ----------
+st.markdown("""
+<style>
+    .dataframe {
+        font-size: 12px;
+        border-collapse: collapse;
+        width: 100%;
+    }
+    .dataframe th, .dataframe td {
+        padding: 4px 8px !important;
+        text-align: left;
+        white-space: nowrap;
+    }
+    .dataframe th {
+        background-color: #f0f2f6;
+    }
+    .dataframe td a {
+        text-decoration: none;
+        color: #1f77b4;
+    }
+    .dataframe td a:hover {
+        text-decoration: underline;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# ---------- Load Google Sheet (handles duplicate headers & hyperlinks) ----------
+# ---------- Helper: extract URL and label from HYPERLINK formula ----------
+def extract_hyperlink_info(cell_value):
+    """
+    If cell contains =HYPERLINK("url","label") -> return (url, label)
+    Otherwise return (None, cell_value)
+    """
+    if isinstance(cell_value, str) and cell_value.startswith("=HYPERLINK("):
+        # Extract URL and label
+        pattern = r'=HYPERLINK\("([^"]+)",\s*"([^"]*)"\)'
+        match = re.search(pattern, cell_value)
+        if match:
+            url = match.group(1)
+            label = match.group(2)
+            return url, label
+    return None, cell_value
+
+# ---------- Load Google Sheet with duplicate header handling ----------
 @st.cache_data(ttl=300)
 def load_sheet_data(sheet_name):
     try:
-        # 1. Authenticate
         if "gcp_service_account" not in st.secrets:
             st.error("Missing 'gcp_service_account' in secrets.")
             return pd.DataFrame()
@@ -45,16 +73,14 @@ def load_sheet_data(sheet_name):
         sh = client.open_by_key(spreadsheet_id)
         worksheet = sh.worksheet(sheet_name)
 
-        # 2. Get all values (including formulas)
         all_values = worksheet.get_all_values()
         if not all_values:
             return pd.DataFrame()
 
-        # 3. Clean headers – first row
+        # Clean headers: remove duplicates and empty names
         raw_headers = all_values[0]
-        # Remove empty strings, make unique by appending "_dupX" if duplicates
-        seen = {}
         clean_headers = []
+        seen = {}
         for h in raw_headers:
             if h == "":
                 h = "empty_column"
@@ -65,25 +91,29 @@ def load_sheet_data(sheet_name):
                 seen[h] = 0
             clean_headers.append(h)
 
-        # 4. Build DataFrame from remaining rows
         data_rows = all_values[1:]
         df = pd.DataFrame(data_rows, columns=clean_headers)
 
-        # 5. Convert HYPERLINK formulas in specific columns to clickable HTML
+        # Columns that contain HYPERLINK formulas
         hyperlink_columns = [
             "Trading View", "History Data", "Screener", "Zerodha", "Chartlink",
-            "Market smith india", "NSE Chart", "Official NSE URL", "NSE 1",
-            "Trading View 1", "History Data 1", "Screener 1", "Zerodha 1",
-            "Chartlink 1", "Market smith india 1", "Official NSE URL 1"
+            "Market smith india", "NSE Chart", "Official NSE URL",
+            "NSE 1", "Trading View 1", "History Data 1", "Screener 1",
+            "Zerodha 1", "Chartlink 1", "Market smith india 1", "Official NSE URL 1"
         ]
 
+        # Convert HYPERLINK columns to HTML clickable links
         for col in hyperlink_columns:
             if col in df.columns:
-                # Extract URL from formula and create HTML link
-                df[col] = df[col].apply(extract_hyperlink)
-                df[col] = df[col].apply(
-                    lambda x: f'<a href="{x}" target="_blank">🔗 Link</a>' if pd.notna(x) and str(x).startswith("http") else x
-                )
+                new_values = []
+                for val in df[col]:
+                    url, label = extract_hyperlink_info(val)
+                    if url and label:
+                        # Create clickable link with original label
+                        new_values.append(f'<a href="{url}" target="_blank">{label}</a>')
+                    else:
+                        new_values.append(val if pd.notna(val) else "")
+                df[col] = new_values
 
         return df
 
@@ -111,7 +141,7 @@ st.sidebar.info(
     "`streamlit-g-sheet-dashboard-vo@axiomatic-idiom-496012-p8.iam.gserviceaccount.com`"
 )
 
-# ---------- Main area ----------
+# ---------- Main display ----------
 st.header(f"📄 {selected_sheet}")
 
 with st.spinner("Loading data..."):
@@ -120,14 +150,12 @@ with st.spinner("Loading data..."):
 if not df.empty:
     st.write(f"**Rows:** {df.shape[0]} | **Columns:** {df.shape[1]}")
 
-    # Display with HTML rendering enabled for clickable links
-    st.markdown(
-        df.to_html(escape=False, index=False),
-        unsafe_allow_html=True
-    )
+    # Render HTML table with reduced spacing
+    st.markdown(df.to_html(escape=False, index=False), unsafe_allow_html=True)
 
-    # Optional: Download CSV (original data, without HTML tags)
-    csv = df.replace(r'<a href="([^"]+)".*', r'\1', regex=True).to_csv(index=False).encode('utf-8')
+    # Download button (strip HTML tags for CSV)
+    csv_df = df.replace(r'<a href="([^"]+)">([^<]+)</a>', r'\2 (\1)', regex=True)
+    csv = csv_df.to_csv(index=False).encode('utf-8')
     st.download_button("📥 Download as CSV", csv, f"{selected_sheet.replace(' ', '_')}.csv", "text/csv")
 
 else:
