@@ -137,7 +137,7 @@ if not df.empty:
     gb = GridOptionsBuilder.from_dataframe(df)
 
     # Enable column resizing, reordering, and filtering
-    gb.configure_column(enableRowGroup=False, enablePivot=False, enableValue=False)
+    gb.configure_columns(enableRowGroup=False, enablePivot=False, enableValue=False)
     gb.configure_default_column(
         resizable=True,
         sortable=True,
