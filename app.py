@@ -44,13 +44,10 @@ def extract_hyperlink_info(cell_value):
     Otherwise return (None, cell_value)
     """
     if isinstance(cell_value, str) and cell_value.startswith("=HYPERLINK("):
-        # Extract URL and label using regex
         pattern = r'=HYPERLINK\("([^"]+)",\s*"([^"]*)"\)'
         match = re.search(pattern, cell_value)
         if match:
-            url = match.group(1)
-            label = match.group(2)
-            return url, label
+            return match.group(1), match.group(2)
     return None, cell_value
 
 # ---------- Load Google Sheet with duplicate header handling and formulas ----------
@@ -73,12 +70,12 @@ def load_sheet_data(sheet_name):
         sh = client.open_by_key(spreadsheet_id)
         worksheet = sh.worksheet(sheet_name)
 
-        # IMPORTANT: Use value_render_option='FORMULA' to get the actual formula, not the rendered label
+        # Get formulas (not rendered values)
         all_values = worksheet.get_all_values(value_render_option='FORMULA')
         if not all_values:
             return pd.DataFrame()
 
-        # Clean headers: remove duplicates and empty names
+        # Clean headers (deduplicate)
         raw_headers = all_values[0]
         clean_headers = []
         seen = {}
@@ -95,7 +92,7 @@ def load_sheet_data(sheet_name):
         data_rows = all_values[1:]
         df = pd.DataFrame(data_rows, columns=clean_headers)
 
-        # List of columns that contain HYPERLINK formulas
+        # All columns that may contain HYPERLINK formulas or raw URLs
         hyperlink_columns = [
             "Trading View", "History Data", "Screener", "Zerodha", "Chartlink",
             "Market smith india", "NSE Chart", "Official NSE URL",
@@ -103,7 +100,7 @@ def load_sheet_data(sheet_name):
             "Zerodha 1", "Chartlink 1", "Market smith india 1", "Official NSE URL 1"
         ]
 
-        # Convert each HYPERLINK column to clickable HTML links
+        # Process each column
         for col in hyperlink_columns:
             if col in df.columns:
                 new_values = []
@@ -111,15 +108,17 @@ def load_sheet_data(sheet_name):
                     if pd.isna(val) or val == "":
                         new_values.append("")
                         continue
+
+                    # Case 1: HYPERLINK formula
                     url, label = extract_hyperlink_info(val)
                     if url and label:
                         new_values.append(f'<a href="{url}" target="_blank">{label}</a>')
+                    # Case 2: Raw URL (plain text starting with http)
+                    elif isinstance(val, str) and (val.startswith("http://") or val.startswith("https://")):
+                        new_values.append(f'<a href="{val}" target="_blank">{val}</a>')
+                    # Case 3: Plain text (keep as is)
                     else:
-                        # If it's not a formula but already a direct URL, try to use as is
-                        if isinstance(val, str) and (val.startswith("http://") or val.startswith("https://")):
-                            new_values.append(f'<a href="{val}" target="_blank">{val}</a>')
-                        else:
-                            new_values.append(val)
+                        new_values.append(val)
                 df[col] = new_values
 
         return df
