@@ -5,44 +5,16 @@ from google.oauth2.service_account import Credentials
 import json
 import re
 from datetime import datetime
+from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
+from st_aggrid.shared import GridUpdateMode
 
 # ---------- Page config ----------
 st.set_page_config(page_title="NSE Stock Dashboard", layout="wide")
 st.title("📊 NSE Stock Market Dashboard")
 st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# ---------- Custom CSS to reduce column spacing ----------
-st.markdown("""
-<style>
-    .dataframe {
-        font-size: 12px;
-        border-collapse: collapse;
-        width: 100%;
-    }
-    .dataframe th, .dataframe td {
-        padding: 4px 8px !important;
-        text-align: left;
-        white-space: nowrap;
-    }
-    .dataframe th {
-        background-color: #f0f2f6;
-    }
-    .dataframe td a {
-        text-decoration: none;
-        color: #1f77b4;
-    }
-    .dataframe td a:hover {
-        text-decoration: underline;
-    }
-</style>
-""", unsafe_allow_html=True)
-
 # ---------- Helper: extract URL and label from HYPERLINK formula ----------
 def extract_hyperlink_info(cell_value):
-    """
-    If cell contains =HYPERLINK("url","label") -> return (url, label)
-    Otherwise return (None, cell_value)
-    """
     if isinstance(cell_value, str) and cell_value.startswith("=HYPERLINK("):
         pattern = r'=HYPERLINK\("([^"]+)",\s*"([^"]*)"\)'
         match = re.search(pattern, cell_value)
@@ -70,7 +42,7 @@ def load_sheet_data(sheet_name):
         sh = client.open_by_key(spreadsheet_id)
         worksheet = sh.worksheet(sheet_name)
 
-        # IMPORTANT: Get formulas (not rendered values)
+        # Get formulas (not rendered values)
         all_values = worksheet.get_all_values(value_render_option='FORMULA')
         if not all_values:
             return pd.DataFrame()
@@ -92,8 +64,8 @@ def load_sheet_data(sheet_name):
         data_rows = all_values[1:]
         df = pd.DataFrame(data_rows, columns=clean_headers)
 
-        # All columns that may contain hyperlinks (formula or raw URL)
-        hyperlink_columns = [
+        # Columns with HYPERLINK formulas or raw URLs
+        link_columns = [
             "Trading View", "History Data", "Screener", "Zerodha", "Chartlink",
             "Market smith india", "NSE Chart", "Official NSE URL",
             "NSE 1", "Trading View 1", "History Data 1", "Screener 1",
@@ -101,7 +73,7 @@ def load_sheet_data(sheet_name):
         ]
 
         # Process each column
-        for col in hyperlink_columns:
+        for col in link_columns:
             if col in df.columns:
                 new_values = []
                 for val in df[col]:
@@ -109,14 +81,19 @@ def load_sheet_data(sheet_name):
                         new_values.append("")
                         continue
 
-                    # Case 1: HYPERLINK formula
                     url, label = extract_hyperlink_info(val)
                     if url and label:
-                        new_values.append(f'<a href="{url}" target="_blank">{label}</a>')
-                    # Case 2: Raw URL (plain text starting with http/https)
+                        # For normal columns: keep original label; for "1" columns: show 🔗 Link
+                        if col.endswith("1"):
+                            new_values.append(f'<a href="{url}" target="_blank">🔗 Link</a>')
+                        else:
+                            new_values.append(f'<a href="{url}" target="_blank">{label}</a>')
                     elif isinstance(val, str) and (val.startswith("http://") or val.startswith("https://")):
-                        # Display the full URL as clickable text
-                        new_values.append(f'<a href="{val}" target="_blank">{val}</a>')
+                        # Raw URL – for "1" columns show 🔗 Link, otherwise show full URL
+                        if col.endswith("1"):
+                            new_values.append(f'<a href="{val}" target="_blank">🔗 Link</a>')
+                        else:
+                            new_values.append(f'<a href="{val}" target="_blank">{val}</a>')
                     else:
                         new_values.append(val)
                 df[col] = new_values
@@ -147,7 +124,7 @@ st.sidebar.info(
     "`streamlit-g-sheet-dashboard-vo@axiomatic-idiom-496012-p8.iam.gserviceaccount.com`"
 )
 
-# ---------- Main display ----------
+# ---------- Main display with AG Grid ----------
 st.header(f"📄 {selected_sheet}")
 
 with st.spinner("Loading data..."):
@@ -156,8 +133,45 @@ with st.spinner("Loading data..."):
 if not df.empty:
     st.write(f"**Rows:** {df.shape[0]} | **Columns:** {df.shape[1]}")
 
-    # Render HTML table with reduced spacing
-    st.markdown(df.to_html(escape=False, index=False), unsafe_allow_html=True)
+    # Prepare grid options for AG Grid
+    gb = GridOptionsBuilder.from_dataframe(df)
+
+    # Enable column resizing, reordering, and filtering
+    gb.configure_column(enableRowGroup=False, enablePivot=False, enableValue=False)
+    gb.configure_default_column(
+        resizable=True,
+        sortable=True,
+        filter=True,
+        editable=False,
+        width=150
+    )
+    gb.configure_grid_options(
+        domLayout='autoHeight',
+        rowHeight=35,
+        headerHeight=45,
+        enableCellTextSelection=True,
+        ensureDomOrder=True
+    )
+
+    # Allow column reordering (drag & drop)
+    gb.configure_grid_options(suppressMovableColumns=False)
+
+    # Build grid options
+    grid_options = gb.build()
+
+    # Display AG Grid
+    grid_response = AgGrid(
+        df,
+        gridOptions=grid_options,
+        update_mode=GridUpdateMode.SELECTION_CHANGED,
+        allow_unsafe_jscode=True,
+        theme='streamlit',  # or 'balham', 'alpine'
+        fit_columns_on_grid_load=False,
+        enable_enterprise_modules=False,
+        height=600,
+        width='100%',
+        reload_data=False
+    )
 
     # Download button (strip HTML tags for CSV)
     csv_df = df.replace(r'<a href="([^"]+)">([^<]+)</a>', r'\2 (\1)', regex=True)
@@ -168,4 +182,4 @@ else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
 
 st.markdown("---")
-st.caption("Powered by Google Sheets & Streamlit")
+st.caption("Powered by Google Sheets & Streamlit | Columns are resizable & reorderable")
