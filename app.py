@@ -50,7 +50,7 @@ def extract_hyperlink_info(cell_value):
             return match.group(1), match.group(2)
     return None, cell_value
 
-# ---------- Load Google Sheet with duplicate header handling and formulas ----------
+# ---------- Load Google Sheet ----------
 @st.cache_data(ttl=300)
 def load_sheet_data(sheet_name):
     try:
@@ -70,7 +70,7 @@ def load_sheet_data(sheet_name):
         sh = client.open_by_key(spreadsheet_id)
         worksheet = sh.worksheet(sheet_name)
 
-        # Get formulas (not rendered values)
+        # IMPORTANT: Get formulas (not rendered values)
         all_values = worksheet.get_all_values(value_render_option='FORMULA')
         if not all_values:
             return pd.DataFrame()
@@ -92,7 +92,7 @@ def load_sheet_data(sheet_name):
         data_rows = all_values[1:]
         df = pd.DataFrame(data_rows, columns=clean_headers)
 
-        # All columns that may contain HYPERLINK formulas or raw URLs
+        # All columns that may contain hyperlinks (formula or raw URL)
         hyperlink_columns = [
             "Trading View", "History Data", "Screener", "Zerodha", "Chartlink",
             "Market smith india", "NSE Chart", "Official NSE URL",
@@ -113,10 +113,10 @@ def load_sheet_data(sheet_name):
                     url, label = extract_hyperlink_info(val)
                     if url and label:
                         new_values.append(f'<a href="{url}" target="_blank">{label}</a>')
-                    # Case 2: Raw URL (plain text starting with http)
+                    # Case 2: Raw URL (plain text starting with http/https)
                     elif isinstance(val, str) and (val.startswith("http://") or val.startswith("https://")):
+                        # Display the full URL as clickable text
                         new_values.append(f'<a href="{val}" target="_blank">{val}</a>')
-                    # Case 3: Plain text (keep as is)
                     else:
                         new_values.append(val)
                 df[col] = new_values
