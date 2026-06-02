@@ -302,7 +302,7 @@ gb.configure_grid_options(
     sideBar=True
 )
 
-    grid_options = gb.build()
+grid_options = gb.build()
 
     AgGrid(
         df,
