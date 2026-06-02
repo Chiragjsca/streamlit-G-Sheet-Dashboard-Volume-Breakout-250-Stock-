@@ -5,106 +5,190 @@ from google.oauth2.service_account import Credentials
 import json
 import re
 from datetime import datetime
-from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
+from st_aggrid import AgGrid, GridOptionsBuilder
 from st_aggrid.shared import GridUpdateMode
 
-# ---------- Page config ----------
-st.set_page_config(page_title="NSE Stock Dashboard", layout="wide")
+# =====================================================
+# PAGE CONFIG
+# =====================================================
+
+st.set_page_config(
+    page_title="NSE Stock Dashboard",
+    layout="wide"
+)
+
 st.title("📊 NSE Stock Market Dashboard")
 st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# ---------- Helper: extract URL and label from HYPERLINK formula ----------
+# =====================================================
+# HELPER FUNCTION
+# =====================================================
+
 def extract_hyperlink_info(cell_value):
     if isinstance(cell_value, str) and cell_value.startswith("=HYPERLINK("):
         pattern = r'=HYPERLINK\("([^"]+)",\s*"([^"]*)"\)'
         match = re.search(pattern, cell_value)
+
         if match:
             return match.group(1), match.group(2)
+
     return None, cell_value
 
-# ---------- Load Google Sheet ----------
+# =====================================================
+# LOAD SHEET
+# =====================================================
+
 @st.cache_data(ttl=300)
 def load_sheet_data(sheet_name):
+
     try:
+
         if "gcp_service_account" not in st.secrets:
-            st.error("Missing 'gcp_service_account' in secrets.")
+            st.error("Missing gcp_service_account in secrets.")
             return pd.DataFrame()
 
         service_account_info = st.secrets["gcp_service_account"]
+
         if isinstance(service_account_info, str):
             service_account_info = json.loads(service_account_info)
 
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = Credentials.from_service_account_info(service_account_info, scopes=scope)
+        scope = [
+            "https://spreadsheets.google.com/feeds",
+            "https://www.googleapis.com/auth/drive"
+        ]
+
+        creds = Credentials.from_service_account_info(
+            service_account_info,
+            scopes=scope
+        )
+
         client = gspread.authorize(creds)
 
         spreadsheet_id = "1SFhuZbLLlwwFsNo1k2RRx_Zp6bAkRR20W0F_zTwgdwU"
+
         sh = client.open_by_key(spreadsheet_id)
+
         worksheet = sh.worksheet(sheet_name)
 
-        # Get formulas (not rendered values)
-        all_values = worksheet.get_all_values(value_render_option='FORMULA')
+        all_values = worksheet.get_all_values(
+            value_render_option='FORMULA'
+        )
+
         if not all_values:
             return pd.DataFrame()
 
-        # Clean headers (deduplicate)
+        # -----------------------------------------
+        # HEADERS CLEANING
+        # -----------------------------------------
+
         raw_headers = all_values[0]
+
         clean_headers = []
+
         seen = {}
+
         for h in raw_headers:
+
             if h == "":
                 h = "empty_column"
+
             if h in seen:
                 seen[h] += 1
                 h = f"{h}_{seen[h]}"
             else:
                 seen[h] = 0
+
             clean_headers.append(h)
 
         data_rows = all_values[1:]
-        df = pd.DataFrame(data_rows, columns=clean_headers)
 
-        # Columns with HYPERLINK formulas or raw URLs
+        df = pd.DataFrame(
+            data_rows,
+            columns=clean_headers
+        )
+
+        # -----------------------------------------
+        # HYPERLINK COLUMNS
+        # -----------------------------------------
+
         link_columns = [
-            "Trading View", "History Data", "Screener", "Zerodha", "Chartlink",
-            "Market smith india", "NSE Chart", "Official NSE URL",
-            "NSE 1", "Trading View 1", "History Data 1", "Screener 1",
-            "Zerodha 1", "Chartlink 1", "Market smith india 1", "Official NSE URL 1"
+            "Trading View",
+            "History Data",
+            "Screener",
+            "Zerodha",
+            "Chartlink",
+            "Market smith india",
+            "NSE Chart",
+            "Official NSE URL",
+            "NSE 1",
+            "Trading View 1",
+            "History Data 1",
+            "Screener 1",
+            "Zerodha 1",
+            "Chartlink 1",
+            "Market smith india 1",
+            "Official NSE URL 1"
         ]
 
-        # Process each column
         for col in link_columns:
-            if col in df.columns:
-                new_values = []
-                for val in df[col]:
-                    if pd.isna(val) or val == "":
-                        new_values.append("")
-                        continue
 
-                    url, label = extract_hyperlink_info(val)
-                    if url and label:
-                        # For normal columns: keep original label; for "1" columns: show 🔗 Link
-                        if col.endswith("1"):
-                            new_values.append(f'<a href="{url}" target="_blank">🔗 Link</a>')
-                        else:
-                            new_values.append(f'<a href="{url}" target="_blank">{label}</a>')
-                    elif isinstance(val, str) and (val.startswith("http://") or val.startswith("https://")):
-                        # Raw URL – for "1" columns show 🔗 Link, otherwise show full URL
-                        if col.endswith("1"):
-                            new_values.append(f'<a href="{val}" target="_blank">🔗 Link</a>')
-                        else:
-                            new_values.append(f'<a href="{val}" target="_blank">{val}</a>')
+            if col not in df.columns:
+                continue
+
+            new_values = []
+
+            for val in df[col]:
+
+                if pd.isna(val) or val == "":
+                    new_values.append("")
+                    continue
+
+                url, label = extract_hyperlink_info(val)
+
+                if url and label:
+
+                    if col.endswith("1"):
+                        new_values.append(
+                            f'<a href="{url}" target="_blank">🔗 Link</a>'
+                        )
                     else:
-                        new_values.append(val)
-                df[col] = new_values
+                        new_values.append(
+                            f'<a href="{url}" target="_blank">{label}</a>'
+                        )
+
+                elif isinstance(val, str) and (
+                    val.startswith("http://")
+                    or val.startswith("https://")
+                ):
+
+                    if col.endswith("1"):
+                        new_values.append(
+                            f'<a href="{val}" target="_blank">🔗 Link</a>'
+                        )
+                    else:
+                        new_values.append(
+                            f'<a href="{val}" target="_blank">{val}</a>'
+                        )
+
+                else:
+                    new_values.append(val)
+
+            df[col] = new_values
 
         return df
 
     except Exception as e:
-        st.error(f"Error loading sheet '{sheet_name}': {str(e)}")
+
+        st.error(
+            f"Error loading sheet '{sheet_name}': {str(e)}"
+        )
+
         return pd.DataFrame()
 
-# ---------- Sidebar ----------
+# =====================================================
+# SIDEBAR
+# =====================================================
+
 sheet_names = [
     "Top 250 Stocks",
     "Final List",
@@ -115,82 +199,114 @@ sheet_names = [
 ]
 
 st.sidebar.header("📑 Select a Tab")
-selected_sheet = st.sidebar.selectbox("Choose sheet", sheet_names)
 
-st.sidebar.markdown("---")
-st.sidebar.info(
-    "🔐 **Permissions required**\n\n"
-    "Share your Google Sheet with this email:\n"
-    "`streamlit-g-sheet-dashboard-vo@axiomatic-idiom-496012-p8.iam.gserviceaccount.com`"
+selected_sheet = st.sidebar.selectbox(
+    "Choose sheet",
+    sheet_names
 )
 
-# ---------- Main display with AG Grid ----------
+st.sidebar.markdown("---")
+
+st.sidebar.info(
+    "🔐 Permissions required\n\n"
+    "Share your Google Sheet with:\n\n"
+    "streamlit-g-sheet-dashboard-vo@axiomatic-idiom-496012-p8.iam.gserviceaccount.com"
+)
+
+# =====================================================
+# MAIN DISPLAY
+# =====================================================
+
 st.header(f"📄 {selected_sheet}")
 
 with st.spinner("Loading data..."):
     df = load_sheet_data(selected_sheet)
 
 if not df.empty:
-    st.write(f"**Rows:** {df.shape[0]} | **Columns:** {df.shape[1]}")
 
-    # ---------- FORCE COMPRESSED COLUMNS (50px each) ----------
+    st.write(
+        f"**Rows:** {df.shape[0]} | **Columns:** {df.shape[1]}"
+    )
+
+    # =================================================
+    # AG GRID
+    # =================================================
+
     gb = GridOptionsBuilder.from_dataframe(df)
 
-    # Build column definitions with fixed narrow width for EVERY column
-    column_defs = []
+    # FIXED COLUMN WIDTH
     for col in df.columns:
-        column_defs.append({
-            "headerName": col,
-            "field": col,
-            "width": 50,           # <-- Change this number to adjust width
-            "minWidth": 40,
-            "maxWidth": 60,
-            "sortable": True,
-            "filter": True,
-            "resizable": True
-        })
 
-    # Apply column definitions directly (overrides any previous settings)
-    gb.configure_grid_options(columnDefs=column_defs)
+        gb.configure_column(
+            col,
+            width=50,
+            minWidth=40,
+            maxWidth=60,
+            sortable=True,
+            filter=True,
+            resizable=True
+        )
 
-    # Grid configuration
     gb.configure_grid_options(
-        domLayout='autoHeight',
+        domLayout="normal",
         rowHeight=35,
         headerHeight=45,
         enableCellTextSelection=True,
         ensureDomOrder=True,
         suppressMovableColumns=False,
-        suppressAutoSize=True,            # prevents auto-expanding
         suppressColumnVirtualisation=False,
-        suppressHorizontalScroll=False,
         alwaysShowHorizontalScroll=True
     )
 
     grid_options = gb.build()
 
-    # Display AG Grid
-    grid_response = AgGrid(
+    AgGrid(
         df,
         gridOptions=grid_options,
+        theme="streamlit",
         update_mode=GridUpdateMode.SELECTION_CHANGED,
         allow_unsafe_jscode=True,
-        theme='streamlit',
-        fit_columns_on_grid_load=False,   # CRITICAL: do NOT fit
+        fit_columns_on_grid_load=False,
         enable_enterprise_modules=False,
-        height=600,
-        width='100%',
+        height=650,
         reload_data=False,
-        key='compressed_columns'
+        key="stock_grid"
     )
 
-    # Download button
-    csv_df = df.replace(r'<a href="([^"]+)">([^<]+)</a>', r'\2 (\1)', regex=True)
-    csv = csv_df.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 Download as CSV", csv, f"{selected_sheet.replace(' ', '_')}.csv", "text/csv")
+    # =================================================
+    # DOWNLOAD CSV
+    # =================================================
+
+    csv_df = df.replace(
+        r'<a href="([^"]+)">([^<]+)</a>',
+        r'\2 (\1)',
+        regex=True
+    )
+
+    csv = csv_df.to_csv(
+        index=False
+    ).encode("utf-8")
+
+    st.download_button(
+        "📥 Download CSV",
+        csv,
+        f"{selected_sheet.replace(' ','_')}.csv",
+        "text/csv"
+    )
 
 else:
-    st.warning("No data loaded. Check sheet sharing and secrets.")
+
+    st.warning(
+        "No data loaded. Check Sheet permissions and Secrets."
+    )
+
+# =====================================================
+# FOOTER
+# =====================================================
 
 st.markdown("---")
-st.caption("Powered by Google Sheets & Streamlit | All columns forced to 50px width | Columns are resizable & reorderable | Horizontal scroll enabled")
+
+st.caption(
+    "Powered by Google Sheets & Streamlit | "
+    "50px columns | Resizable | Horizontal Scroll Enabled"
+)
