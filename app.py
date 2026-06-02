@@ -439,17 +439,17 @@ if not raw_df.empty:
         
         if sym:
             with url_placeholder.container():
-                # Display in a clean, vertical list exactly as requested
+                # Display in a clean, HORIZONTAL list with requested labels
                 with st.expander(f"⚡ **{sym} Quick Links:**", expanded=True):
-                    st.markdown(f"""
-* [Trading View (🔗)](https://www.tradingview.com/symbols/{sym})
-* [History Data (🔗)](https://www.equitypandit.com/historical-data/{sym})
-* [Screener (🔗)](https://www.screener.in/company/{sym})
-* [Zerodha (🔗)](https://zerodha.com/markets/stocks/NSE/{sym})
-* [Chartlink (🔗)](https://chartink.com/stocks-new?load-snapshot=exponential-moving-average-simple-moving-average-simple-moving-average-moving-average-convergence-divergence-chart-snapshot-175&symbol={sym})
-* [Market smith india (🔗)](https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp)
-* [Official NSE URL (🔗)](https://www.nseindia.com/get-quotes/equity?symbol={sym})
-                    """)
+                    st.markdown(
+                        f"[Trading View (🔗)](https://www.tradingview.com/symbols/{sym}) &nbsp; | &nbsp; "
+                        f"[History Data (🔗)](https://www.equitypandit.com/historical-data/{sym}) &nbsp; | &nbsp; "
+                        f"[Screener (🔗)](https://www.screener.in/company/{sym}) &nbsp; | &nbsp; "
+                        f"[Zerodha (🔗)](https://zerodha.com/markets/stocks/NSE/{sym}) &nbsp; | &nbsp; "
+                        f"[Chartlink (🔗)](https://chartink.com/stocks-new?load-snapshot=exponential-moving-average-simple-moving-average-simple-moving-average-moving-average-convergence-divergence-chart-snapshot-175&symbol={sym}) &nbsp; | &nbsp; "
+                        f"[Market smith india (🔗)](https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp) &nbsp; | &nbsp; "
+                        f"[Official NSE URL (🔗)](https://www.nseindia.com/get-quotes/equity?symbol={sym})"
+                    )
 
 else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
