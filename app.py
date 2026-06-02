@@ -442,16 +442,13 @@ if not raw_df.empty:
     st.markdown("---")
     st.subheader("📊 National Live Market Analytics Portal Framework")
 
-    # CLEAN MULTI-LINE TAB CSS INJECTION (Fixes the horizontal scroll / spacing issue)
     st.markdown("""
     <style>
-        /* Force the tab list to wrap and reduce gaps */
         div[data-baseweb="tab-list"] {
             flex-wrap: wrap !important;
             row-gap: 5px !important;
             column-gap: 10px !important;
         }
-        /* Reduce the height and padding of the tab buttons */
         div[data-baseweb="tab-list"] button {
             margin-top: 0px !important;
             margin-bottom: 0px !important;
@@ -459,11 +456,9 @@ if not raw_df.empty:
             padding-bottom: 8px !important;
             height: auto !important;
         }
-        /* Hide the bottom active indicator line as it breaks on multi-line */
         div[data-baseweb="tab-highlight"] {
             display: none !important;
         }
-        /* Add a subtle background color to show which tab is active instead */
         div[data-baseweb="tab"][aria-selected="true"] {
             background-color: rgba(31, 119, 180, 0.1) !important;
             border-radius: 5px !important;
@@ -544,57 +539,148 @@ if not raw_df.empty:
         components.html('<iframe src="https://ipowatch.in/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
 
     # ==========================================
-    # 🏆 MULTI-HORIZON PERFORMANCE LEADERBOARDS
+    # 🏆 MULTI-HORIZON PERFORMANCE SUMMARY MATRIX
     # ==========================================
     st.markdown("---")
-    st.markdown("### 🏆 Top 10 & Bottom 10 Performers Matrix")
+    st.markdown("### 📈 Multi-Horizon Performance Summary Matrix")
     
-    time_horizons = [
+    horizons = [
         "1 Day", "2 Day", "3 Day", "5 Day", "7 Day", "10 Day", "12 Day", "15 Days", "20 Days", "25 Days", "30 Days",
         "2 Months", "3 Months", "4 Months", "5 Months", "6 Months", "7 Months", "8 Months", "9 Months", "10 Months", "11 Months",
-        "1 Year", "18 Months", "1.5 Years", "2 Years", "2.5 Years", "3 Years"
+        "1 Year", "18 Months", "1.5 Years", "2 Years", "2.5 Years", "3 Years", "Volume"  # Volume Added Here
     ]
     
-    selected_horizon = st.selectbox("⏳ Choose Performance Tracking Horizon Lookback:", time_horizons, index=0)
+    col_tools1, col_tools2, col_tools3 = st.columns([2, 2, 3])
+    with col_tools1:
+        sort_basis = st.selectbox("🎯 Base Horizon for Performance Ranking:", horizons, index=0)
+    with col_tools2:
+        sort_direction = st.radio("排序 Sorting Order Type:", ["Best -> Worst", "Worst -> Best"], index=0, horizontal=True)
+    with col_tools3:
+        summary_search = st.text_input("🔍 Filter stocks inside this matrix...", placeholder="Type symbol name...", key="perf_matrix_search")
+
+    detected_metric_map = {}
+    cmp_col = next((c for c in actual_cols if c.lower() in ["cmp", "close price"]), None)
+    vol_col = next((c for c in actual_cols if "volume" in c.lower()), None)
     
-    horizon_keywords = [selected_horizon.lower(), selected_horizon.lower().replace(" ", ""), selected_horizon.lower().replace("s", "")]
-    if selected_horizon == "1 Day": horizon_keywords.append("price %") # Fallback to standard price % column for daily interval
+    for h in horizons:
+        if h == "Volume":
+            if vol_col: detected_metric_map[h] = vol_col
+            continue
+        keywords = [h.lower(), h.lower().replace(" ", ""), h.lower().replace("s", "")]
+        if h == "1 Day": keywords.append("price %")
         
-    metric_col = None
-    for c in actual_cols:
-        if any(keyword in c.lower() for keyword in horizon_keywords) and "%" in c.lower():
-            metric_col = c
-            break
+        for c in actual_cols:
+            if any(k in c.lower() for k in keywords) and "%" in c.lower():
+                detected_metric_map[h] = c
+                break
 
-    if metric_col:
-        st.caption(f"Sorting lookback tracking matrix by data parameters inside: **{metric_col}**")
+    if detected_metric_map:
+        reporting_data = []
+        for idx, row in filtered_df.iterrows():
+            ticker = str(row.get(selected_symbol_col, 'Unknown')).strip()
+            if "<a " in ticker:
+                ticker = ticker.split('">')[-1].split('</a>')[0]
+                
+            price_val = row.get(cmp_col, "") if cmp_col else ""
+            
+            # LINK LOGIC FOR SHARING ATTACHED LOOK: Renders stock name as hyperlinked entity redirecting to chart
+            hyperlinked_name = f'<a href="https://charting.nseindia.com/?symbol={ticker}-EQ" target="_blank" style="text-decoration:none; color:#1f77b4; font-weight:bold;">{ticker}</a>'
+            
+            entry = {
+                "STOCK NAME": hyperlinked_name,
+                "CURRENT PRICE": price_val
+            }
+            
+            for h, actual_col in detected_metric_map.items():
+                raw_val = str(row.get(actual_col, "0")).replace("%", "").replace(",", "").strip()
+                try:
+                    entry[h] = float(raw_val) if raw_val not in ["", "nan", "None"] else 0.0
+                except ValueError:
+                    entry[h] = 0.0
+                    
+            reporting_data.append(entry)
+            
+        perf_df = pd.DataFrame(reporting_data)
+        
+        if summary_search:
+            # Clean HTML out of string search target matching parameters
+            perf_df = perf_df[perf_df["STOCK NAME"].str.replace(r'<[^>]*>', '', regex=True).str.contains(summary_search, case=False, na=False)]
+            
+        target_sort_col = sort_basis if sort_basis in perf_df.columns else perf_df.columns[2]
+        ascending_flag = (sort_direction == "Worst -> Best")
+        perf_df = perf_df.sort_values(by=target_sort_col, ascending=ascending_flag).reset_index(drop=True)
+        perf_df.insert(0, "RANK", perf_df.index + 1)
+        
+        perf_gb = GridOptionsBuilder.from_dataframe(perf_df)
+        perf_gb.configure_column("RANK", width=80, pinned="left", type=["numericColumn"])
+        perf_gb.configure_column("STOCK NAME", width=140, pinned="left", cellRenderer=html_renderer)
+        perf_gb.configure_column("CURRENT PRICE", width=130, type=["numericColumn"])
+        
+        color_code_js = JsCode("""
+        function(params) {
+            if (params.value === undefined || params.value === null || params.colDef.field === "Volume") return null;
+            let val = parseFloat(params.value);
+            if (val > 0) return { 'color': '#0f9d58', 'fontWeight': 'bold' };
+            if (val < 0) return { 'color': '#ea4335', 'fontWeight': 'bold' };
+            return null;
+        }
+        """)
+        
+        percent_formatter_js = JsCode("""
+        class PercentFormatter {
+            init(params) {
+                this.eGui = document.createElement('span');
+                if (params.value !== undefined && params.value !== null) {
+                    if (params.colDef.field === "Volume") {
+                        this.eGui.innerHTML = parseFloat(params.value).toLocaleString('en-IN');
+                    } else {
+                        let num = parseFloat(params.value);
+                        this.eGui.innerHTML = (num >= 0 ? '+' : '') + num.toFixed(2) + '%';
+                    }
+                } else {
+                    this.eGui.innerHTML = '-';
+                }
+            }
+            getGui() { return this.eGui; }
+        }
+        """)
+        
+        for h in detected_metric_map.keys():
+            if h in perf_df.columns:
+                perf_gb.configure_column(h, width=130, type=["numericColumn"], cellStyle=color_code_js, cellRenderer=percent_formatter_js)
+                
+        perf_gb.configure_grid_options(domLayout="normal", rowHeight=38, headerHeight=45, enableCellTextSelection=True)
+        perf_grid_ops = perf_gb.build()
+        
+        AgGrid(perf_df, gridOptions=perf_grid_ops, theme="streamlit", allow_unsafe_jscode=True, fit_columns_on_grid_load=False, height=450, width='100%', key="horizon_perf_grid")
+    
+    # ==========================================
+    # 🏆 DAILY DIRECT BADGES LEADERBOARD
+    # ==========================================
+    price_col = next((c for c in actual_cols if "price %" in c.lower()), None)
+    if price_col:
+        st.markdown("---")
+        st.markdown("### 🏆 Top 10 & Bottom 10 Performers (Daily badges)")
         temp_df = filtered_df.copy()
-        temp_df[metric_col] = pd.to_numeric(temp_df[metric_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
-        temp_df = temp_df.dropna(subset=[metric_col])
+        temp_df[price_col] = pd.to_numeric(temp_df[price_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
+        temp_df = temp_df.dropna(subset=[price_col])
+        top_10 = temp_df.nlargest(10, price_col)
+        bottom_10 = temp_df.nsmallest(10, price_col)
         
-        top_10 = temp_df.nlargest(10, metric_col)
-        bottom_10 = temp_df.nsmallest(10, metric_col)
-        
-        col_leaders, col_laggards = st.columns(2)
-        with col_leaders:
-            st.markdown(f"#### ⬆️ Top 10 Leaders ({selected_horizon})")
+        colA, colB = st.columns(2)
+        with colA:
+            st.markdown("#### ⬆️ Top 10 (Daily)")
             for _, row in top_10.iterrows():
-                ticker_symbol = row.get(selected_symbol_col, 'Unknown')
-                if "<a " in str(ticker_symbol): # Clean out HTML fragments if any are present
-                    ticker_symbol = str(ticker_symbol).split('">')[-1].split('</a>')[0]
-                value = row[metric_col]
-                st.markdown(f"<div style='background-color:#0f9d58; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{ticker_symbol}: +{value}%</div>", unsafe_allow_html=True)
-        
-        with col_laggards:
-            st.markdown(f"#### ⬇️ Bottom 10 Laggards ({selected_horizon})")
+                s = row.get(selected_symbol_col, 'Unknown')
+                if "<a " in str(s): s = str(s).split('">')[-1].split('</a>')[0]
+                v = row[price_col]
+                st.markdown(f"<div style='background-color:#0f9d58; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{s}: +{v}%</div>", unsafe_allow_html=True)
+        with colB:
+            st.markdown("#### ⬇️ Bottom 10 (Daily)")
             for _, row in bottom_10.iterrows():
-                ticker_symbol = row.get(selected_symbol_col, 'Unknown')
-                if "<a " in str(ticker_symbol):
-                    ticker_symbol = str(ticker_symbol).split('">')[-1].split('</a>')[0]
-                value = row[metric_col]
-                st.markdown(f"<div style='background-color:#ea4335; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{ticker_symbol}: {value}%</div>", unsafe_allow_html=True)
-    else:
-        st.warning(f"Could not find a corresponding data field header matching timeframe parameters for '{selected_horizon}' inside this Google Sheet tab layout.")
-
+                s = row.get(selected_symbol_col, 'Unknown')
+                if "<a " in str(s): s = str(s).split('">')[-1].split('</a>')[0]
+                v = row[price_col]
+                st.markdown(f"<div style='background-color:#ea4335; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{s}: {v}%</div>", unsafe_allow_html=True)
 else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
