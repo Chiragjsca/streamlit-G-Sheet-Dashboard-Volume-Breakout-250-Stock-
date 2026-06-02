@@ -141,7 +141,6 @@ def process_hyperlinks(df, symbol_col):
 
 # ---------- Helper: Numeric and Date Filters ----------
 def apply_numeric_slider(df, col_name, st_container):
-    """Parses formatted strings to numbers and applies a slider filter."""
     if col_name in df.columns:
         num_series = df[col_name].astype(str).str.replace(r'[%,]', '', regex=True)
         num_series = pd.to_numeric(num_series, errors='coerce')
@@ -157,19 +156,18 @@ def apply_numeric_slider(df, col_name, st_container):
                     min_value=min_val, 
                     max_value=max_val, 
                     value=(min_val, max_val),
-                    key=f"filter_num_{col_name}" # ADDED KEY
+                    key=f"filter_num_{col_name}"
                 )
                 return df[(num_series >= selected_range[0]) & (num_series <= selected_range[1])]
     return df
 
 def apply_date_filter(df, col_name, st_container):
-    """Parses dates and filters based on selected timeframe."""
     if col_name in df.columns:
         options = ["All Time", "Past 5 Days", "Past 10 Days", "Past 15 Days", "Past 20 Days", 
                    "Past 25 Days", "Past 30 Days", "Past 1 Month", "Past 2 Months", 
                    "Past 6 Months", "Past 1 Year"]
         
-        selection = st_container.selectbox(f"{col_name}:", options, key=f"filter_date_{col_name}") # ADDED KEY
+        selection = st_container.selectbox(f"{col_name}:", options, key=f"filter_date_{col_name}")
         
         if selection != "All Time":
             date_series = pd.to_datetime(df[col_name], errors='coerce', dayfirst=True)
@@ -193,12 +191,11 @@ def apply_date_filter(df, col_name, st_container):
 # 📑 SIDEBAR CONTROLS 
 # ==========================================
 
-# 1. CLEAR FILTERS BUTTON LOGIC
 if st.sidebar.button("🧹 Clear All Filters", use_container_width=True):
     for key in list(st.session_state.keys()):
         if key.startswith("filter_") or key == "search_query":
             del st.session_state[key]
-    st.rerun() # Forces the app to refresh immediately
+    st.rerun()
 
 st.sidebar.markdown("---")
 st.sidebar.header("🔍 Global Search")
@@ -217,7 +214,6 @@ with st.spinner("Downloading data and exact colors from Google API..."):
 
 if not raw_df.empty:
     
-    # Auto-detect Symbol column
     guess_idx = 0
     actual_cols = [c for c in raw_df.columns if not c.startswith("_bg_") and not c.startswith("_txt_")]
     
@@ -255,21 +251,58 @@ if not raw_df.empty:
             filtered_df = filtered_df[filtered_df[col_to_filter].isin(selected_options)]
 
     # ==========================================
-    # 📊 3. APPLY NUMERIC RANGE SLIDERS
+    # 📈 3. SPECIAL DMA TREND FILTER
+    # ==========================================
+    st.sidebar.markdown("---")
+    st.sidebar.header("📈 Special DMA Trend Filter")
+    dma_options = [
+        "All (No Filter)",
+        "50 DMA < 100 DMA < 200 DMA",
+        "50 DMA > 100 DMA > 200 DMA",
+        "50 DMA > 200 DMA",
+        "50 DMA < 200 DMA"
+    ]
+    dma_choice = st.sidebar.selectbox("Select DMA Condition:", dma_options, key="filter_dma_trend")
+
+    if dma_choice != "All (No Filter)":
+        dma50_col = next((c for c in actual_cols if "50 dma" in c.lower()), None)
+        dma100_col = next((c for c in actual_cols if "100 dma" in c.lower()), None)
+        dma200_col = next((c for c in actual_cols if "200 dma" in c.lower()), None)
+        
+        if dma50_col and dma200_col:
+            s50 = pd.to_numeric(filtered_df[dma50_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
+            s200 = pd.to_numeric(filtered_df[dma200_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
+            
+            if dma_choice == "50 DMA > 200 DMA":
+                filtered_df = filtered_df[s50 > s200]
+            elif dma_choice == "50 DMA < 200 DMA":
+                filtered_df = filtered_df[s50 < s200]
+            elif dma100_col:
+                s100 = pd.to_numeric(filtered_df[dma100_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
+                if dma_choice == "50 DMA < 100 DMA < 200 DMA":
+                    filtered_df = filtered_df[(s50 < s100) & (s100 < s200)]
+                elif dma_choice == "50 DMA > 100 DMA > 200 DMA":
+                    filtered_df = filtered_df[(s50 > s100) & (s100 > s200)]
+
+    # ==========================================
+    # 📊 4. APPLY ALL NUMERIC RANGE SLIDERS
     # ==========================================
     st.sidebar.markdown("---")
     st.sidebar.header("📊 Numeric Range Filters")
     
-    cmp_col = next((c for c in actual_cols if "cmp" in c.lower()), None)
-    price_pct_col = next((c for c in actual_cols if "price %" in c.lower()), None)
-    diff_dma_col = next((c for c in actual_cols if "diff" in c.lower() and "200" in c.lower()), None)
-
-    if cmp_col: filtered_df = apply_numeric_slider(filtered_df, cmp_col, st.sidebar)
-    if price_pct_col: filtered_df = apply_numeric_slider(filtered_df, price_pct_col, st.sidebar)
-    if diff_dma_col: filtered_df = apply_numeric_slider(filtered_df, diff_dma_col, st.sidebar)
+    numeric_targets = [
+        "Volume", "CMP", "Price %", "Difference from 200 DMA", 
+        "Promoters %", "Institutional %", "Face Value", 
+        "Net Profit", "EPS", "RONW %", "Market Cap", "Enterprise Value"
+    ]
+    
+    for target in numeric_targets:
+        col_match = next((c for c in actual_cols if target.lower() in c.lower()), None)
+        if col_match:
+            filtered_df = apply_numeric_slider(filtered_df, col_match, st.sidebar)
 
     # ==========================================
-    # 📅 4. APPLY DATE FILTERS
+    # 📅 5. APPLY DATE FILTERS
     # ==========================================
     st.sidebar.markdown("---")
     st.sidebar.header("📅 Date Filters")
@@ -280,7 +313,15 @@ if not raw_df.empty:
     if high_date_col: filtered_df = apply_date_filter(filtered_df, high_date_col, st.sidebar)
     if low_date_col: filtered_df = apply_date_filter(filtered_df, low_date_col, st.sidebar)
 
-    st.write(f"**Rows:** {filtered_df.shape[0]} | **Columns:** {len(actual_cols)}")
+    # ==========================================
+    # 📌 TOP UI: ROWS COUNT & DYNAMIC QUICK LINKS
+    # ==========================================
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        st.write(f"**Rows:** {filtered_df.shape[0]} | **Columns:** {len(actual_cols)}")
+    
+    # Placeholder for the top right dynamic links
+    url_placeholder = col2.empty()
 
     # ==========================================
     # 🎨 EXACT COLOR REFLECTION & HTML LOGIC
@@ -317,8 +358,11 @@ if not raw_df.empty:
     """)
 
     gb = GridOptionsBuilder.from_dataframe(filtered_df)
-    priority_columns_lower = ["nse code", "id", "company name", "stock name", "symbol", "industry", "sector"]
+    
+    # Enable Row Selection (clicking a row will display the URLs in the top right)
+    gb.configure_selection(selection_mode="single", use_checkbox=True)
 
+    priority_columns_lower = ["nse code", "id", "company name", "stock name", "symbol", "industry", "sector"]
     is_first_visible_column = True
 
     for col in filtered_df.columns:
@@ -360,7 +404,7 @@ if not raw_df.empty:
 
     grid_options = gb.build()
 
-    AgGrid(
+    grid_response = AgGrid(
         filtered_df,
         gridOptions=grid_options,
         theme="streamlit",
@@ -373,6 +417,26 @@ if not raw_df.empty:
         reload_data=False,
         key="stock_grid"
     )
+
+    # ==========================================
+    # 🎯 POPULATE TOP-RIGHT URLS ON ROW SELECTION
+    # ==========================================
+    selected_rows = grid_response.get("selected_rows", [])
+    if selected_rows is not None and len(selected_rows) > 0:
+        # Compatibility handling for different st_aggrid versions
+        sel_row = selected_rows.iloc[0] if isinstance(selected_rows, pd.DataFrame) else selected_rows[0]
+        
+        sym = str(sel_row.get(selected_symbol_col, "")).strip()
+        if sym:
+            with url_placeholder.container():
+                st.info(f"⚡ **{sym} Quick Links:** &nbsp;&nbsp;"
+                        f"[Trading View](https://www.tradingview.com/symbols/{sym}) &nbsp; | &nbsp; "
+                        f"[History](https://www.equitypandit.com/historical-data/{sym}) &nbsp; | &nbsp; "
+                        f"[Screener](https://www.screener.in/company/{sym}) &nbsp; | &nbsp; "
+                        f"[Zerodha](https://zerodha.com/markets/stocks/NSE/{sym}) &nbsp; | &nbsp; "
+                        f"[Chartlink](https://chartink.com/stocks-new?load-snapshot=exponential-moving-average-simple-moving-average-simple-moving-average-moving-average-convergence-divergence-chart-snapshot-175&symbol={sym}) &nbsp; | &nbsp; "
+                        f"[Market Smith](https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp) &nbsp; | &nbsp; "
+                        f"[NSE URL](https://www.nseindia.com/get-quotes/equity?symbol={sym})")
 
 else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
