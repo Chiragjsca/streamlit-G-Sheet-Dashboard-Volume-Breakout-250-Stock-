@@ -3,7 +3,6 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 import json
-import re
 from datetime import datetime
 from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 from st_aggrid.shared import GridUpdateMode
@@ -13,19 +12,15 @@ st.set_page_config(page_title="NSE Stock Dashboard", layout="wide")
 st.title("📊 NSE Stock Market Dashboard")
 st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# ---------- Convert Excel serial number to date (for 52W High Date and 52W Low Date only) ----------
+# ---------- Convert Excel serial number to date ----------
 def excel_serial_to_date(val):
-    """Convert Excel serial date (days since 1899-12-30) to YYYY-MM-DD string."""
     if pd.isna(val) or val == "" or val == "#N/A":
         return ""
     try:
-        # Convert to float (handles int, float, and numeric strings)
         num = float(val)
-        # pandas conversion: origin='1899-12-30' (Windows Excel epoch)
         date = pd.to_datetime(num, unit='D', origin='1899-12-30')
         return date.strftime('%Y-%m-%d')
     except (ValueError, TypeError, OverflowError):
-        # If conversion fails, return original value (might already be a date string)
         return str(val)
 
 # ---------- Load Google Sheet ----------
@@ -52,11 +47,12 @@ def load_sheet_data(sheet_name):
         if not all_values:
             return pd.DataFrame()
 
-        # Clean headers (deduplicate)
+        # ---------- Clean headers (strip spaces and deduplicate) ----------
         raw_headers = all_values[0]
         clean_headers = []
         seen = {}
         for h in raw_headers:
+            h = str(h).strip() # Removes hidden trailing spaces from Google Sheets
             if h == "":
                 h = "empty_column"
             if h in seen:
@@ -69,42 +65,51 @@ def load_sheet_data(sheet_name):
         data_rows = all_values[1:]
         df = pd.DataFrame(data_rows, columns=clean_headers)
 
-        # ---------- Generate Clickable HTML Links from Symbol ----------
-        if "Symbol" in df.columns:
+        # ---------- Find the Symbol column robustly ----------
+        symbol_col = None
+        for c in df.columns:
+            # Check for common naming variations regardless of case
+            if c.lower() in ["symbol", "ticker", "stock symbol"]:
+                symbol_col = c
+                break
+
+        # ---------- Generate Clickable HTML Links ----------
+        if symbol_col:
+            # Create a dictionary to match columns regardless of capitalization
+            col_map = {c.lower(): c for c in df.columns}
+            
             for idx, row in df.iterrows():
-                sym = str(row["Symbol"]).strip()
+                sym = str(row[symbol_col]).strip()
                 if not sym or sym == "nan":
                     continue
 
-                # Define the URL formulas based on the exact structure you provided
                 link_configs = {
-                    "Trading View": (f"https://www.tradingview.com/symbols/{sym}", f"Tre {sym}"),
-                    "History Data": (f"https://www.equitypandit.com/historical-data/{sym}", f"History {sym}"),
-                    "Screener": (f"https://www.screener.in/company/{sym}", f"Scr {sym}"),
-                    "Zerodha": (f"https://zerodha.com/markets/stocks/NSE/{sym}", f"🪁 {sym}"),
-                    "Chartlink": (f"https://chartink.com/stocks-new?load-snapshot=exponential-moving-average-simple-moving-average-simple-moving-average-moving-average-convergence-divergence-chart-snapshot-175&symbol={sym}", f"CL {sym}"),
-                    "Market smith india": (f"https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp", f"ms {sym}"),
-                    "NSE Chart": (f"https://charting.nseindia.com/?symbol={sym}-EQ", f"nse {sym}"),
-                    "Official NSE URL": (f"https://www.nseindia.com/get-quotes/equity?symbol={sym}", f"nse📰 {sym}")
+                    "trading view": (f"https://www.tradingview.com/symbols/{sym}", f"Tre {sym}"),
+                    "history data": (f"https://www.equitypandit.com/historical-data/{sym}", f"History {sym}"),
+                    "screener": (f"https://www.screener.in/company/{sym}", f"Scr {sym}"),
+                    "zerodha": (f"https://zerodha.com/markets/stocks/NSE/{sym}", f"🪁 {sym}"),
+                    "chartlink": (f"https://chartink.com/stocks-new?load-snapshot=exponential-moving-average-simple-moving-average-simple-moving-average-moving-average-convergence-divergence-chart-snapshot-175&symbol={sym}", f"CL {sym}"),
+                    "market smith india": (f"https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp", f"ms {sym}"),
+                    "nse chart": (f"https://charting.nseindia.com/?symbol={sym}-EQ", f"nse {sym}"),
+                    "official nse url": (f"https://www.nseindia.com/get-quotes/equity?symbol={sym}", f"nse📰 {sym}")
                 }
 
-                # Apply the HTML tags to the dataframe
-                for col, (url, label) in link_configs.items():
+                for target_col_lower, (url, label) in link_configs.items():
                     # Format main columns (e.g., "Screener")
-                    if col in df.columns:
-                        df.at[idx, col] = f'<a href="{url}" target="_blank" style="color:#1f77b4; text-decoration:none;">{label}</a>'
+                    if target_col_lower in col_map:
+                        actual_col = col_map[target_col_lower]
+                        df.at[idx, actual_col] = f'<a href="{url}" target="_blank" style="color:#1f77b4; text-decoration:none;">{label}</a>'
                     
                     # Format duplicate/alternate columns (e.g., "Screener 1")
-                    col_1 = f"{col} 1"
-                    if col_1 in df.columns:
-                        df.at[idx, col_1] = f'<a href="{url}" target="_blank" style="color:#1f77b4; text-decoration:none;">🔗 Link</a>'
+                    target_col_1_lower = f"{target_col_lower} 1"
+                    if target_col_1_lower in col_map:
+                        actual_col_1 = col_map[target_col_1_lower]
+                        df.at[idx, actual_col_1] = f'<a href="{url}" target="_blank" style="color:#1f77b4; text-decoration:none;">🔗 Link</a>'
 
-        # ---------- Convert ONLY the two date columns: 52W High Date and 52W Low Date ----------
-        # Exact column names (case‑sensitive)
+        # ---------- Date Column Fixes ----------
         date_columns_to_fix = ["52W High Date", "52W Low Date"]
         for col in date_columns_to_fix:
             if col in df.columns:
-                # Convert each value using excel_serial_to_date
                 df[col] = df[col].apply(excel_serial_to_date)
 
         return df
@@ -142,12 +147,11 @@ with st.spinner("Loading data..."):
 if not df.empty:
     st.write(f"**Rows:** {df.shape[0]} | **Columns:** {df.shape[1]}")
 
-    # Custom cell renderer for HTML links - Updated to inject safely as DOM elements
+    # Custom cell renderer for HTML links
     html_renderer = JsCode("""
     class HtmlRenderer {
         init(params) {
             this.eGui = document.createElement('span');
-            // Inject the HTML directly into the DOM
             this.eGui.innerHTML = params.value ? params.value : '';
         }
         getGui() {
@@ -159,12 +163,10 @@ if not df.empty:
     gb = GridOptionsBuilder.from_dataframe(df)
 
     # Priority columns (wider)
-    priority_columns = [
-        "ID", "Company Name", "Stock Name", "Symbol", "Industry", "Sector"
-    ]
+    priority_columns_lower = ["id", "company name", "stock name", "symbol", "industry", "sector"]
 
     for col in df.columns:
-        if col in priority_columns:
+        if col.lower() in priority_columns_lower:
             width, min_width = 220, 150
         else:
             width, min_width = 120, 80
