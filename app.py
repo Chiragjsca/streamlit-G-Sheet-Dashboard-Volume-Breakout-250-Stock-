@@ -629,8 +629,16 @@ if not raw_df.empty:
                 
             price_val = row.get(cmp_target, "") if cmp_target else ""
             
-            # Clickable NSE Technical Charting Link
-            hyperlinked_name = f'<a href="https://charting.nseindia.com/?symbol={ticker}-EQ" target="_blank" style="text-decoration:none; color:#000000; font-weight:bold;">{ticker}</a>'
+            # 1. Clean the ticker to ensure no hidden spaces break the URL
+            clean_ticker = ticker.strip()
+            
+            # 2. Define URL and Label (Matching your preferred logic style)
+            url = f"https://charting.nseindia.com/?symbol={clean_ticker}-EQ"
+            label = clean_ticker # Can be changed to "🔗 Link" if you prefer
+            
+            # 3. Build the HTML tag for AgGrid
+            # NOTE: Changed color:#000000 to color:inherit so it adapts to light/dark themes
+            hyperlinked_name = f'<a href="{url}" target="_blank" style="text-decoration:none; color:inherit; font-weight:bold;">{label}</a>'
             
             entry = {
                 "STOCK NAME": hyperlinked_name,
@@ -708,8 +716,16 @@ if not raw_df.empty:
                 if "<a " in str(s): s = str(s).split('">')[-1].split('</a>')[0]
                 v = row[pct_target]
                 
-                # Clickable NSE Technical Charting Link enveloping the badge
-                st.markdown(f"<a href='https://charting.nseindia.com/?symbol={s}-EQ' target='_blank' style='text-decoration:none;'><div style='background-color:#16e37f; padding:8px; margin:4px; border-radius:5px; color:Black; font-weight:bold;'>{s}: +{v}%</div></a>", unsafe_allow_html=True)
+                # Clean the symbol and define the URL
+clean_s = str(s).strip()
+url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
+
+# Clean the symbol and define the URL
+clean_s = str(s).strip()
+url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
+
+# Clickable NSE Technical Charting Link enveloping the badge
+st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:Black; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
         with colB:
             st.markdown("#### ⬇️ Bottom 10 (Daily)")
             for _, row in bottom_10.iterrows():
