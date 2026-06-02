@@ -242,67 +242,42 @@ if not df.empty:
     )
 
     priority_columns = [
-    "ID",
-    "Company Name",
-    "Stock Name",
-    "Symbol",
-    "Industry",
-    "Sector"
-]
+        "ID",
+        "Company Name",
+        "Stock Name",
+        "Symbol",
+        "Industry",
+        "Sector"
+    ]
 
-for col in df.columns:
+    for col in df.columns:
 
-    if col in priority_columns:
-        gb.configure_column(
-            col,
-            width=220,
-            minWidth=150,
-            menuTabs=[
-                "generalMenuTab",
-                "filterMenuTab",
-                "columnsMenuTab"
-            ]
-        )
+        if col in priority_columns:
+            gb.configure_column(
+                col,
+                width=220,
+                minWidth=150
+            )
+        else:
+            gb.configure_column(
+                col,
+                width=120,
+                minWidth=80
+            )
 
-    else:
-        gb.configure_column(
-            col,
-            width=120,
-            minWidth=80,
-            menuTabs=[
-                "generalMenuTab",
-                "filterMenuTab",
-                "columnsMenuTab"
-            ]
-        )
+    gb.configure_grid_options(
+        domLayout="normal",
+        rowHeight=35,
+        headerHeight=45,
+        enableCellTextSelection=True,
+        ensureDomOrder=True,
+        suppressMovableColumns=False,
+        suppressColumnVirtualisation=False,
+        alwaysShowHorizontalScroll=True,
+        animateRows=True
+    )
 
-    gb.configure_default_column(
-    sortable=True,
-    filter=True,
-    resizable=True,
-    editable=False,
-    enableRowGroup=True,
-    enablePivot=True,
-    enableValue=True
-)
-
-# Sidebar for Show / Hide Columns
-gb.configure_side_bar()
-
-gb.configure_grid_options(
-    domLayout="normal",
-    rowHeight=35,
-    headerHeight=45,
-    enableCellTextSelection=True,
-    ensureDomOrder=True,
-    suppressMovableColumns=False,
-    suppressColumnVirtualisation=False,
-    alwaysShowHorizontalScroll=True,
-    animateRows=True,
-    sideBar=True
-)
-
-grid_options = gb.build()
+    grid_options = gb.build()
 
     AgGrid(
         df,
@@ -317,10 +292,6 @@ grid_options = gb.build()
         key="stock_grid"
     )
 
-    # =================================================
-    # DOWNLOAD CSV
-    # =================================================
-
     csv_df = df.replace(
         r'<a href="([^"]+)">([^<]+)</a>',
         r'\2 (\1)',
@@ -332,7 +303,7 @@ grid_options = gb.build()
     st.download_button(
         "📥 Download CSV",
         csv,
-        f"{selected_sheet.replace(' ', '_')}.csv",
+        f"{selected_sheet.replace(' ','_')}.csv",
         "text/csv"
     )
 
