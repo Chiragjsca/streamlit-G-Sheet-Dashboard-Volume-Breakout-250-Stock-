@@ -22,6 +22,26 @@ def extract_hyperlink_info(cell_value):
             return match.group(1), match.group(2)
     return None, cell_value
 
+# ---------- Convert Excel serial numbers to dates ----------
+def convert_excel_serial_to_date(val):
+    if not isinstance(val, str):
+        return val
+    # Remove any whitespace
+    val = val.strip()
+    # Handle #N/A or other error strings
+    if val.startswith("#N/A") or val.startswith("#"):
+        return ""
+    # Check if it's a numeric string (integer or float)
+    try:
+        num = float(val)
+        # Excel serial date: days since 1899-12-30 (Excel for Windows)
+        # Pandas conversion: pd.to_datetime(num, unit='D', origin='1899-12-30')
+        date = pd.to_datetime(num, unit='D', origin='1899-12-30')
+        # Format as YYYY-MM-DD (you can change the format)
+        return date.strftime('%Y-%m-%d')
+    except (ValueError, OverflowError):
+        return val
+
 # ---------- Load Google Sheet ----------
 @st.cache_data(ttl=300)
 def load_sheet_data(sheet_name):
@@ -42,6 +62,7 @@ def load_sheet_data(sheet_name):
         sh = client.open_by_key(spreadsheet_id)
         worksheet = sh.worksheet(sheet_name)
 
+        # Fetch using FORMULA to capture HYPERLINK formulas
         all_values = worksheet.get_all_values(value_render_option='FORMULA')
         if not all_values:
             return pd.DataFrame()
@@ -63,7 +84,7 @@ def load_sheet_data(sheet_name):
         data_rows = all_values[1:]
         df = pd.DataFrame(data_rows, columns=clean_headers)
 
-        # Columns with HYPERLINK formulas or raw URLs
+        # ---------- Process HYPERLINK columns (convert to HTML <a> tags) ----------
         link_columns = [
             "Trading View", "History Data", "Screener", "Zerodha", "Chartlink",
             "Market smith india", "NSE Chart", "Official NSE URL",
@@ -71,7 +92,6 @@ def load_sheet_data(sheet_name):
             "Zerodha 1", "Chartlink 1", "Market smith india 1", "Official NSE URL 1"
         ]
 
-        # Convert each cell to an HTML anchor tag
         for col in link_columns:
             if col in df.columns:
                 new_values = []
@@ -83,17 +103,23 @@ def load_sheet_data(sheet_name):
                     url, label = extract_hyperlink_info(val)
                     if url and label:
                         if col.endswith("1"):
-                            new_values.append(f'<a href="{url}" target="_blank" style="color: #1f77b4; text-decoration: none;">🔗 Link</a>')
+                            new_values.append(f'<a href="{url}" target="_blank" style="color:#1f77b4; text-decoration:none;">🔗 Link</a>')
                         else:
-                            new_values.append(f'<a href="{url}" target="_blank" style="color: #1f77b4; text-decoration: none;">{label}</a>')
+                            new_values.append(f'<a href="{url}" target="_blank" style="color:#1f77b4; text-decoration:none;">{label}</a>')
                     elif isinstance(val, str) and (val.startswith("http://") or val.startswith("https://")):
                         if col.endswith("1"):
-                            new_values.append(f'<a href="{val}" target="_blank" style="color: #1f77b4; text-decoration: none;">🔗 Link</a>')
+                            new_values.append(f'<a href="{val}" target="_blank" style="color:#1f77b4; text-decoration:none;">🔗 Link</a>')
                         else:
-                            new_values.append(f'<a href="{val}" target="_blank" style="color: #1f77b4; text-decoration: none;">{val}</a>')
+                            new_values.append(f'<a href="{val}" target="_blank" style="color:#1f77b4; text-decoration:none;">{val}</a>')
                     else:
                         new_values.append(val)
                 df[col] = new_values
+
+        # ---------- Convert date columns (e.g., 52W High Date, 52W Low Date) ----------
+        # Identify columns that contain "Date" in name (case insensitive)
+        date_columns = [col for col in df.columns if "date" in col.lower()]
+        for col in date_columns:
+            df[col] = df[col].apply(convert_excel_serial_to_date)
 
         return df
 
@@ -130,11 +156,7 @@ with st.spinner("Loading data..."):
 if not df.empty:
     st.write(f"**Rows:** {df.shape[0]} | **Columns:** {df.shape[1]}")
 
-    # Build grid options
-    gb = GridOptionsBuilder.from_dataframe(df)
-
-    # Custom cell renderer that renders HTML strings as clickable links
-    # This JS function will be called for every cell; it uses innerHTML to insert the HTML.
+    # Custom cell renderer to display HTML links properly
     html_renderer = JsCode("""
     function(params) {
         if (params.value && typeof params.value === 'string' && params.value.includes('<a')) {
@@ -144,12 +166,14 @@ if not df.empty:
     }
     """)
 
+    # Build grid options
+    gb = GridOptionsBuilder.from_dataframe(df)
+
     # Priority columns (wider)
     priority_columns = [
         "ID", "Company Name", "Stock Name", "Symbol", "Industry", "Sector"
     ]
 
-    # Configure each column
     for col in df.columns:
         if col in priority_columns:
             width, min_width = 220, 150
@@ -164,10 +188,9 @@ if not df.empty:
             filter=True,
             resizable=True,
             editable=False,
-            cellRenderer=html_renderer      # 👈 Use custom JS renderer
+            cellRenderer=html_renderer
         )
 
-    # Grid options: enable horizontal scrolling and normal layout
     gb.configure_grid_options(
         domLayout="normal",
         rowHeight=35,
@@ -182,13 +205,12 @@ if not df.empty:
 
     grid_options = gb.build()
 
-    # Display AG Grid
     AgGrid(
         df,
         gridOptions=grid_options,
         theme="streamlit",
         update_mode=GridUpdateMode.SELECTION_CHANGED,
-        allow_unsafe_jscode=True,          # Required for custom JS
+        allow_unsafe_jscode=True,
         fit_columns_on_grid_load=False,
         enable_enterprise_modules=False,
         height=600,
@@ -206,4 +228,4 @@ else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
 
 st.markdown("---")
-st.caption("Powered by Google Sheets & Streamlit | Columns are resizable, reorderable, and horizontally scrollable | Hyperlinks are clickable")
+st.caption("Powered by Google Sheets & Streamlit | Columns are resizable, reorderable, horizontally scrollable | Hyperlinks clickable | Dates correctly formatted")
