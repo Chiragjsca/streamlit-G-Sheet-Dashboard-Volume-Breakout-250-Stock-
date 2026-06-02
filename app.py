@@ -147,7 +147,7 @@ def process_hyperlinks(df, symbol_col):
     return df_proc
 
 # ---------- Helper: Numeric and Date Filters ----------
-def apply_numeric_slider(df, col_name, st_container):
+def apply_numeric_slider(df, col_name, st_container, display_label=None):
     if col_name in df.columns:
         num_series = df[col_name].astype(str).str.replace(r'[%,]', '', regex=True)
         num_series = pd.to_numeric(num_series, errors='coerce')
@@ -158,8 +158,9 @@ def apply_numeric_slider(df, col_name, st_container):
             max_val = float(valid_nums.max())
             
             if min_val < max_val:
+                label = display_label if display_label else f"{col_name} Range:"
                 selected_range = st_container.slider(
-                    f"{col_name} Range:", 
+                    label, 
                     min_value=min_val, 
                     max_value=max_val, 
                     value=(min_val, max_val),
@@ -297,18 +298,51 @@ if not raw_df.empty:
     st.sidebar.markdown("---")
     st.sidebar.header("📊 Numeric Range Filters")
     
-    # Expanded list of target strings to catch your specific columns
+    cmp_col = next((c for c in actual_cols if c.lower() in ["cmp", "close price"]), None)
+
+    # A) Diff from 200 DMA Filter
+    diff_200_col = next((c for c in actual_cols if "diff" in c.lower() and "200" in c.lower()), None)
+    if diff_200_col:
+        filtered_df = apply_numeric_slider(filtered_df, diff_200_col, st.sidebar, "Diff. from 200 DMA (%) Range:")
+
+    # B) 52W Low % (Find it, or compute it dynamically if it doesn't exist)
+    low_pct_col = next((c for c in actual_cols if "52" in c.lower() and "low" in c.lower() and ("%" in c.lower() or "per" in c.lower() or "away" in c.lower())), None)
+    if not low_pct_col and cmp_col:
+        low_col = next((c for c in actual_cols if "52" in c.lower() and "low" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
+        if low_col:
+            cmp_s = pd.to_numeric(filtered_df[cmp_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
+            low_s = pd.to_numeric(filtered_df[low_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
+            # Calculate % difference
+            filtered_df["% from 52W Low (Calc)"] = ((cmp_s - low_s) / low_s) * 100
+            filtered_df["% from 52W Low (Calc)"] = filtered_df["% from 52W Low (Calc)"].round(2)
+            low_pct_col = "% from 52W Low (Calc)"
+            
+    if low_pct_col:
+        filtered_df = apply_numeric_slider(filtered_df, low_pct_col, st.sidebar, "% from 52W Low Range:")
+
+    # C) 52W High % (Find it, or compute it dynamically if it doesn't exist)
+    high_pct_col = next((c for c in actual_cols if "52" in c.lower() and "high" in c.lower() and ("%" in c.lower() or "per" in c.lower() or "away" in c.lower())), None)
+    if not high_pct_col and cmp_col:
+        high_col = next((c for c in actual_cols if "52" in c.lower() and "high" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
+        if high_col:
+            cmp_s = pd.to_numeric(filtered_df[cmp_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
+            high_s = pd.to_numeric(filtered_df[high_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
+            # Calculate % difference (Will naturally be negative numbers)
+            filtered_df["% from 52W High (Calc)"] = ((cmp_s - high_s) / high_s) * 100
+            filtered_df["% from 52W High (Calc)"] = filtered_df["% from 52W High (Calc)"].round(2)
+            high_pct_col = "% from 52W High (Calc)"
+            
+    if high_pct_col:
+        filtered_df = apply_numeric_slider(filtered_df, high_pct_col, st.sidebar, "% from 52W High Range:")
+
+    # D) Remaining Numeric Targets
     numeric_targets = [
         "Volume", "CMP", "Price %", 
-        "Difference from 200 DMA", "Diff. from 200 DMA", "Diff @ 200 DMA", # DMA diff variations
-        "% from 52W Low", "52W Low %", "% away from 52w low",              # 52W Low variations
-        "% from 52W High", "52W High %", "% away from 52w high",           # 52W High variations
         "Promoters %", "Institutional %", "Face Value", 
         "Net Profit", "EPS", "RONW %", "Market Cap", "Enterprise Value"
     ]
     
-    # Prevent creating duplicate sliders if strings overlap
-    processed_cols = set() 
+    processed_cols = {diff_200_col, low_pct_col, high_pct_col}
     for target in numeric_targets:
         col_match = next((c for c in actual_cols if target.lower() in c.lower() and c not in processed_cols), None)
         if col_match:
@@ -332,7 +366,7 @@ if not raw_df.empty:
     # ==========================================
     col1, col2 = st.columns([1, 3])
     with col1:
-        st.write(f"**Rows:** {filtered_df.shape[0]} | **Columns:** {len(actual_cols)}")
+        st.write(f"**Rows:** {filtered_df.shape[0]} | **Columns:** {len(filtered_df.columns) - 1}") # subtract hidden raw_symbol
     
     # Placeholder for the top right dynamic links
     url_placeholder = col2.empty()
