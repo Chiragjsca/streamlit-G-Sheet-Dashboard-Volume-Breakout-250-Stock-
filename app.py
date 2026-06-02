@@ -42,10 +42,12 @@ def load_sheet_data(sheet_name):
         sh = client.open_by_key(spreadsheet_id)
         worksheet = sh.worksheet(sheet_name)
 
+        # Get formulas (not rendered values)
         all_values = worksheet.get_all_values(value_render_option='FORMULA')
         if not all_values:
             return pd.DataFrame()
 
+        # Clean headers (deduplicate)
         raw_headers = all_values[0]
         clean_headers = []
         seen = {}
@@ -62,6 +64,7 @@ def load_sheet_data(sheet_name):
         data_rows = all_values[1:]
         df = pd.DataFrame(data_rows, columns=clean_headers)
 
+        # Columns with HYPERLINK formulas or raw URLs
         link_columns = [
             "Trading View", "History Data", "Screener", "Zerodha", "Chartlink",
             "Market smith india", "NSE Chart", "Official NSE URL",
@@ -69,6 +72,7 @@ def load_sheet_data(sheet_name):
             "Zerodha 1", "Chartlink 1", "Market smith india 1", "Official NSE URL 1"
         ]
 
+        # Process each column
         for col in link_columns:
             if col in df.columns:
                 new_values = []
@@ -76,13 +80,16 @@ def load_sheet_data(sheet_name):
                     if pd.isna(val) or val == "":
                         new_values.append("")
                         continue
+
                     url, label = extract_hyperlink_info(val)
                     if url and label:
+                        # For normal columns: keep original label; for "1" columns: show 🔗 Link
                         if col.endswith("1"):
                             new_values.append(f'<a href="{url}" target="_blank">🔗 Link</a>')
                         else:
                             new_values.append(f'<a href="{url}" target="_blank">{label}</a>')
                     elif isinstance(val, str) and (val.startswith("http://") or val.startswith("https://")):
+                        # Raw URL – for "1" columns show 🔗 Link, otherwise show full URL
                         if col.endswith("1"):
                             new_values.append(f'<a href="{val}" target="_blank">🔗 Link</a>')
                         else:
@@ -90,7 +97,9 @@ def load_sheet_data(sheet_name):
                     else:
                         new_values.append(val)
                 df[col] = new_values
+
         return df
+
     except Exception as e:
         st.error(f"Error loading sheet '{sheet_name}': {str(e)}")
         return pd.DataFrame()
@@ -124,32 +133,30 @@ with st.spinner("Loading data..."):
 if not df.empty:
     st.write(f"**Rows:** {df.shape[0]} | **Columns:** {df.shape[1]}")
 
-    # ---------- COMPRESSED COLUMN WIDTH FIX ----------
+    # OPTIONAL: Truncate text to force narrow columns (uncomment if needed)
+    # df = df.astype(str).applymap(lambda x: x[:15] if len(str(x)) > 15 else x)
+
+    # ---------- FORCE COMPRESSED COLUMNS (50px each) ----------
     gb = GridOptionsBuilder.from_dataframe(df)
 
-    # Force every column to have a small width (60px)
+    # Build column definitions with fixed narrow width for EVERY column
+    column_defs = []
     for col in df.columns:
-        gb.configure_column(
-            col,
-            width=60,
-            minWidth=40,
-            maxWidth=100,
-            resizable=True,
-            sortable=True,
-            filter=True
-        )
+        column_defs.append({
+            "headerName": col,
+            "field": col,
+            "width": 50,           # <-- Change this number to adjust width (e.g., 40, 60)
+            "minWidth": 40,
+            "maxWidth": 60,
+            "sortable": True,
+            "filter": True,
+            "resizable": True
+        })
 
-    # Default settings for the rest
-    gb.configure_default_column(
-        enableRowGroup=False,
-        enablePivot=False,
-        enableValue=False,
-        resizable=True,
-        sortable=True,
-        filter=True,
-        editable=False
-    )
+    # Apply column definitions directly (overrides any previous settings)
+    gb.configure_grid_options(columnDefs=column_defs)
 
+    # Grid configuration
     gb.configure_grid_options(
         domLayout='autoHeight',
         rowHeight=35,
@@ -157,25 +164,30 @@ if not df.empty:
         enableCellTextSelection=True,
         ensureDomOrder=True,
         suppressMovableColumns=False,
-        suppressAutoSize=True          # prevent auto-expanding
+        suppressAutoSize=True,            # prevents auto-expanding
+        suppressColumnVirtualisation=False,
+        suppressHorizontalScroll=False,
+        alwaysShowHorizontalScroll=True
     )
 
     grid_options = gb.build()
 
+    # Display AG Grid
     grid_response = AgGrid(
         df,
         gridOptions=grid_options,
         update_mode=GridUpdateMode.SELECTION_CHANGED,
         allow_unsafe_jscode=True,
         theme='streamlit',
-        fit_columns_on_grid_load=False,
+        fit_columns_on_grid_load=False,   # CRITICAL: do NOT fit columns
         enable_enterprise_modules=False,
         height=600,
         width='100%',
-        reload_data=False
+        reload_data=False,
+        key='compressed_columns'
     )
 
-    # Download button
+    # Download button (strip HTML tags for CSV)
     csv_df = df.replace(r'<a href="([^"]+)">([^<]+)</a>', r'\2 (\1)', regex=True)
     csv = csv_df.to_csv(index=False).encode('utf-8')
     st.download_button("📥 Download as CSV", csv, f"{selected_sheet.replace(' ', '_')}.csv", "text/csv")
@@ -184,4 +196,4 @@ else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
 
 st.markdown("---")
-st.caption("Powered by Google Sheets & Streamlit | All columns compressed to 60px width")
+st.caption("Powered by Google Sheets & Streamlit | All columns forced to 50px width | Horizontal scroll enabled")
