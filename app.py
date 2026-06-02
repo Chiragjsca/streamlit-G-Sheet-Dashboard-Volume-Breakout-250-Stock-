@@ -128,7 +128,7 @@ def process_hyperlinks(df, symbol_col):
             if url:
                 df_proc.at[idx, col] = f'<a href="{url}" target="_blank" style="color:#1f77b4; text-decoration:none;">{label}</a>'
             else:
-                # Cleanup raw formulas that didn't match so they don't look ugly
+                # Cleanup raw formulas that didn't match
                 cell_val = str(df_proc.at[idx, col])
                 if cell_val.startswith("=HYPERLINK"):
                     df_proc.at[idx, col] = "⚠️ Update Column Settings"
@@ -149,11 +149,6 @@ st.sidebar.header("📑 Select a Tab")
 selected_sheet = st.sidebar.selectbox("Choose sheet", sheet_names)
 
 st.sidebar.markdown("---")
-st.sidebar.info(
-    "🔐 **Permissions required**\n\n"
-    "Share your Google Sheet with this email:\n"
-    "`streamlit-g-sheet-dashboard-vo@axiomatic-idiom-496012-p8.iam.gserviceaccount.com`"
-)
 
 # ---------- Main Execution ----------
 st.header(f"📄 {selected_sheet}")
@@ -164,26 +159,24 @@ with st.spinner("Loading data..."):
 if not raw_df.empty:
     
     # --- Column Settings UI ---
-    st.sidebar.markdown("---")
-    st.sidebar.header("⚙️ Column Settings")
-    st.sidebar.caption("Select the column that contains your Stock Symbols (e.g., RELIANCE).")
-    
-    # Try to auto-guess the symbol column to save the user time
     guess_idx = 0
     for i, col_name in enumerate(raw_df.columns):
-        if col_name.lower() in ["symbol", "ticker", "stock symbol", "id", "stock"]:
+        if col_name.lower() in ["nse code", "symbol", "ticker", "stock symbol", "id", "stock"]:
             guess_idx = i
             break
             
-    # Dropdown to explicitly tell the script where the symbols are
+    st.sidebar.header("⚙️ Column Settings")
     selected_symbol_col = st.sidebar.selectbox("Symbol Column:", raw_df.columns, index=guess_idx)
     
-    # Process links based on the chosen column
     final_df = process_hyperlinks(raw_df, selected_symbol_col)
 
     st.write(f"**Rows:** {final_df.shape[0]} | **Columns:** {final_df.shape[1]}")
 
-    # Custom cell renderer for HTML links
+    # ==========================================
+    # 🎨 CONDITIONAL FORMATTING RULES (JAVASCRIPT)
+    # ==========================================
+
+    # 1. HTML Link Renderer (Keep this for your clickable links)
     html_renderer = JsCode("""
     class HtmlRenderer {
         init(params) {
@@ -196,16 +189,71 @@ if not raw_df.empty:
     }
     """)
 
+    # 2. Rule: If value <= -3 (Light Red), If value >= 3 (Light Yellow)
+    price_percent_style = JsCode("""
+    function(params) {
+        let val = parseFloat(params.value);
+        if (val <= -3) {
+            return {
+                'backgroundColor': '#fce8e6', // Light Red
+                'color': '#000000'
+            };
+        } else if (val >= 3) {
+            return {
+                'backgroundColor': '#fef7e0', // Light Yellow
+                'color': '#000000'
+            };
+        }
+        return null; // Default style
+    }
+    """)
+
+    # 3. Rule: Solid Green Background with White Text 
+    # (You can adjust this logic based on whatever makes the cell green in your sheet)
+    green_highlight_style = JsCode("""
+    function(params) {
+        // Example: If there is a value, make it green. 
+        // You can change 'val > 0' to your specific Google Sheet rule!
+        let val = parseFloat(params.value);
+        if (val > 0) { 
+            return {
+                'backgroundColor': '#0f9d58', // Dark Green
+                'color': '#ffffff',           // White Text
+                'fontWeight': 'bold'
+            };
+        }
+        return null;
+    }
+    """)
+
+    # ==========================================
+    # ⚙️ APPLY STYLES TO AG GRID
+    # ==========================================
+
     gb = GridOptionsBuilder.from_dataframe(final_df)
 
-    priority_columns_lower = ["id", "company name", "stock name", "symbol", "industry", "sector"]
+    priority_columns_lower = ["nse code", "id", "company name", "stock name", "symbol", "industry", "sector"]
 
     for col in final_df.columns:
+        # Default widths
         if col.lower() in priority_columns_lower:
             width, min_width = 220, 150
         else:
             width, min_width = 120, 80
 
+        # --- Apply the conditional formatting here ---
+        cell_style = None
+        
+        # Apply the -3 / +3 rule to these specific columns
+        if col in ["Price %", "Difference from 200 DMA"]:
+            cell_style = price_percent_style
+            
+        # Apply the dark green rule to these specific columns
+        # (Remove columns from this list if you don't want them highlighted)
+        elif col in ["Close Price", "CMP", "52W High Date"]: 
+            cell_style = green_highlight_style
+
+        # Configure the column in AgGrid
         gb.configure_column(
             col,
             width=width,
@@ -214,7 +262,8 @@ if not raw_df.empty:
             filter=True,
             resizable=True,
             editable=False,
-            cellRenderer=html_renderer
+            cellRenderer=html_renderer, # Keeps your links working
+            cellStyle=cell_style        # Adds the colors!
         )
 
     gb.configure_grid_options(
@@ -254,4 +303,4 @@ else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
 
 st.markdown("---")
-st.caption("Powered by Google Sheets & Streamlit | Columns are resizable, reorderable, horizontally scrollable | Hyperlinks clickable | 52W High/Low Dates converted from Excel serials")
+st.caption("Powered by Google Sheets & Streamlit | Clickable Hyperlinks | Conditional Formatting Enabled")
