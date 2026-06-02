@@ -337,7 +337,7 @@ if not raw_df.empty:
     if high_target and high_target not in core_sequence: core_sequence.append(high_target)
         
     low_target = next((c for c in actual_cols if "52" in c.lower() and "low" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
-    # FIXED SYNTAX ERROR HERE (Removed broken inline expression block)
+    # FIXED CRITICAL SYNTAX ERROR HERE (Removed broken line block)
     if low_target and low_target not in core_sequence: core_sequence.append(low_target)
 
     all_other_fields = [c for c in filtered_df.columns if c not in core_sequence and not c.startswith("_bg_") and not c.startswith("_txt_") and c != "_raw_symbol_"]
@@ -628,7 +628,9 @@ if not raw_df.empty:
                 ticker = ticker.split('">')[-1].split('</a>')[0]
                 
             price_val = row.get(cmp_target, "") if cmp_target else ""
-            hyperlinked_name = f'<a href="https://charting.nseindia.com/?symbol={ticker}-EQ" target="_blank" style="text-decoration:none; color:#1f77b4; font-weight:bold;">{ticker}</a>'
+            
+            # UPDATED HYPERLINK: Formatted to point directly to the official NSE Quote URL page instead of the old charting component layout
+            hyperlinked_name = f'<a href="https://www.nseindia.com/get-quotes/equity?symbol={ticker}" target="_blank" style="text-decoration:none; color:#1f77b4; font-weight:bold;">{ticker}</a>'
             
             entry = {
                 "STOCK NAME": hyperlinked_name,
