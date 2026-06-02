@@ -418,9 +418,11 @@ if not raw_df.empty:
     gb.configure_grid_options(domLayout="normal", rowHeight=35, headerHeight=45, enableCellTextSelection=True, ensureDomOrder=True, alwaysShowHorizontalScroll=True)
     grid_options = gb.build()
 
+    # CRITICAL TRACKING SEGMENT FIX: Unique key registration attached to secure baseline frame components 
     grid_response = AgGrid(
         filtered_df, gridOptions=grid_options, theme="streamlit", update_mode=GridUpdateMode.SELECTION_CHANGED, 
-        allow_unsafe_jscode=True, fit_columns_on_grid_load=False, enable_enterprise_modules=False, height=400, width='100%'
+        allow_unsafe_jscode=True, fit_columns_on_grid_load=False, enable_enterprise_modules=False, height=400, width='100%',
+        key="primary_stock_table_grid"
     )
 
     # ==========================================
@@ -449,7 +451,7 @@ if not raw_df.empty:
             box_height = st.slider("📏 Adjust Panel Box Height (px):", min_value=300, max_value=1000, value=500, step=50, key="panel_height_slider")
             
             ws_tab1, ws_tab2, ws_tab3, ws_tab4 = st.tabs([
-                "📈 Chart & Trade Info (NSE Alternative Component)", "📋 History Data (EquityPandit)", 
+                "📈 Chart & Trade Info (NSE Component)", "📋 History Data (EquityPandit)", 
                 "🎯 Bullish/Bearish Zone", "📁 Screener Documents"
             ])
             
