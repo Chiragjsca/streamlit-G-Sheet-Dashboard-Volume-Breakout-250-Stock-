@@ -337,6 +337,7 @@ if not raw_df.empty:
     if high_target and high_target not in core_sequence: core_sequence.append(high_target)
         
     low_target = next((c for c in actual_cols if "52" in c.lower() and "low" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
+    if low_target milestone in core_sequence: pass
     if low_target and low_target not in core_sequence: core_sequence.append(low_target)
 
     all_other_fields = [c for c in filtered_df.columns if c not in core_sequence and not c.startswith("_bg_") and not c.startswith("_txt_") and c != "_raw_symbol_"]
@@ -449,7 +450,6 @@ if not raw_df.empty:
             st.subheader(f"🛠️ Live Workspace Panel: {sym}")
             box_height = st.slider("📏 Adjust Panel Box Height (px):", min_value=300, max_value=1000, value=500, step=50, key="panel_height_slider")
             
-            # Expanded workspace frame layout matrix arrays to incorporate Zerodha, MarketSmith and TradingView Symbol tab elements
             ws_tabs = st.tabs([
                 "📈 Chart & Trade Info (NSE Component)", "📋 History Data (EquityPandit)", 
                 "🎯 Bullish/Bearish Zone", "📁 Screener Documents",
@@ -478,7 +478,9 @@ if not raw_df.empty:
 
             with ws_tabs[5]:
                 st.markdown("**6TH Panel: MarketSmith India Institutional Trading Evaluation Engine**")
-                components.html(f'<iframe src="https://marketsmithindia.com/mstool/eval/{sym.lower()}/evaluation.jsp" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
+                st.info("💡 MarketSmith India protects its security profile by blocking external iframe embedding natively via headers.")
+                st.markdown(f'<a href="https://marketsmithindia.com/mstool/eval/{sym.lower()}/evaluation.jsp" target="_blank"><button style="width:100%; padding:15px; border-radius:5px; background-color:#ff4b4b; color:white; border:none; cursor:pointer; font-weight:bold; font-size:16px;">🌐 Open MarketSmith India Evaluation Tool for {sym} ↗️</button></a>', unsafe_allow_html=True)
+                st.caption("Clicking the launcher launches their platform tracking layer natively inside an aligned sibling tab layout space.")
 
             with ws_tabs[6]:
                 st.markdown("**7TH Panel: TradingView Comprehensive Asset Market Registry Summary Profile**")
@@ -490,18 +492,17 @@ if not raw_df.empty:
     st.markdown("---")
     st.subheader("📊 National Live Market Analytics Portal Framework")
 
-    # CUSTOM CSS MODIFICATION: Tightened margins and paddings to drop row gaps to absolute minimal dimensions
     st.markdown("""
     <style>
         div[data-baseweb="tab-list"] {
             flex-wrap: wrap !important;
-            row-gap: 3px !important;       /* Tightened line to line horizontal tracking */
+            row-gap: 3px !important;       
             column-gap: 8px !important;
         }
         div[data-baseweb="tab-list"] button {
-            margin-top: 1px !important;    /* Tight vertical stack tracking layouts */
+            margin-top: 1px !important;    
             margin-bottom: 1px !important;
-            padding-top: 6px !important;   /* Narrow button vertical boundaries */
+            padding-top: 6px !important;   
             padding-bottom: 6px !important;
             height: auto !important;
         }
@@ -686,6 +687,34 @@ if not raw_df.empty:
         perf_grid_ops = perf_gb.build()
         
         AgGrid(display_perf_df, gridOptions=perf_grid_ops, theme="streamlit", allow_unsafe_jscode=True, fit_columns_on_grid_load=False, height=450, width='100%', key="horizon_perf_grid")
+
+    # ==========================================
+    # 🏆 DAILY DIRECT BADGES LEADERBOARD
+    # ==========================================
+    if pct_target:
+        st.markdown("---")
+        st.markdown("### 🏆 Top 10 & Bottom 10 Performers (Daily badges)")
+        temp_df = filtered_df.copy()
+        temp_df[pct_target] = pd.to_numeric(temp_df[pct_target].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
+        temp_df = temp_df.dropna(subset=[pct_target])
+        top_10 = temp_df.nlargest(10, pct_target)
+        bottom_10 = temp_df.nsmallest(10, pct_target)
+        
+        colA, colB = st.columns(2)
+        with colA:
+            st.markdown("#### ⬆️ Top 10 (Daily)")
+            for _, row in top_10.iterrows():
+                s = row.get(selected_symbol_col, 'Unknown')
+                if "<a " in str(s): s = str(s).split('">')[-1].split('</a>')[0]
+                v = row[pct_target]
+                st.markdown(f"<div style='background-color:#0f9d58; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{s}: +{v}%</div>", unsafe_allow_html=True)
+        with colB:
+            st.markdown("#### ⬇️ Bottom 10 (Daily)")
+            for _, row in bottom_10.iterrows():
+                s = row.get(selected_symbol_col, 'Unknown')
+                if "<a " in str(s): s = str(s).split('">')[-1].split('</a>')[0]
+                v = row[pct_target]
+                st.markdown(f"<div style='background-color:#ea4335; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{s}: {v}%</div>", unsafe_allow_html=True)
 
 else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
