@@ -519,7 +519,7 @@ if not raw_df.empty:
         "🔥 Most Active", "🚀 Volume Gainers", "🏆 Top Gainers/Losers", "⭐ 52W Boundaries", "📦 Stocks Traded", "⚖️ Advances/Declines",
         "🕒 Pre-Open Market", "⚡ Price Band Hitters", "🗺️ Index Ticker Heatmap", "🎫 IPO Tracker", "⚠️ Volume Shockers",
         "📂 Document Reports", "🖋️ TV Script Engine", "🔮 MunafaSutra Tickers", "🎯 Dhan Asset Registry", "💎 Weekly Activity Metrics",
-        "🔧 ScanX Core Screener", "🚦 ScanX Live Engine", "🎨 Screener Exploration", "📈 IPO Chittorgarh", "🏷️ IPO Watch Panel"
+        "🔧 ScanX Core Screener", "🚦 ScanX Live Engine", "🎨 Screener Exploration", "📈 IPO Chittorgarh", "🏷️ IPO Watch Panel", "💓 NSE Pulse"
     ])
     
     with mkt_tabs[0]:
@@ -585,6 +585,9 @@ if not raw_df.empty:
     with mkt_tabs[20]:
         st.markdown("[🌐 Open Matrix](https://ipowatch.in/)")
         components.html('<iframe src="https://ipowatch.in/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[21]:
+        st.markdown("[🌐 Open Matrix](https://nsepulse.streamlit.app/)")
+        components.html('<iframe src="https://nsepulse.streamlit.app/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
 
     # ==========================================
     # 🏆 MULTI-HORIZON PERFORMANCE SUMMARY MATRIX
