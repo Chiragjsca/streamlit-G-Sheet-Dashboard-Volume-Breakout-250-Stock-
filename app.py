@@ -19,7 +19,6 @@ st.set_page_config(page_title="NSE Stock Dashboard", layout="wide", page_icon="�
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
 # ==========================================
-# CHANGE YOUR PASSWORD HERE:
 ADMIN_PASSWORD = "admin"
 
 if "logged_in" not in st.session_state:
@@ -38,7 +37,7 @@ if not st.session_state.logged_in:
                     st.rerun()
                 else:
                     st.error("❌ Incorrect Password. Please try again.")
-    st.stop() # Stops the rest of the dashboard from loading until logged in
+    st.stop() 
 
 # ==========================================
 # 🌍 GLOBAL MARKET TICKER (TRADINGVIEW)
@@ -289,7 +288,6 @@ if not raw_df.empty:
     st.sidebar.markdown("---")
     st.sidebar.header("📊 Numeric Range Filters")
     
-    # Custom Named Sliders
     diff_200_col = next((c for c in actual_cols if "diff" in c.lower() and "200" in c.lower()), None)
     if diff_200_col: filtered_df = apply_numeric_slider(filtered_df, diff_200_col, st.sidebar, "Diff. from 200 DMA Range:")
 
@@ -299,7 +297,6 @@ if not raw_df.empty:
     high_pct_col = next((c for c in actual_cols if "52" in c.lower() and "high" in c.lower() and ("%" in c.lower() or "per" in c.lower())), None)
     if high_pct_col: filtered_df = apply_numeric_slider(filtered_df, high_pct_col, st.sidebar, "From 52W High Range:")
 
-    # Remaining Auto Sliders
     numeric_targets = ["Volume", "CMP", "Price %", "Promoters %", "Institutional %", "Face Value", "Net Profit", "EPS", "RONW %", "Market Cap", "Enterprise Value"]
     processed_cols = {diff_200_col, low_pct_col, high_pct_col}
     for target in numeric_targets:
@@ -317,23 +314,58 @@ if not raw_df.empty:
     if low_date_col: filtered_df = apply_date_filter(filtered_df, low_date_col, st.sidebar)
 
     # ==========================================
+    # 🎨 DYNAMIC COLUMN REORDERING LOGIC
+    # ==========================================
+    core_sequence = []
+    
+    if selected_symbol_col in filtered_df.columns:
+        core_sequence.append(selected_symbol_col)
+    
+    vol_target = next((c for c in actual_cols if "volume" in c.lower()), None)
+    if vol_target and vol_target not in core_sequence: core_sequence.append(vol_target)
+        
+    close_target = next((c for c in actual_cols if "close price" in c.lower() or "prev" in c.lower()), None)
+    if close_target and close_target not in core_sequence: core_sequence.append(close_target)
+        
+    cmp_target = next((c for c in actual_cols if "cmp" in c.lower()), None)
+    if cmp_target and cmp_target not in core_sequence: core_sequence.append(cmp_target)
+        
+    pct_target = next((c for c in actual_cols if "price %" in c.lower()), None)
+    if pct_target and pct_target not in core_sequence: core_sequence.append(pct_target)
+        
+    high_target = next((c for c in actual_cols if "52" in c.lower() and "high" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
+    if high_target and high_target not in core_sequence: core_sequence.append(high_target)
+        
+    low_target = next((c for c in actual_cols if "52" in c.lower() and "low" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
+    if low_target and low_target not in core_sequence: core_sequence.append(low_target)
+
+    all_other_fields = [c for c in filtered_df.columns if c not in core_sequence and not c.startswith("_bg_") and not c.startswith("_txt_") and c != "_raw_symbol_"]
+    hidden_meta_attributes = [c for c in filtered_df.columns if c.startswith("_bg_") or c.startswith("_txt_") or c == "_raw_symbol_"]
+    
+    enforced_column_layout = core_sequence + all_other_fields + hidden_meta_attributes
+    filtered_df = filtered_df[enforced_column_layout]
+
+    # ==========================================
     # 📌 TOP UI: ROWS COUNT & DYNAMIC QUICK LINKS
     # ==========================================
     col1, col2 = st.columns([1, 4])
     with col1:
-        st.write(f"**Rows:** {filtered_df.shape[0]} | **Columns:** {len(filtered_df.columns) - 1}") 
+        st.write(f"**Rows:** {filtered_df.shape[0]} | **Columns:** {len(actual_cols)}") 
     
     url_placeholder = col2.empty()
 
     # ==========================================
-    # 🎨 EXACT COLOR REFLECTION & HTML LOGIC
+    # 🎨 AG GRID INITIALIZATION
     # ==========================================
     html_renderer = JsCode("""
-    function(params) {
-        if (!params.value) return '';
-        let eGui = document.createElement('span');
-        eGui.innerHTML = params.value;
-        return eGui;
+    class HtmlRenderer {
+        init(params) {
+            this.eGui = document.createElement('span');
+            this.eGui.innerHTML = params.value ? String(params.value) : '';
+        }
+        getGui() {
+            return this.eGui;
+        }
     }
     """)
 
@@ -368,11 +400,8 @@ if not raw_df.empty:
             continue
 
         width, min_width = (220, 150) if col.lower() in priority_columns_lower else (120, 80)
-        
-        pinned_value = None
-        if is_first_visible_column:
-            pinned_value = "left"
-            is_first_visible_column = False 
+        pinned_value = "left" if is_first_visible_column else None
+        if is_first_visible_column: is_first_visible_column = False 
 
         gb.configure_column(
             col, width=width, minWidth=min_width, sortable=True, filter=True, resizable=True, 
@@ -384,11 +413,11 @@ if not raw_df.empty:
 
     grid_response = AgGrid(
         filtered_df, gridOptions=grid_options, theme="streamlit", update_mode=GridUpdateMode.SELECTION_CHANGED, 
-        allow_unsafe_jscode=True, fit_columns_on_grid_load=False, enable_enterprise_modules=False, height=500, width='100%'
+        allow_unsafe_jscode=True, fit_columns_on_grid_load=False, enable_enterprise_modules=False, height=400, width='100%'
     )
 
     # ==========================================
-    # 🎯 SELECTION LOGIC (LINKS + LIVE CHART)
+    # 🎯 SELECTION WORKSPACE (LINKS + EMBED PANELS)
     # ==========================================
     selected_rows = grid_response.get("selected_rows", [])
     if selected_rows is not None and len(selected_rows) > 0:
@@ -408,63 +437,290 @@ if not raw_df.empty:
                     f"[NSE URL (🔗)](https://www.nseindia.com/get-quotes/equity?symbol={sym})"
                 )
             
-            # Embed Live TradingView Chart Below the Grid for the Selected Stock
-            st.markdown(f"### 📈 Live Chart: {sym}")
-            components.html(f"""
-            <div class="tradingview-widget-container">
-              <div id="tradingview_chart"></div>
-              <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-              <script type="text/javascript">
-              new TradingView.widget(
-              {{
-              "width": "100%",
-              "height": 450,
-              "symbol": "NSE:{sym}",
-              "interval": "D",
-              "timezone": "Asia/Kolkata",
-              "theme": "dark",
-              "style": "1",
-              "locale": "en",
-              "enable_publishing": false,
-              "hide_top_toolbar": false,
-              "hide_legend": false,
-              "save_image": false,
-              "container_id": "tradingview_chart"
-            }}
-              );
-              </script>
-            </div>
-            """, height=450)
+            st.markdown(f"---")
+            st.subheader(f"🛠️ Live Workspace Panel: {sym}")
+            box_height = st.slider("📏 Adjust Panel Box Height (px):", min_value=300, max_value=1000, value=500, step=50, key="panel_height_slider")
+            
+            ws_tab1, ws_tab2, ws_tab3, ws_tab4 = st.tabs([
+                "📈 Chart & Trade Info (NSE Alternative Component)", "📋 History Data (EquityPandit)", 
+                "🎯 Bullish/Bearish Zone", "📁 Screener Documents"
+            ])
+            
+            with ws_tab1:
+                col_chart, col_info = st.columns([3, 2])
+                with col_chart:
+                    st.markdown("**NSE Interactive Chart Frame**")
+                    components.html(f'<iframe src="https://charting.nseindia.com/?symbol={sym}-EQ" width="100%" height="{box_height}" style="border:none; border-radius:5px;"></iframe>', height=box_height+20)
+                with col_info:
+                    st.markdown("**1ND Panel: Alternative Real-Time Stock Analytics Profile**")
+                    # CHANGED: Replaced the blocked NSE Page frame with the perfectly permissible, responsive TradingView Fundamental Profile Widget
+                    components.html(f"""
+                    <div class="tradingview-widget-container" style="height:{box_height}px;">
+                      <div class="tradingview-widget-container__widget"></div>
+                      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-profile.js" async>
+                      {{
+                      "symbol": "NSE:{sym}",
+                      "width": "100%",
+                      "height": "100%",
+                      "colorTheme": "dark",
+                      "isTransparent": true,
+                      "locale": "en"
+                    }}
+                      </script>
+                    </div>
+                    """, height=box_height)
+            
+            with ws_tab2:
+                st.markdown("**2ND Panel: EquityPandit Historical Matrix Data**")
+                components.html(f'<iframe src="https://www.equitypandit.com/historical-data/{sym.lower()}" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
+                
+            with ws_tab3:
+                st.markdown("**3RD Panel: Bullish / Bearish Zone Indicator**")
+                components.html(f'<iframe src="https://www.equitypandit.com/share-price/{sym.lower()}#chart" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
+                
+            with ws_tab4:
+                st.markdown("**4TH Panel: Screener Corporate Filings**")
+                components.html(f'<iframe src="https://www.screener.in/company/{sym}/consolidated/" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
     # ==========================================
-    # 🏆 TOP 10 & BOTTOM 10 PERFORMERS
+    # 🌍 NATIONAL ANALYTICS PORTAL WORKSPACE
     # ==========================================
-    price_col = next((c for c in actual_cols if "price %" in c.lower()), None)
-    if price_col:
+    st.markdown("---")
+    st.subheader("📊 National Live Market Analytics Portal Framework")
+
+    st.markdown("""
+    <style>
+        div[data-baseweb="tab-list"] {
+            flex-wrap: wrap !important;
+            row-gap: 5px !important;
+            column-gap: 10px !important;
+        }
+        div[data-baseweb="tab-list"] button {
+            margin-top: 0px !important;
+            margin-bottom: 0px !important;
+            padding-top: 8px !important;
+            padding-bottom: 8px !important;
+            height: auto !important;
+        }
+        div[data-baseweb="tab-highlight"] {
+            display: none !important;
+        }
+        div[data-baseweb="tab"][aria-selected="true"] {
+            background-color: rgba(31, 119, 180, 0.1) !important;
+            border-radius: 5px !important;
+            border-bottom: 2px solid #1f77b4 !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    mkt_tabs = st.tabs([
+        "🔥 Most Active", "🚀 Volume Gainers", "🏆 Top Gainers/Losers", "⭐ 52W Boundaries", "📦 Stocks Traded", "⚖️ Advances/Declines",
+        "🕒 Pre-Open Market", "⚡ Price Band Hitters", "🗺️ Index Ticker Heatmap", "🎫 IPO Tracker", "⚠️ Volume Shockers",
+        "📂 Document Reports", "🖋️ TV Script Engine", "🔮 MunafaSutra Tickers", "🎯 Dhan Asset Registry", "💎 Weekly Activity Metrics",
+        "🔧 ScanX Core Screener", "🚦 ScanX Live Engine", "🎨 Screener Exploration", "📈 IPO Chittorgarh", "🏷️ IPO Watch Panel"
+    ])
+    
+    with mkt_tabs[0]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/market-data/most-active-equities)")
+        components.html('<iframe src="https://www.nseindia.com/market-data/most-active-equities" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[1]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/market-data/volume-gainers-spurts)")
+        components.html('<iframe src="https://www.nseindia.com/market-data/volume-gainers-spurts" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[2]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/market-data/top-gainers-losers)")
+        components.html('<iframe src="https://www.nseindia.com/market-data/top-gainers-losers" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[3]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/market-data/52-week-high-equity-market)")
+        components.html('<iframe src="https://www.nseindia.com/market-data/52-week-high-equity-market" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[4]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/market-data/stocks-traded)")
+        components.html('<iframe src="https://www.nseindia.com/market-data/stocks-traded" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[5]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/market-data/advance)")
+        components.html('<iframe src="https://www.nseindia.com/market-data/advance" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[6]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/market-data/pre-open-market-cm-and-emerge-market)")
+        components.html('<iframe src="https://www.nseindia.com/market-data/pre-open-market-cm-and-emerge-market" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[7]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/market-data/upper-band-hitters)")
+        components.html('<iframe src="https://www.nseindia.com/market-data/upper-band-hitters" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[8]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/index-tracker/NIFTY%2050)")
+        components.html('<iframe src="https://www.nseindia.com/index-tracker/NIFTY%2050" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[9]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/market-data/all-upcoming-issues-ipo)")
+        components.html('<iframe src="https://www.nseindia.com/market-data/all-upcoming-issues-ipo" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[10]:
+        st.markdown("[🌐 Open Matrix](https://www.moneycontrol.com/stocks/market-stats/volume-shockers-nse/)")
+        components.html('<iframe src="https://www.moneycontrol.com/stocks/market-stats/volume-shockers-nse/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[11]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/all-reports/)")
+        components.html('<iframe src="https://www.nseindia.com/all-reports/" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[12]:
+        st.markdown("[🌐 Open Matrix](https://www.tradingview.com/scripts/)")
+        components.html('<iframe src="https://www.tradingview.com/scripts/" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[13]:
+        st.markdown("[🌐 Open Matrix](https://munafasutra.com/nse/)")
+        components.html('<iframe src="https://munafasutra.com/nse/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[14]:
+        st.markdown("[🌐 Open Matrix](https://dhan.co/all-stocks-list/)")
+        components.html('<iframe src="https://dhan.co/all-stocks-list/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[15]:
+        st.markdown("[🌐 Open Matrix](https://dhan.co/stocks/market/most-active-stocks-this-week/)")
+        components.html('<iframe src="https://dhan.co/stocks/market/most-active-stocks-this-week/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[16]:
+        st.markdown("[🌐 Open Matrix](https://scanx.trade/create-custom-screener)")
+        components.html('<iframe src="https://scanx.trade/create-custom-screener" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[17]:
+        st.markdown("[🌐 Open Matrix](https://scanx.trade/stock-screener/live-market-screener)")
+        components.html('<iframe src="https://scanx.trade/stock-screener/live-market-screener" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[18]:
+        st.markdown("[🌐 Open Matrix](https://www.screener.in/explore/)")
+        components.html('<iframe src="https://www.screener.in/explore/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[19]:
+        st.markdown("[🌐 Open Matrix](https://www.chittorgarh.com/)")
+        components.html('<iframe src="https://www.chittorgarh.com/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[20]:
+        st.markdown("[🌐 Open Matrix](https://ipowatch.in/)")
+        components.html('<iframe src="https://ipowatch.in/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+
+    # ==========================================
+    # 🏆 MULTI-HORIZON PERFORMANCE SUMMARY MATRIX
+    # ==========================================
+    st.markdown("---")
+    st.markdown("### 📈 Multi-Horizon Performance Summary Matrix")
+    
+    horizons = [
+        "1 Day", "2 Day", "3 Day", "5 Day", "7 Day", "10 Day", "12 Day", "15 Days", "20 Days", "25 Days", "30 Days",
+        "2 Months", "3 Months", "4 Months", "5 Months", "6 Months", "7 Months", "8 Months", "9 Months", "10 Months", "11 Months",
+        "1 Year", "18 Months", "1.5 Years", "2 Years", "2.5 Years", "3 Years", "Volume"
+    ]
+    
+    col_tools1, col_tools2, col_tools3 = st.columns([2, 2, 3])
+    with col_tools1:
+        sort_basis = st.selectbox("🎯 Base Horizon for Performance Ranking:", horizons, index=0)
+    with col_tools2:
+        sort_direction = st.radio("排序 Sorting Order Type:", ["Best -> Worst", "Worst -> Best"], index=0, horizontal=True)
+    with col_tools3:
+        summary_search = st.text_input("🔍 Filter stocks inside this matrix...", placeholder="Type symbol name...", key="perf_matrix_search")
+
+    detected_metric_map = {}
+    
+    for h in horizons:
+        if h == "Volume":
+            if vol_target: detected_metric_map[h] = vol_target
+            continue
+        keywords = [h.lower(), h.lower().replace(" ", ""), h.lower().replace("s", "")]
+        if h == "1 Day": keywords.append("price %")
+        
+        for c in actual_cols:
+            if any(k in c.lower() for k in keywords) and "%" in c.lower():
+                detected_metric_map[h] = c
+                break
+
+    if detected_metric_map:
+        reporting_data = []
+        for idx, row in filtered_df.iterrows():
+            ticker = str(row.get(selected_symbol_col, 'Unknown')).strip()
+            if "<a " in ticker:
+                ticker = ticker.split('">')[-1].split('</a>')[0]
+                
+            price_val = row.get(cmp_target, "") if cmp_target else ""
+            hyperlinked_name = f'<a href="https://charting.nseindia.com/?symbol={ticker}-EQ" target="_blank" style="text-decoration:none; color:#1f77b4; font-weight:bold;">{ticker}</a>'
+            
+            entry = {
+                "STOCK NAME": hyperlinked_name,
+                "CURRENT PRICE": price_val
+            }
+            
+            for h, actual_col in detected_metric_map.items():
+                raw_val = str(row.get(actual_col, "0")).replace("%", "").replace(",", "").strip()
+                try:
+                    entry[h] = float(raw_val) if raw_val not in ["", "nan", "None"] else 0.0
+                except ValueError:
+                    entry[h] = 0.0
+                    
+            reporting_data.append(entry)
+            
+        perf_df = pd.DataFrame(reporting_data)
+        
+        if summary_search:
+            perf_df = perf_df[perf_df["STOCK NAME"].str.replace(r'<[^>]*>', '', regex=True).str.contains(summary_search, case=False, na=False)]
+            
+        target_sort_col = sort_basis if sort_basis in perf_df.columns else perf_df.columns[2]
+        ascending_flag = (sort_direction == "Worst -> Best")
+        perf_df = perf_df.sort_values(by=target_sort_col, ascending=ascending_flag).reset_index(drop=True)
+        perf_df.insert(0, "RANK", perf_df.index + 1)
+        
+        perf_gb = GridOptionsBuilder.from_dataframe(perf_df)
+        perf_gb.configure_column("RANK", width=80, pinned="left", type=["numericColumn"])
+        perf_gb.configure_column("STOCK NAME", width=140, pinned="left", cellRenderer=html_renderer)
+        perf_gb.configure_column("CURRENT PRICE", width=130, type=["numericColumn"])
+        
+        color_code_js = JsCode("""
+        function(params) {
+            if (params.value === undefined || params.value === null || params.colDef.field === "Volume") return null;
+            let val = parseFloat(params.value);
+            if (val > 0) return { 'color': '#0f9d58', 'fontWeight': 'bold' };
+            if (val < 0) return { 'color': '#ea4335', 'fontWeight': 'bold' };
+            return null;
+        }
+        """)
+        
+        percent_formatter_js = JsCode("""
+        class PercentFormatter {
+            init(params) {
+                this.eGui = document.createElement('span');
+                if (params.value !== undefined && params.value !== null) {
+                    if (params.colDef.field === "Volume") {
+                        this.eGui.innerHTML = parseFloat(params.value).toLocaleString('en-IN');
+                    } else {
+                        let num = parseFloat(params.value);
+                        this.eGui.innerHTML = (num >= 0 ? '+' : '') + num.toFixed(2) + '%';
+                    }
+                } else {
+                    this.eGui.innerHTML = '-';
+                }
+            }
+            getGui() { return this.eGui; }
+        }
+        """)
+        
+        for h in detected_metric_map.keys():
+            if h in perf_df.columns:
+                perf_gb.configure_column(h, width=130, type=["numericColumn"], cellStyle=color_code_js, cellRenderer=percent_formatter_js)
+                
+        perf_gb.configure_grid_options(domLayout="normal", rowHeight=38, headerHeight=45, enableCellTextSelection=True)
+        perf_grid_ops = perf_gb.build()
+        
+        AgGrid(perf_df, gridOptions=perf_grid_ops, theme="streamlit", allow_unsafe_jscode=True, fit_columns_on_grid_load=False, height=450, width='100%', key="horizon_perf_grid")
+    
+    # ==========================================
+    # 🏆 DAILY DIRECT BADGES LEADERBOARD
+    # ==========================================
+    if pct_target:
         st.markdown("---")
-        st.markdown("### 🏆 Top 10 & Bottom 10 Performers (Price %)")
-        
+        st.markdown("### 🏆 Top 10 & Bottom 10 Performers (Daily badges)")
         temp_df = filtered_df.copy()
-        temp_df[price_col] = pd.to_numeric(temp_df[price_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
-        temp_df = temp_df.dropna(subset=[price_col])
-        
-        top_10 = temp_df.nlargest(10, price_col)
-        bottom_10 = temp_df.nsmallest(10, price_col)
+        temp_df[pct_target] = pd.to_numeric(temp_df[pct_target].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
+        temp_df = temp_df.dropna(subset=[pct_target])
+        top_10 = temp_df.nlargest(10, pct_target)
+        bottom_10 = temp_df.nsmallest(10, pct_target)
         
         colA, colB = st.columns(2)
         with colA:
             st.markdown("#### ⬆️ Top 10 (Daily)")
             for _, row in top_10.iterrows():
                 s = row.get(selected_symbol_col, 'Unknown')
-                v = row[price_col]
+                if "<a " in str(s): s = str(s).split('">')[-1].split('</a>')[0]
+                v = row[pct_target]
                 st.markdown(f"<div style='background-color:#0f9d58; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{s}: +{v}%</div>", unsafe_allow_html=True)
-        
         with colB:
             st.markdown("#### ⬇️ Bottom 10 (Daily)")
             for _, row in bottom_10.iterrows():
                 s = row.get(selected_symbol_col, 'Unknown')
-                v = row[price_col]
+                if "<a " in str(s): s = str(s).split('">')[-1].split('</a>')[0]
+                v = row[pct_target]
                 st.markdown(f"<div style='background-color:#ea4335; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{s}: {v}%</div>", unsafe_allow_html=True)
-
 else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
