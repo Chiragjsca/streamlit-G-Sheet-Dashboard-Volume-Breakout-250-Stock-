@@ -304,18 +304,18 @@ gb.configure_grid_options(
 
 grid_options = gb.build()
 
-    AgGrid(
-        df,
-        gridOptions=grid_options,
-        theme="streamlit",
-        update_mode=GridUpdateMode.SELECTION_CHANGED,
-        allow_unsafe_jscode=True,
-        fit_columns_on_grid_load=False,
-        enable_enterprise_modules=False,
-        height=700,
-        reload_data=False,
-        key="stock_grid"
-    )
+AgGrid(
+    df,
+    gridOptions=grid_options,
+    theme="streamlit",
+    update_mode=GridUpdateMode.SELECTION_CHANGED,
+    allow_unsafe_jscode=True,
+    fit_columns_on_grid_load=False,
+    enable_enterprise_modules=False,
+    height=700,
+    reload_data=False,
+    key="stock_grid"
+)
 
     # =================================================
     # DOWNLOAD CSV
