@@ -355,7 +355,7 @@ if not raw_df.empty:
     url_placeholder = col2.empty()
 
     # ==========================================
-    # 🎨 AG GRID INITIALIZATION
+    # 🎨 AG GRID INITIALIZATION WITH SELECTION ENGINE
     # ==========================================
     html_renderer = JsCode("""
     class HtmlRenderer {
@@ -403,10 +403,17 @@ if not raw_df.empty:
         pinned_value = "left" if is_first_visible_column else None
         if is_first_visible_column: is_first_visible_column = False 
 
-        gb.configure_column(
-            col, width=width, minWidth=min_width, sortable=True, filter=True, resizable=True, 
-            editable=False, pinned=pinned_value, cellRenderer=html_renderer, cellStyle=exact_mirror_style
-        )
+        c_low = col.lower()
+        if any(k in c_low for k in ["trading view", "history data", "screener", "zerodha", "chartlink", "market smith", "official nse", "nse"]):
+            gb.configure_column(
+                col, width=width, minWidth=min_width, sortable=True, filter=True, resizable=True, 
+                editable=False, pinned=pinned_value, cellRenderer=html_renderer, cellStyle=exact_mirror_style
+            )
+        else:
+            gb.configure_column(
+                col, width=width, minWidth=min_width, sortable=True, filter=True, resizable=True, 
+                editable=False, pinned=pinned_value, cellStyle=exact_mirror_style
+            )
 
     gb.configure_grid_options(domLayout="normal", rowHeight=35, headerHeight=45, enableCellTextSelection=True, ensureDomOrder=True, alwaysShowHorizontalScroll=True)
     grid_options = gb.build()
@@ -453,7 +460,6 @@ if not raw_df.empty:
                     components.html(f'<iframe src="https://charting.nseindia.com/?symbol={sym}-EQ" width="100%" height="{box_height}" style="border:none; border-radius:5px;"></iframe>', height=box_height+20)
                 with col_info:
                     st.markdown("**1ND Panel: Alternative Real-Time Stock Analytics Profile**")
-                    # CHANGED: Replaced the blocked NSE Page frame with the perfectly permissible, responsive TradingView Fundamental Profile Widget
                     components.html(f"""
                     <div class="tradingview-widget-container" style="height:{box_height}px;">
                       <div class="tradingview-widget-container__widget"></div>
@@ -652,75 +658,37 @@ if not raw_df.empty:
         perf_df = perf_df.sort_values(by=target_sort_col, ascending=ascending_flag).reset_index(drop=True)
         perf_df.insert(0, "RANK", perf_df.index + 1)
         
-        perf_gb = GridOptionsBuilder.from_dataframe(perf_df)
-        perf_gb.configure_column("RANK", width=80, pinned="left", type=["numericColumn"])
+        display_perf_df = perf_df.copy()
+        for h in detected_metric_map.keys():
+            if h in display_perf_df.columns:
+                if h == "Volume":
+                    display_perf_df[h] = display_perf_df[h].apply(lambda x: f"{int(x):,}" if pd.notnull(x) else "-")
+                else:
+                    display_perf_df[h] = display_perf_df[h].apply(lambda x: f"+{x:.2f}%" if x > 0 else (f"{x:.2f}%" if x < 0 else "0.00%"))
+
+        perf_gb = GridOptionsBuilder.from_dataframe(display_perf_df)
+        perf_gb.configure_column("RANK", width=80, pinned="left")
         perf_gb.configure_column("STOCK NAME", width=140, pinned="left", cellRenderer=html_renderer)
-        perf_gb.configure_column("CURRENT PRICE", width=130, type=["numericColumn"])
+        perf_gb.configure_column("CURRENT PRICE", width=130)
         
         color_code_js = JsCode("""
         function(params) {
             if (params.value === undefined || params.value === null || params.colDef.field === "Volume") return null;
-            let val = parseFloat(params.value);
+            let val = parseFloat(String(params.value).replace(/[+%,]/g, ''));
             if (val > 0) return { 'color': '#0f9d58', 'fontWeight': 'bold' };
             if (val < 0) return { 'color': '#ea4335', 'fontWeight': 'bold' };
             return null;
         }
         """)
         
-        percent_formatter_js = JsCode("""
-        class PercentFormatter {
-            init(params) {
-                this.eGui = document.createElement('span');
-                if (params.value !== undefined && params.value !== null) {
-                    if (params.colDef.field === "Volume") {
-                        this.eGui.innerHTML = parseFloat(params.value).toLocaleString('en-IN');
-                    } else {
-                        let num = parseFloat(params.value);
-                        this.eGui.innerHTML = (num >= 0 ? '+' : '') + num.toFixed(2) + '%';
-                    }
-                } else {
-                    this.eGui.innerHTML = '-';
-                }
-            }
-            getGui() { return this.eGui; }
-        }
-        """)
-        
         for h in detected_metric_map.keys():
-            if h in perf_df.columns:
-                perf_gb.configure_column(h, width=130, type=["numericColumn"], cellStyle=color_code_js, cellRenderer=percent_formatter_js)
+            if h in display_perf_df.columns:
+                perf_gb.configure_column(h, width=130, cellStyle=color_code_js)
                 
         perf_gb.configure_grid_options(domLayout="normal", rowHeight=38, headerHeight=45, enableCellTextSelection=True)
         perf_grid_ops = perf_gb.build()
         
-        AgGrid(perf_df, gridOptions=perf_grid_ops, theme="streamlit", allow_unsafe_jscode=True, fit_columns_on_grid_load=False, height=450, width='100%', key="horizon_perf_grid")
-    
-    # ==========================================
-    # 🏆 DAILY DIRECT BADGES LEADERBOARD
-    # ==========================================
-    if pct_target:
-        st.markdown("---")
-        st.markdown("### 🏆 Top 10 & Bottom 10 Performers (Daily badges)")
-        temp_df = filtered_df.copy()
-        temp_df[pct_target] = pd.to_numeric(temp_df[pct_target].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
-        temp_df = temp_df.dropna(subset=[pct_target])
-        top_10 = temp_df.nlargest(10, pct_target)
-        bottom_10 = temp_df.nsmallest(10, pct_target)
-        
-        colA, colB = st.columns(2)
-        with colA:
-            st.markdown("#### ⬆️ Top 10 (Daily)")
-            for _, row in top_10.iterrows():
-                s = row.get(selected_symbol_col, 'Unknown')
-                if "<a " in str(s): s = str(s).split('">')[-1].split('</a>')[0]
-                v = row[pct_target]
-                st.markdown(f"<div style='background-color:#0f9d58; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{s}: +{v}%</div>", unsafe_allow_html=True)
-        with colB:
-            st.markdown("#### ⬇️ Bottom 10 (Daily)")
-            for _, row in bottom_10.iterrows():
-                s = row.get(selected_symbol_col, 'Unknown')
-                if "<a " in str(s): s = str(s).split('">')[-1].split('</a>')[0]
-                v = row[pct_target]
-                st.markdown(f"<div style='background-color:#ea4335; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{s}: {v}%</div>", unsafe_allow_html=True)
+        AgGrid(display_perf_df, gridOptions=perf_grid_ops, theme="streamlit", allow_unsafe_jscode=True, fit_columns_on_grid_load=False, height=450, width='100%', key="horizon_perf_grid")
+
 else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
