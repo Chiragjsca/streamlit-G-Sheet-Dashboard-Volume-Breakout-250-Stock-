@@ -20,7 +20,7 @@ st.set_page_config(page_title="NSE Stock Dashboard", layout="wide", page_icon="�
 # 🔐 ADMIN LOGIN SYSTEM
 # ==========================================
 # CHANGE YOUR PASSWORD HERE:
-ADMIN_PASSWORD = "admin"
+ADMIN_PASSWORD = "chirag"
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -38,7 +38,7 @@ if not st.session_state.logged_in:
                     st.rerun()
                 else:
                     st.error("❌ Incorrect Password. Please try again.")
-    st.stop() # Stops the rest of the dashboard from loading until logged in
+    st.stop() 
 
 # ==========================================
 # 🌍 GLOBAL MARKET TICKER (TRADINGVIEW)
@@ -328,12 +328,16 @@ if not raw_df.empty:
     # ==========================================
     # 🎨 EXACT COLOR REFLECTION & HTML LOGIC
     # ==========================================
+    # CRITICAL FIX: React Error #31 fixed by reverting to class-based components
     html_renderer = JsCode("""
-    function(params) {
-        if (!params.value) return '';
-        let eGui = document.createElement('span');
-        eGui.innerHTML = params.value;
-        return eGui;
+    class HtmlRenderer {
+        init(params) {
+            this.eGui = document.createElement('span');
+            this.eGui.innerHTML = params.value ? String(params.value) : '';
+        }
+        getGui() {
+            return this.eGui;
+        }
     }
     """)
 
