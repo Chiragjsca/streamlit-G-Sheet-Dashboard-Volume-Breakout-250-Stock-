@@ -454,27 +454,8 @@ if not raw_df.empty:
             ])
             
             with ws_tab1:
-                col_chart, col_info = st.columns([3, 2])
-                with col_chart:
-                    st.markdown("**NSE Interactive Chart Frame**")
-                    components.html(f'<iframe src="https://charting.nseindia.com/?symbol={sym}-EQ" width="100%" height="{box_height}" style="border:none; border-radius:5px;"></iframe>', height=box_height+20)
-                with col_info:
-                    st.markdown("**1ND Panel: Alternative Real-Time Stock Analytics Profile**")
-                    components.html(f"""
-                    <div class="tradingview-widget-container" style="height:{box_height}px;">
-                      <div class="tradingview-widget-container__widget"></div>
-                      <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-symbol-profile.js" async>
-                      {{
-                      "symbol": "NSE:{sym}",
-                      "width": "100%",
-                      "height": "100%",
-                      "colorTheme": "dark",
-                      "isTransparent": true,
-                      "locale": "en"
-                    }}
-                      </script>
-                    </div>
-                    """, height=box_height)
+                st.markdown("**NSE Interactive Chart Frame**")
+                components.html(f'<iframe src="https://charting.nseindia.com/?symbol={sym}-EQ" width="100%" height="{box_height}" style="border:none; border-radius:5px;"></iframe>', height=box_height+20)
             
             with ws_tab2:
                 st.markdown("**2ND Panel: EquityPandit Historical Matrix Data**")
