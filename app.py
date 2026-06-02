@@ -41,9 +41,9 @@ def load_sheet_data_with_colors(sheet_name):
         spreadsheet_id = "1SFhuZbLLlwwFsNo1k2RRx_Zp6bAkRR20W0F_zTwgdwU"
         encoded_sheet = urllib.parse.quote(sheet_name)
         
-        # Hit the Google Sheets API directly to get Grid Data (Values + Formatting)
+        # FIXED: Use client.auth.get() instead of client.request()
         url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}?includeGridData=true&ranges={encoded_sheet}"
-        response = client.request('get', url)
+        response = client.auth.get(url)
         data = response.json()
 
         if 'sheets' not in data or not data['sheets']:
@@ -59,7 +59,7 @@ def load_sheet_data_with_colors(sheet_name):
         bg_colors_list = []
         txt_colors_list = []
 
-        # Parse the massive JSON response block by block
+        # Parse the JSON response block by block
         for row in row_data:
             cells = row.get('values', [])
             row_vals = []
@@ -67,11 +67,9 @@ def load_sheet_data_with_colors(sheet_name):
             row_txts = []
             
             for cell in cells:
-                # 1. Get the formatted text (exactly as it appears on screen, fixing dates automatically!)
                 val = cell.get('formattedValue', '')
                 row_vals.append(val)
                 
-                # 2. Get the colors
                 fmt = cell.get('effectiveFormat', {})
                 bg = fmt.get('backgroundColor', {})
                 txt = fmt.get('textFormat', {}).get('foregroundColor', {})
@@ -106,7 +104,6 @@ def load_sheet_data_with_colors(sheet_name):
             bg_col_name = f"_bg_{col}"
             txt_col_name = f"_txt_{col}"
             
-            # Use list comprehension to map colors, handling uneven rows if they exist
             df[bg_col_name] = [row[i] if i < len(row) else "#ffffff" for row in bg_colors_list[1:]]
             df[txt_col_name] = [row[i] if i < len(row) else "#000000" for row in txt_colors_list[1:]]
 
@@ -122,11 +119,10 @@ def process_hyperlinks(df, symbol_col):
     
     for idx, row in df_proc.iterrows():
         sym = str(row[symbol_col]).strip()
-        if not sym or sym == "nan" or not sym:
+        if not sym or sym == "nan":
             continue
             
         for col in df_proc.columns:
-            # Skip the hidden color columns
             if col.startswith("_bg_") or col.startswith("_txt_"):
                 continue
                 
@@ -218,7 +214,6 @@ if not raw_df.empty:
     }
     """)
 
-    # This script tells Streamlit to look at the hidden color columns we downloaded
     exact_mirror_style = JsCode("""
     function(params) {
         let colName = params.colDef.field;
@@ -228,7 +223,7 @@ if not raw_df.empty:
         let bgColor = params.data[bgCol];
         let txtColor = params.data[txtCol];
         
-        // If the cell is white in Google Sheets, leave it transparent so Streamlit Dark Mode works!
+        // If the cell is white/blank in Google Sheets, let Streamlit handle it
         if (!bgColor || bgColor.toLowerCase() === '#ffffff') {
             return null;
         }
@@ -246,7 +241,6 @@ if not raw_df.empty:
     priority_columns_lower = ["nse code", "id", "company name", "stock name", "symbol", "industry", "sector"]
 
     for col in final_df.columns:
-        # HIDE the secret color tracking columns from the user interface
         if col.startswith("_bg_") or col.startswith("_txt_"):
             gb.configure_column(col, hide=True)
             continue
@@ -265,7 +259,7 @@ if not raw_df.empty:
             resizable=True,
             editable=False,
             cellRenderer=html_renderer,
-            cellStyle=exact_mirror_style # Applies the exact color from the API
+            cellStyle=exact_mirror_style
         )
 
     gb.configure_grid_options(
