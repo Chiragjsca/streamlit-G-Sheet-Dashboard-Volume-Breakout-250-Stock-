@@ -337,7 +337,6 @@ if not raw_df.empty:
     if high_target and high_target not in core_sequence: core_sequence.append(high_target)
         
     low_target = next((c for c in actual_cols if "52" in c.lower() and "low" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
-    # FIXED CRITICAL SYNTAX ERROR HERE (Removed broken line block)
     if low_target and low_target not in core_sequence: core_sequence.append(low_target)
 
     all_other_fields = [c for c in filtered_df.columns if c not in core_sequence and not c.startswith("_bg_") and not c.startswith("_txt_") and c != "_raw_symbol_"]
@@ -453,7 +452,7 @@ if not raw_df.empty:
             ws_tabs = st.tabs([
                 "📈 Chart & Trade Info (NSE Component)", "📋 History Data (EquityPandit)", 
                 "🎯 Bullish/Bearish Zone", "📁 Screener Documents",
-                "🪁 Zerodha Portal", "📊 MarketSmith India", "📉 TradingView Symbol Profile"
+                "🪁 Zerodha Portal", "📊 MarketSmith India"
             ])
             
             with ws_tabs[0]:
@@ -478,11 +477,7 @@ if not raw_df.empty:
 
             with ws_tabs[5]:
                 st.markdown("**6TH Panel: MarketSmith India Institutional Trading Evaluation Engine**")
-                components.html(f'<iframe src="https://marketsmithindia.com/mstool/eval/{sym.lower()}/evaluation.jsp" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
-
-            with ws_tabs[6]:
-                st.markdown("**7TH Panel: TradingView Comprehensive Asset Market Registry Summary Profile**")
-                components.html(f'<iframe src="https://www.tradingview.com/symbols/NSE-{sym}/" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
+               components.html(f'<iframe src="https://marketsmithindia.com/mstool/eval/{sym.lower()}/evaluation.jsp" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
     # ==========================================
     # 🌍 NATIONAL ANALYTICS PORTAL WORKSPACE
@@ -629,8 +624,8 @@ if not raw_df.empty:
                 
             price_val = row.get(cmp_target, "") if cmp_target else ""
             
-            # UPDATED HYPERLINK: Formatted to point directly to the official NSE Quote URL page instead of the old charting component layout
-            hyperlinked_name = f'<a href="https://www.nseindia.com/get-quotes/equity?symbol={ticker}" target="_blank" style="text-decoration:none; color:#1f77b4; font-weight:bold;">{ticker}</a>'
+            # Clickable NSE Technical Charting Link
+            hyperlinked_name = f'<a href="https://charting.nseindia.com/?symbol={ticker}-EQ" target="_blank" style="text-decoration:none; color:#1f77b4; font-weight:bold;">{ticker}</a>'
             
             entry = {
                 "STOCK NAME": hyperlinked_name,
@@ -707,14 +702,18 @@ if not raw_df.empty:
                 s = row.get(selected_symbol_col, 'Unknown')
                 if "<a " in str(s): s = str(s).split('">')[-1].split('</a>')[0]
                 v = row[pct_target]
-                st.markdown(f"<div style='background-color:#0f9d58; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{s}: +{v}%</div>", unsafe_allow_html=True)
+                
+                # Clickable NSE Technical Charting Link enveloping the badge
+                st.markdown(f"<a href='https://charting.nseindia.com/?symbol={s}-EQ' target='_blank' style='text-decoration:none;'><div style='background-color:#0f9d58; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{s}: +{v}%</div></a>", unsafe_allow_html=True)
         with colB:
             st.markdown("#### ⬇️ Bottom 10 (Daily)")
             for _, row in bottom_10.iterrows():
                 s = row.get(selected_symbol_col, 'Unknown')
                 if "<a " in str(s): s = str(s).split('">')[-1].split('</a>')[0]
                 v = row[pct_target]
-                st.markdown(f"<div style='background-color:#ea4335; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{s}: {v}%</div>", unsafe_allow_html=True)
+                
+                # Clickable NSE Technical Charting Link enveloping the badge
+                st.markdown(f"<a href='https://charting.nseindia.com/?symbol={s}-EQ' target='_blank' style='text-decoration:none;'><div style='background-color:#ea4335; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{s}: {v}%</div></a>", unsafe_allow_html=True)
 
 else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
