@@ -52,7 +52,7 @@ def load_sheet_data(sheet_name):
         clean_headers = []
         seen = {}
         for h in raw_headers:
-            h = str(h).strip() # Removes hidden trailing spaces from Google Sheets
+            h = str(h).strip()
             if h == "":
                 h = "empty_column"
             if h in seen:
@@ -68,43 +68,59 @@ def load_sheet_data(sheet_name):
         # ---------- Find the Symbol column robustly ----------
         symbol_col = None
         for c in df.columns:
-            # Check for common naming variations regardless of case
             if c.lower() in ["symbol", "ticker", "stock symbol"]:
                 symbol_col = c
                 break
 
-        # ---------- Generate Clickable HTML Links ----------
+        # ---------- Generate Clickable HTML Links (Super Robust) ----------
         if symbol_col:
-            # Create a dictionary to match columns regardless of capitalization
-            col_map = {c.lower(): c for c in df.columns}
-            
             for idx, row in df.iterrows():
                 sym = str(row[symbol_col]).strip()
                 if not sym or sym == "nan":
                     continue
-
-                link_configs = {
-                    "trading view": (f"https://www.tradingview.com/symbols/{sym}", f"Tre {sym}"),
-                    "history data": (f"https://www.equitypandit.com/historical-data/{sym}", f"History {sym}"),
-                    "screener": (f"https://www.screener.in/company/{sym}", f"Scr {sym}"),
-                    "zerodha": (f"https://zerodha.com/markets/stocks/NSE/{sym}", f"🪁 {sym}"),
-                    "chartlink": (f"https://chartink.com/stocks-new?load-snapshot=exponential-moving-average-simple-moving-average-simple-moving-average-moving-average-convergence-divergence-chart-snapshot-175&symbol={sym}", f"CL {sym}"),
-                    "market smith india": (f"https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp", f"ms {sym}"),
-                    "nse chart": (f"https://charting.nseindia.com/?symbol={sym}-EQ", f"nse {sym}"),
-                    "official nse url": (f"https://www.nseindia.com/get-quotes/equity?symbol={sym}", f"nse📰 {sym}")
-                }
-
-                for target_col_lower, (url, label) in link_configs.items():
-                    # Format main columns (e.g., "Screener")
-                    if target_col_lower in col_map:
-                        actual_col = col_map[target_col_lower]
-                        df.at[idx, actual_col] = f'<a href="{url}" target="_blank" style="color:#1f77b4; text-decoration:none;">{label}</a>'
+                
+                # Iterate over every column to check if it's a link column
+                for col in df.columns:
+                    c_lower = col.lower()
+                    url = None
+                    label = "🔗 Link" # Default for columns ending in '1'
                     
-                    # Format duplicate/alternate columns (e.g., "Screener 1")
-                    target_col_1_lower = f"{target_col_lower} 1"
-                    if target_col_1_lower in col_map:
-                        actual_col_1 = col_map[target_col_1_lower]
-                        df.at[idx, actual_col_1] = f'<a href="{url}" target="_blank" style="color:#1f77b4; text-decoration:none;">🔗 Link</a>'
+                    # 1. Match the column to the correct URL
+                    if "trading view" in c_lower:
+                        url = f"https://www.tradingview.com/symbols/{sym}"
+                        if not c_lower.endswith("1"): label = f"Tre {sym}"
+                            
+                    elif "history data" in c_lower:
+                        url = f"https://www.equitypandit.com/historical-data/{sym}"
+                        if not c_lower.endswith("1"): label = f"History {sym}"
+                            
+                    elif "screener" in c_lower:
+                        url = f"https://www.screener.in/company/{sym}"
+                        if not c_lower.endswith("1"): label = f"Scr {sym}"
+                            
+                    elif "zerodha" in c_lower:
+                        url = f"https://zerodha.com/markets/stocks/NSE/{sym}"
+                        if not c_lower.endswith("1"): label = f"🪁 {sym}"
+                            
+                    elif "chartlink" in c_lower:
+                        url = f"https://chartink.com/stocks-new?load-snapshot=exponential-moving-average-simple-moving-average-simple-moving-average-moving-average-convergence-divergence-chart-snapshot-175&symbol={sym}"
+                        if not c_lower.endswith("1"): label = f"CL {sym}"
+                            
+                    elif "market smith" in c_lower:
+                        url = f"https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp"
+                        if not c_lower.endswith("1"): label = f"ms {sym}"
+                            
+                    elif "official nse" in c_lower:
+                        url = f"https://www.nseindia.com/get-quotes/equity?symbol={sym}"
+                        if not c_lower.endswith("1"): label = f"nse📰 {sym}"
+                            
+                    elif "nse" in c_lower: # Catches "NSE Chart" and "NSE 1"
+                        url = f"https://charting.nseindia.com/?symbol={sym}-EQ"
+                        if not c_lower.endswith("1"): label = f"nse {sym}"
+                        
+                    # 2. If a URL was matched, inject the HTML format
+                    if url:
+                        df.at[idx, col] = f'<a href="{url}" target="_blank" style="color:#1f77b4; text-decoration:none;">{label}</a>'
 
         # ---------- Date Column Fixes ----------
         date_columns_to_fix = ["52W High Date", "52W Low Date"]
