@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import gspread
 from google.oauth2.service_account import Credentials
 from google.auth.transport.requests import AuthorizedSession
@@ -152,10 +153,14 @@ def apply_numeric_slider(df, col_name, st_container, display_label=None):
         num_series = df[col_name].astype(str).str.replace(r'[%,]', '', regex=True)
         num_series = pd.to_numeric(num_series, errors='coerce')
         
+        # CRITICAL FIX: Replace Infinity with NaN to prevent Streamlit crashes
+        num_series = num_series.replace([np.inf, -np.inf], np.nan)
+        
         valid_nums = num_series.dropna()
         if not valid_nums.empty:
-            min_val = float(valid_nums.min())
-            max_val = float(valid_nums.max())
+            # Round the min and max to prevent floating point precision crashes
+            min_val = round(float(valid_nums.min()), 2)
+            max_val = round(float(valid_nums.max()), 2)
             
             if min_val < max_val:
                 label = display_label if display_label else f"{col_name} Range:"
@@ -305,14 +310,17 @@ if not raw_df.empty:
     if diff_200_col:
         filtered_df = apply_numeric_slider(filtered_df, diff_200_col, st.sidebar, "Diff. from 200 DMA (%) Range:")
 
-    # B) 52W Low % (Find it, or compute it dynamically if it doesn't exist)
+    # B) 52W Low % (Find it, or compute it dynamically safely)
     low_pct_col = next((c for c in actual_cols if "52" in c.lower() and "low" in c.lower() and ("%" in c.lower() or "per" in c.lower() or "away" in c.lower())), None)
     if not low_pct_col and cmp_col:
         low_col = next((c for c in actual_cols if "52" in c.lower() and "low" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
         if low_col:
             cmp_s = pd.to_numeric(filtered_df[cmp_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
             low_s = pd.to_numeric(filtered_df[low_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
-            # Calculate % difference
+            
+            # CRITICAL FIX: Prevent divide by zero making infinity
+            low_s = low_s.replace(0, np.nan)
+            
             filtered_df["% from 52W Low (Calc)"] = ((cmp_s - low_s) / low_s) * 100
             filtered_df["% from 52W Low (Calc)"] = filtered_df["% from 52W Low (Calc)"].round(2)
             low_pct_col = "% from 52W Low (Calc)"
@@ -320,14 +328,17 @@ if not raw_df.empty:
     if low_pct_col:
         filtered_df = apply_numeric_slider(filtered_df, low_pct_col, st.sidebar, "% from 52W Low Range:")
 
-    # C) 52W High % (Find it, or compute it dynamically if it doesn't exist)
+    # C) 52W High % (Find it, or compute it dynamically safely)
     high_pct_col = next((c for c in actual_cols if "52" in c.lower() and "high" in c.lower() and ("%" in c.lower() or "per" in c.lower() or "away" in c.lower())), None)
     if not high_pct_col and cmp_col:
         high_col = next((c for c in actual_cols if "52" in c.lower() and "high" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
         if high_col:
             cmp_s = pd.to_numeric(filtered_df[cmp_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
             high_s = pd.to_numeric(filtered_df[high_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
-            # Calculate % difference (Will naturally be negative numbers)
+            
+            # CRITICAL FIX: Prevent divide by zero making infinity
+            high_s = high_s.replace(0, np.nan)
+            
             filtered_df["% from 52W High (Calc)"] = ((cmp_s - high_s) / high_s) * 100
             filtered_df["% from 52W High (Calc)"] = filtered_df["% from 52W High (Calc)"].round(2)
             high_pct_col = "% from 52W High (Calc)"
