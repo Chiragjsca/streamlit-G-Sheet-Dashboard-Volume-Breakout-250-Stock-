@@ -477,7 +477,7 @@ if not raw_df.empty:
 
             with ws_tabs[5]:
                 st.markdown("**6TH Panel: MarketSmith India Institutional Trading Evaluation Engine**")
-               components.html(f'<iframe src="https://marketsmithindia.com/mstool/eval/{sym.lower()}/evaluation.jsp" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
+                components.html(f'<iframe src="https://marketsmithindia.com/mstool/eval/{sym.lower()}/evaluation.jsp" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
     # ==========================================
     # 🌍 NATIONAL ANALYTICS PORTAL WORKSPACE
