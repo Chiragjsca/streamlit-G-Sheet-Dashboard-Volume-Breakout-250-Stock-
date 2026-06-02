@@ -20,7 +20,7 @@ st.set_page_config(page_title="NSE Stock Dashboard", layout="wide", page_icon="�
 # 🔐 ADMIN LOGIN SYSTEM
 # ==========================================
 # CHANGE YOUR PASSWORD HERE:
-ADMIN_PASSWORD = "chirag"
+ADMIN_PASSWORD = "admin"
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -47,6 +47,7 @@ st.title("📊 NSE Stock Market Dashboard")
 st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 components.html("""
+<!-- TradingView Widget BEGIN -->
 <div class="tradingview-widget-container">
   <div class="tradingview-widget-container__widget"></div>
   <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
@@ -66,6 +67,7 @@ components.html("""
 }
   </script>
 </div>
+<!-- TradingView Widget END -->
 """, height=70)
 
 # ==========================================
@@ -328,7 +330,6 @@ if not raw_df.empty:
     # ==========================================
     # 🎨 EXACT COLOR REFLECTION & HTML LOGIC
     # ==========================================
-    # CRITICAL FIX: React Error #31 fixed by reverting to class-based components
     html_renderer = JsCode("""
     class HtmlRenderer {
         init(params) {
@@ -412,33 +413,11 @@ if not raw_df.empty:
                     f"[NSE URL (🔗)](https://www.nseindia.com/get-quotes/equity?symbol={sym})"
                 )
             
-            # Embed Live TradingView Chart Below the Grid for the Selected Stock
+            # Embed Live NSE Chart Below the Grid for the Selected Stock
             st.markdown(f"### 📈 Live Chart: {sym}")
             components.html(f"""
-            <div class="tradingview-widget-container">
-              <div id="tradingview_chart"></div>
-              <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
-              <script type="text/javascript">
-              new TradingView.widget(
-              {{
-              "width": "100%",
-              "height": 450,
-              "symbol": "NSE:{sym}",
-              "interval": "D",
-              "timezone": "Asia/Kolkata",
-              "theme": "dark",
-              "style": "1",
-              "locale": "en",
-              "enable_publishing": false,
-              "hide_top_toolbar": false,
-              "hide_legend": false,
-              "save_image": false,
-              "container_id": "tradingview_chart"
-            }}
-              );
-              </script>
-            </div>
-            """, height=450)
+            <iframe src="https://charting.nseindia.com/?symbol={sym}-EQ" width="100%" height="550" style="border:none; border-radius:5px;"></iframe>
+            """, height=550)
 
     # ==========================================
     # 🏆 TOP 10 & BOTTOM 10 PERFORMERS
