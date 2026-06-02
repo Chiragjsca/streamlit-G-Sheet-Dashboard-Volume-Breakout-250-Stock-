@@ -407,16 +407,11 @@ if not raw_df.empty:
             
             st.markdown(f"---")
             st.subheader(f"🛠️ Live Workspace Panel: {sym}")
-            
-            # Save Option / Adjustable Height Feature
             box_height = st.slider("📏 Adjust Panel Box Height (px):", min_value=300, max_value=1000, value=500, step=50, key="panel_height_slider")
             
-            # Creating Tabs for Workspace Syncing
             ws_tab1, ws_tab2, ws_tab3, ws_tab4 = st.tabs([
-                "📈 Chart & Trade Info (NSE Component)", 
-                "📋 History Data (EquityPandit)", 
-                "🎯 Bullish/Bearish Zone", 
-                "📁 Screener Documents"
+                "📈 Chart & Trade Info (NSE Component)", "📋 History Data (EquityPandit)", 
+                "🎯 Bullish/Bearish Zone", "📁 Screener Documents"
             ])
             
             with ws_tab1:
@@ -426,7 +421,7 @@ if not raw_df.empty:
                     components.html(f'<iframe src="https://charting.nseindia.com/?symbol={sym}-EQ" width="100%" height="{box_height}" style="border:none; border-radius:5px;"></iframe>', height=box_height+20)
                 with col_info:
                     st.markdown("**1ND Panel: NSE Live Trade Information View**")
-                    st.warning("⚠️ NSE India strictly prevents direct data element cropping inside iframes via security headers. Use the direct link actions to monitor live details.")
+                    st.info("💡 NSE India blocks direct layout cropping on client engines. Use the fast link toggle to open.")
                     st.markdown(f'<a href="https://www.nseindia.com/get-quotes/equity?symbol={sym}" target="_blank"><button style="width:100%; padding:10px; border-radius:5px; background-color:#1f77b4; color:white; border:none; cursor:pointer; font-weight:bold;">🌐 Open Official NSE Trade Info for {sym}</button></a>', unsafe_allow_html=True)
             
             with ws_tab2:
@@ -434,87 +429,142 @@ if not raw_df.empty:
                 components.html(f'<iframe src="https://www.equitypandit.com/historical-data/{sym.lower()}" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
                 
             with ws_tab3:
-                st.markdown("**3RD Panel: Bullish / Bearish Zone Technical Performance Indicator**")
+                st.markdown("**3RD Panel: Bullish / Bearish Zone Indicator**")
                 components.html(f'<iframe src="https://www.equitypandit.com/share-price/{sym.lower()}#chart" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
                 
             with ws_tab4:
-                st.markdown("**4TH Panel: Screener Corporate Filings & Accounting Analytics**")
+                st.markdown("**4TH Panel: Screener Corporate Filings**")
                 components.html(f'<iframe src="https://www.screener.in/company/{sym}/consolidated/" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
     # ==========================================
-    # 🌍 NATIONAL MARKET ANALYTICS ENGINE (Tabs 5-10)
+    # 🌍 NATIONAL ANALYTICS PORTAL WORKSPACE (Tabs 5-10 + Added Matrix Frameworks)
     # ==========================================
     st.markdown("---")
-    st.subheader("📊 National Live Market Analytics Framework")
+    st.subheader("📊 National Live Market Analytics Portal Framework")
     
-    mkt_tab5, mkt_tab6, mkt_tab7, mkt_tab8, mkt_tab9, mkt_tab10 = st.tabs([
-        "🔥 Most Active Equities", 
-        "🚀 Volume Gainers", 
-        "🏆 Top Gainers/Losers", 
-        "⭐ 52-Week High/Low", 
-        "📦 Stocks Traded", 
-        "⚖️ Advances/Declines"
+    mkt_tabs = st.tabs([
+        "🔥 Most Active", "🚀 Volume Gainers", "🏆 Top Gainers/Losers", "⭐ 52W Boundaries", "📦 Stocks Traded", "⚖️ Advances/Declines",
+        "🕒 Pre-Open Market", "⚡ Price Band Hitters", "🗺️ Index Ticker Heatmap", "🎫 IPO Tracker", "⚠️ Volume Shockers",
+        "📂 Document Reports", "🖋️ TV Script Engine", "🔮 MunafaSutra Tickers", "🎯 Dhan Asset Registry", "💎 Weekly Activity Metrics",
+        "🔧 ScanX Core Screener", "🚦 ScanX Live Engine", "🎨 Screener Exploration", "📈 IPO Chittorgarh", "🏷️ IPO Watch Panel"
     ])
     
-    with mkt_tab5:
-        st.markdown("**5th Workspace: Value and Volume Heavyweight Action**")
-        st.markdown('[🌐 Open Live Source Matrix](https://www.nseindia.com/market-data/most-active-equities)')
-        components.html('<iframe src="https://www.nseindia.com/market-data/most-active-equities" width="100%" height="600" style="border:none; border-radius:5px;"></iframe>', height=620)
-        
-    with mkt_tab6:
-        st.markdown("**6th Workspace: Volume Spurts & Activity Gainers**")
-        st.markdown('[🌐 Open Live Source Matrix](https://www.nseindia.com/market-data/volume-gainers-spurts)')
-        components.html('<iframe src="https://www.nseindia.com/market-data/volume-gainers-spurts" width="100%" height="600" style="border:none; border-radius:5px;"></iframe>', height=620)
-        
-    with mkt_tab7:
-        st.markdown("**7th Workspace: Top 20 Directional Leaders**")
-        st.markdown('[🌐 Open Live Source Matrix](https://www.nseindia.com/market-data/top-gainers-losers)')
-        components.html('<iframe src="https://www.nseindia.com/market-data/top-gainers-losers" width="100%" height="600" style="border:none; border-radius:5px;"></iframe>', height=620)
-        
-    with mkt_tab8:
-        st.markdown("**8th Workspace: Price Extreme Milestones (52-Week Range Boundaries)**")
-        st.markdown('[🌐 Open Live Source Matrix](https://www.nseindia.com/market-data/52-week-high-equity-market)')
-        components.html('<iframe src="https://www.nseindia.com/market-data/52-week-high-equity-market" width="100%" height="600" style="border:none; border-radius:5px;"></iframe>', height=620)
-        
-    with mkt_tab9:
-        st.markdown("**9th Workspace: National Capital Market Depth Tracking**")
-        st.markdown('[🌐 Open Live Source Matrix](https://www.nseindia.com/market-data/stocks-traded)')
-        components.html('<iframe src="https://www.nseindia.com/market-data/stocks-traded" width="100%" height="600" style="border:none; border-radius:5px;"></iframe>', height=620)
-        
-    with mkt_tab10:
-        st.markdown("**10th Workspace: Market Breadth Indicators (A/D Ratio)**")
-        st.markdown('[🌐 Open Live Source Matrix](https://www.nseindia.com/market-data/advance)')
-        components.html('<iframe src="https://www.nseindia.com/market-data/advance" width="100%" height="600" style="border:none; border-radius:5px;"></iframe>', height=620)
+    with mkt_tabs[0]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/market-data/most-active-equities)")
+        components.html('<iframe src="https://www.nseindia.com/market-data/most-active-equities" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[1]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/market-data/volume-gainers-spurts)")
+        components.html('<iframe src="https://www.nseindia.com/market-data/volume-gainers-spurts" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[2]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/market-data/top-gainers-losers)")
+        components.html('<iframe src="https://www.nseindia.com/market-data/top-gainers-losers" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[3]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/market-data/52-week-high-equity-market)")
+        components.html('<iframe src="https://www.nseindia.com/market-data/52-week-high-equity-market" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[4]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/market-data/stocks-traded)")
+        components.html('<iframe src="https://www.nseindia.com/market-data/stocks-traded" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[5]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/market-data/advance)")
+        components.html('<iframe src="https://www.nseindia.com/market-data/advance" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[6]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/market-data/pre-open-market-cm-and-emerge-market)")
+        components.html('<iframe src="https://www.nseindia.com/market-data/pre-open-market-cm-and-emerge-market" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[7]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/market-data/upper-band-hitters)")
+        components.html('<iframe src="https://www.nseindia.com/market-data/upper-band-hitters" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[8]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/index-tracker/NIFTY%2050)")
+        components.html('<iframe src="https://www.nseindia.com/index-tracker/NIFTY%2050" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[9]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/market-data/all-upcoming-issues-ipo)")
+        components.html('<iframe src="https://www.nseindia.com/market-data/all-upcoming-issues-ipo" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[10]:
+        st.markdown("[🌐 Open Matrix](https://www.moneycontrol.com/stocks/market-stats/volume-shockers-nse/)")
+        components.html('<iframe src="https://www.moneycontrol.com/stocks/market-stats/volume-shockers-nse/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[11]:
+        st.markdown("[🌐 Open Matrix](https://www.nseindia.com/all-reports/)")
+        components.html('<iframe src="https://www.nseindia.com/all-reports/" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[12]:
+        st.markdown("[🌐 Open Matrix](https://www.tradingview.com/scripts/)")
+        components.html('<iframe src="https://www.tradingview.com/scripts/" width="100%" height="500" style="border:none;"></iframe>', height=520)
+    with mkt_tabs[13]:
+        st.markdown("[🌐 Open Matrix](https://munafasutra.com/nse/)")
+        components.html('<iframe src="https://munafasutra.com/nse/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[14]:
+        st.markdown("[🌐 Open Matrix](https://dhan.co/all-stocks-list/)")
+        components.html('<iframe src="https://dhan.co/all-stocks-list/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[15]:
+        st.markdown("[🌐 Open Matrix](https://dhan.co/stocks/market/most-active-stocks-this-week/)")
+        components.html('<iframe src="https://dhan.co/stocks/market/most-active-stocks-this-week/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[16]:
+        st.markdown("[🌐 Open Matrix](https://scanx.trade/create-custom-screener)")
+        components.html('<iframe src="https://scanx.trade/create-custom-screener" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[17]:
+        st.markdown("[🌐 Open Matrix](https://scanx.trade/stock-screener/live-market-screener)")
+        components.html('<iframe src="https://scanx.trade/stock-screener/live-market-screener" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[18]:
+        st.markdown("[🌐 Open Matrix](https://www.screener.in/explore/)")
+        components.html('<iframe src="https://www.screener.in/explore/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[19]:
+        st.markdown("[🌐 Open Matrix](https://www.chittorgarh.com/)")
+        components.html('<iframe src="https://www.chittorgarh.com/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[20]:
+        st.markdown("[🌐 Open Matrix](https://ipowatch.in/)")
+        components.html('<iframe src="https://ipowatch.in/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
 
     # ==========================================
-    # 🏆 LEADERBOARDS
+    # 🏆 MULTI-HORIZON PERFORMANCE LEADERBOARDS
     # ==========================================
-    price_col = next((c for c in actual_cols if "price %" in c.lower()), None)
-    if price_col:
-        st.markdown("---")
-        st.markdown("### 🏆 Top 10 & Bottom 10 Performers (Price %)")
+    st.markdown("---")
+    st.markdown("### 🏆 Top 10 & Bottom 10 Performers Matrix")
+    
+    time_horizons = [
+        "1 Day", "2 Day", "3 Day", "5 Day", "7 Day", "10 Day", "12 Day", "15 Days", "20 Days", "25 Days", "30 Days",
+        "2 Months", "3 Months", "4 Months", "5 Months", "6 Months", "7 Months", "8 Months", "9 Months", "10 Months", "11 Months",
+        "1 Year", "18 Months", "1.5 Years", "2 Years", "2.5 Years", "3 Years"
+    ]
+    
+    selected_horizon = st.selectbox("⏳ Choose Performance Tracking Horizon Lookback:", time_horizons, index=0)
+    
+    horizon_keywords = [selected_horizon.lower(), selected_horizon.lower().replace(" ", ""), selected_horizon.lower().replace("s", "")]
+    if selected_horizon == "1 Day": horizon_keywords.append("price %") # Fallback to standard price % column for daily interval
         
+    metric_col = None
+    for c in actual_cols:
+        if any(keyword in c.lower() for keyword in horizon_keywords) and "%" in c.lower():
+            metric_col = c
+            break
+
+    if metric_col:
+        st.caption(f"Sorting lookback tracking matrix by data parameters inside: **{metric_col}**")
         temp_df = filtered_df.copy()
-        temp_df[price_col] = pd.to_numeric(temp_df[price_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
-        temp_df = temp_df.dropna(subset=[price_col])
+        temp_df[metric_col] = pd.to_numeric(temp_df[metric_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
+        temp_df = temp_df.dropna(subset=[metric_col])
         
-        top_10 = temp_df.nlargest(10, price_col)
-        bottom_10 = temp_df.nsmallest(10, price_col)
+        top_10 = temp_df.nlargest(10, metric_col)
+        bottom_10 = temp_df.nsmallest(10, metric_col)
         
-        colA, colB = st.columns(2)
-        with colA:
-            st.markdown("#### ⬆️ Top 10 (Daily)")
+        col_leaders, col_laggards = st.columns(2)
+        with col_leaders:
+            st.markdown(f"#### ⬆️ Top 10 Leaders ({selected_horizon})")
             for _, row in top_10.iterrows():
-                s = row.get(selected_symbol_col, 'Unknown')
-                v = row[price_col]
-                st.markdown(f"<div style='background-color:#0f9d58; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{s}: +{v}%</div>", unsafe_allow_html=True)
+                ticker_symbol = row.get(selected_symbol_col, 'Unknown')
+                if "<a " in str(ticker_symbol): # Clean out HTML fragments if any are present
+                    ticker_symbol = str(ticker_symbol).split('">')[-1].split('</a>')[0]
+                value = row[metric_col]
+                st.markdown(f"<div style='background-color:#0f9d58; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{ticker_symbol}: +{value}%</div>", unsafe_allow_html=True)
         
-        with colB:
-            st.markdown("#### ⬇️ Bottom 10 (Daily)")
+        with col_laggards:
+            st.markdown(f"#### ⬇️ Bottom 10 Laggards ({selected_horizon})")
             for _, row in bottom_10.iterrows():
-                s = row.get(selected_symbol_col, 'Unknown')
-                v = row[price_col]
-                st.markdown(f"<div style='background-color:#ea4335; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{s}: {v}%</div>", unsafe_allow_html=True)
+                ticker_symbol = row.get(selected_symbol_col, 'Unknown')
+                if "<a " in str(ticker_symbol):
+                    ticker_symbol = str(ticker_symbol).split('">')[-1].split('</a>')[0]
+                value = row[metric_col]
+                st.markdown(f"<div style='background-color:#ea4335; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{ticker_symbol}: {value}%</div>", unsafe_allow_html=True)
+    else:
+        st.warning(f"Could not find a corresponding data field header matching timeframe parameters for '{selected_horizon}' inside this Google Sheet tab layout.")
 
 else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
