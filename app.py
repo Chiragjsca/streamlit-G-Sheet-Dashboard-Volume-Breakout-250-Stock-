@@ -133,7 +133,7 @@ with st.spinner("Loading data..."):
 if not df.empty:
     st.write(f"**Rows:** {df.shape[0]} | **Columns:** {df.shape[1]}")
 
-    # ========== FIXED COLUMN WIDTHS & HORIZONTAL SCROLL ==========
+    # ========== IMPROVED GRID CONFIGURATION (FIXED COLUMN WIDTHS & HORIZONTAL SCROLL) ==========
     gb = GridOptionsBuilder.from_dataframe(df)
 
     # Define priority columns that should be wider
@@ -207,4 +207,4 @@ else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
 
 st.markdown("---")
-st.caption("Powered by Google Sheets & Streamlit | Columns are resizable & reorderable | Horizontal scroll enabled")
+st.caption("Powered by Google Sheets & Streamlit | Columns are resizable, reorderable, and horizontally scrollable")
