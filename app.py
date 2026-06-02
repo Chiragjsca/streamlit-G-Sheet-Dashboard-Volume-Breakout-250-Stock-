@@ -709,7 +709,7 @@ if not raw_df.empty:
                 v = row[pct_target]
                 
                 # Clickable NSE Technical Charting Link enveloping the badge
-                st.markdown(f"<a href='https://charting.nseindia.com/?symbol={s}-EQ' target='_blank' style='text-decoration:none;'><div style='background-color:#0f9d58; padding:8px; margin:4px; border-radius:5px; color:Black; font-weight:bold;'>{s}: +{v}%</div></a>", unsafe_allow_html=True)
+                st.markdown(f"<a href='https://charting.nseindia.com/?symbol={s}-EQ' target='_blank' style='text-decoration:none;'><div style='background-color:#16e37f; padding:8px; margin:4px; border-radius:5px; color:Black; font-weight:bold;'>{s}: +{v}%</div></a>", unsafe_allow_html=True)
         with colB:
             st.markdown("#### ⬇️ Bottom 10 (Daily)")
             for _, row in bottom_10.iterrows():
@@ -718,7 +718,7 @@ if not raw_df.empty:
                 v = row[pct_target]
                 
                 # Clickable NSE Technical Charting Link enveloping the badge
-                st.markdown(f"<a href='https://charting.nseindia.com/?symbol={s}-EQ' target='_blank' style='text-decoration:none;'><div style='background-color:#ea4335; padding:8px; margin:4px; border-radius:5px; color:Black; font-weight:bold;'>{s}: {v}%</div></a>", unsafe_allow_html=True)
+                st.markdown(f"<a href='https://charting.nseindia.com/?symbol={s}-EQ' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:Black; font-weight:bold;'>{s}: {v}%</div></a>", unsafe_allow_html=True)
 
 else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
