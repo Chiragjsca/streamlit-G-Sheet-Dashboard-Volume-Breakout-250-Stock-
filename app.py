@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
+from google.auth.transport.requests import AuthorizedSession # NEW IMPORT ADDED HERE
 import json
 import urllib.parse
 from datetime import datetime
@@ -36,15 +37,24 @@ def load_sheet_data_with_colors(sheet_name):
 
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = Credentials.from_service_account_info(service_account_info, scopes=scope)
+        
+        # We still authorize gspread for potential future use, but we won't use it for the direct API call
         client = gspread.authorize(creds)
 
         spreadsheet_id = "1SFhuZbLLlwwFsNo1k2RRx_Zp6bAkRR20W0F_zTwgdwU"
         encoded_sheet = urllib.parse.quote(sheet_name)
         
-        # FIXED: Use client.auth.get() instead of client.request()
+        # FIXED: Use Google's official AuthorizedSession to make the request. 
+        # This is 100% stable and won't break based on your gspread version.
+        authed_session = AuthorizedSession(creds)
         url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}?includeGridData=true&ranges={encoded_sheet}"
-        response = client.auth.get(url)
+        response = authed_session.get(url)
         data = response.json()
+
+        # Check for API errors returned in the JSON
+        if 'error' in data:
+            st.error(f"Google API Error: {data['error'].get('message', 'Unknown Error')}")
+            return pd.DataFrame()
 
         if 'sheets' not in data or not data['sheets']:
             return pd.DataFrame()
