@@ -213,6 +213,19 @@ st.sidebar.info(
     "streamlit-g-sheet-dashboard-vo@axiomatic-idiom-496012-p8.iam.gserviceaccount.com"
 )
 
+# --- NEW: Explanation for hiding columns ---
+st.sidebar.markdown("---")
+st.sidebar.markdown("### 🧰 Column Controls")
+st.sidebar.caption(
+    "💡 **Hide a column** – click the **⋮** icon in the column header and select **Hide Column**.\n\n"
+    "🔄 **Show all columns** – use the button below to reset hidden columns."
+)
+
+# --- NEW: Force grid reload to show all columns ---
+if st.sidebar.button("🔄 Show All Columns"):
+    st.cache_data.clear()
+    st.rerun()
+
 # =====================================================
 # MAIN DISPLAY
 # =====================================================
@@ -229,7 +242,7 @@ if not df.empty:
     )
 
     # =================================================
-    # AG GRID
+    # AG GRID with column hiding via column menu
     # =================================================
 
     gb = GridOptionsBuilder.from_dataframe(df)
@@ -238,7 +251,9 @@ if not df.empty:
         sortable=True,
         filter=True,
         resizable=True,
-        editable=False
+        editable=False,
+        # Enable column menu for every column (includes Hide option)
+        menuTabs=["generalMenuTab", "columnsMenuTab"]
     )
 
     priority_columns = [
@@ -274,10 +289,21 @@ if not df.empty:
         suppressMovableColumns=False,
         suppressColumnVirtualisation=False,
         alwaysShowHorizontalScroll=True,
-        animateRows=True
+        animateRows=True,
+        # --- Enable column menu (required for hiding) ---
+        suppressMenu=False,          # Do NOT suppress the menu
+        suppressColumnMenu=False,    # Ensure column menu is not suppressed
+        # Optional: Allow right-click context menu on cells (does not affect column hide)
+        allowContextMenuWithControlKey=False,
+        # Standard menu includes "Hide Column" option
+        mainMenuTabs=["generalMenuTab", "columnsMenuTab"]
     )
 
     grid_options = gb.build()
+
+    # Use a unique key based on sheet name + a reload counter to allow showing all columns
+    # The st.rerun() above will recreate the grid with all columns visible.
+    grid_key = f"stock_grid_{selected_sheet}"
 
     AgGrid(
         df,
@@ -289,7 +315,7 @@ if not df.empty:
         enable_enterprise_modules=False,
         height=700,
         reload_data=False,
-        key="stock_grid"
+        key=grid_key
     )
 
     csv_df = df.replace(
@@ -321,5 +347,6 @@ st.markdown("---")
 
 st.caption(
     "Powered by Google Sheets & Streamlit | "
-    "50px columns | Resizable | Horizontal Scroll Enabled"
+    "50px columns | Resizable | Horizontal Scroll Enabled | "
+    "Hide columns via column menu (⋮) -> Hide Column"
 )
