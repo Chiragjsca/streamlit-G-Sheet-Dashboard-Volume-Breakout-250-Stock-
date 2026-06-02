@@ -72,7 +72,7 @@ def load_sheet_data(sheet_name):
             "Zerodha 1", "Chartlink 1", "Market smith india 1", "Official NSE URL 1"
         ]
 
-        # Process each column
+        # Process each column – convert to HTML <a> tags
         for col in link_columns:
             if col in df.columns:
                 new_values = []
@@ -83,13 +83,11 @@ def load_sheet_data(sheet_name):
 
                     url, label = extract_hyperlink_info(val)
                     if url and label:
-                        # For normal columns: keep original label; for "1" columns: show 🔗 Link
                         if col.endswith("1"):
                             new_values.append(f'<a href="{url}" target="_blank">🔗 Link</a>')
                         else:
                             new_values.append(f'<a href="{url}" target="_blank">{label}</a>')
                     elif isinstance(val, str) and (val.startswith("http://") or val.startswith("https://")):
-                        # Raw URL – for "1" columns show 🔗 Link, otherwise show full URL
                         if col.endswith("1"):
                             new_values.append(f'<a href="{val}" target="_blank">🔗 Link</a>')
                         else:
@@ -133,20 +131,26 @@ with st.spinner("Loading data..."):
 if not df.empty:
     st.write(f"**Rows:** {df.shape[0]} | **Columns:** {df.shape[1]}")
 
-    # ========== IMPROVED GRID CONFIGURATION (FIXED COLUMN WIDTHS & HORIZONTAL SCROLL) ==========
+    # ========== FIX 1: COLUMN WIDTHS & HORIZONTAL SCROLL ==========
     gb = GridOptionsBuilder.from_dataframe(df)
 
-    # Define priority columns that should be wider
+    # Priority columns that should be wider
     priority_columns = [
-        "ID",
-        "Company Name",
-        "Stock Name",
-        "Symbol",
-        "Industry",
-        "Sector"
+        "ID", "Company Name", "Stock Name", "Symbol", "Industry", "Sector"
     ]
 
-    # Configure each column with appropriate width
+    # ========== FIX 2: CUSTOM CELL RENDERER TO RENDER HTML LINKS ==========
+    # This JavaScript function tells AG Grid to render HTML content (like <a> tags) as actual HTML.
+    html_renderer = JsCode("""
+    function(params) {
+        if (params.value && typeof params.value === 'string' && (params.value.includes('<a') || params.value.includes('</a>'))) {
+            return params.value;
+        }
+        return params.value;
+    }
+    """)
+
+    # Apply to all columns: set default width, sort/filter, and the HTML renderer
     for col in df.columns:
         if col in priority_columns:
             gb.configure_column(
@@ -156,7 +160,8 @@ if not df.empty:
                 sortable=True,
                 filter=True,
                 resizable=True,
-                editable=False
+                editable=False,
+                cellRenderer=html_renderer
             )
         else:
             gb.configure_column(
@@ -166,36 +171,38 @@ if not df.empty:
                 sortable=True,
                 filter=True,
                 resizable=True,
-                editable=False
+                editable=False,
+                cellRenderer=html_renderer
             )
 
-    # Grid options that enable horizontal scrolling and prevent compression
+    # Grid options: enable horizontal scroll and normal layout
     gb.configure_grid_options(
-        domLayout="normal",                 # use normal layout (fixed height, scrolls)
+        domLayout="normal",
         rowHeight=35,
         headerHeight=45,
         enableCellTextSelection=True,
         ensureDomOrder=True,
         suppressMovableColumns=False,
         suppressColumnVirtualisation=False,
-        alwaysShowHorizontalScroll=True,    # always show horizontal scrollbar
+        alwaysShowHorizontalScroll=True,
         animateRows=True
     )
 
     grid_options = gb.build()
 
     # Display AG Grid
-    grid_response = AgGrid(
+    AgGrid(
         df,
         gridOptions=grid_options,
+        theme="streamlit",
         update_mode=GridUpdateMode.SELECTION_CHANGED,
-        allow_unsafe_jscode=True,
-        theme='streamlit',
+        allow_unsafe_jscode=True,      # Required for custom cell renderer
         fit_columns_on_grid_load=False,
         enable_enterprise_modules=False,
         height=600,
         width='100%',
-        reload_data=False
+        reload_data=False,
+        key="stock_grid"
     )
 
     # Download button (strip HTML tags for CSV)
@@ -207,4 +214,4 @@ else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
 
 st.markdown("---")
-st.caption("Powered by Google Sheets & Streamlit | Columns are resizable, reorderable, and horizontally scrollable")
+st.caption("Powered by Google Sheets & Streamlit | Columns are resizable, reorderable, and horizontally scrollable | Hyperlinks are clickable")
