@@ -478,9 +478,7 @@ if not raw_df.empty:
 
             with ws_tabs[5]:
                 st.markdown("**6TH Panel: MarketSmith India Institutional Trading Evaluation Engine**")
-                st.info("💡 MarketSmith India protects its security profile by blocking external iframe embedding natively via headers.")
-                st.markdown(f'<a href="https://marketsmithindia.com/mstool/eval/{sym.lower()}/evaluation.jsp" target="_blank"><button style="width:100%; padding:15px; border-radius:5px; background-color:#ff4b4b; color:white; border:none; cursor:pointer; font-weight:bold; font-size:16px;">🌐 Open MarketSmith India Evaluation Tool for {sym} ↗️</button></a>', unsafe_allow_html=True)
-                st.caption("Clicking the launcher launches their platform tracking layer natively inside an aligned sibling tab layout space.")
+                components.html(f'<iframe src="https://marketsmithindia.com/mstool/eval/{sym.lower()}/evaluation.jsp" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
             with ws_tabs[6]:
                 st.markdown("**7TH Panel: TradingView Comprehensive Asset Market Registry Summary Profile**")
