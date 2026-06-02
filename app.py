@@ -337,7 +337,7 @@ if not raw_df.empty:
     if high_target and high_target not in core_sequence: core_sequence.append(high_target)
         
     low_target = next((c for c in actual_cols if "52" in c.lower() and "low" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
-    if low_target milestone in core_sequence: pass
+    # FIXED SYNTAX ERROR HERE (Removed broken inline expression block)
     if low_target and low_target not in core_sequence: core_sequence.append(low_target)
 
     all_other_fields = [c for c in filtered_df.columns if c not in core_sequence and not c.startswith("_bg_") and not c.startswith("_txt_") and c != "_raw_symbol_"]
