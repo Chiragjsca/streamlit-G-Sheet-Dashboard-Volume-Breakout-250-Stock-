@@ -3,6 +3,7 @@ import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 import json
+import urllib.parse
 from datetime import datetime
 from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 from st_aggrid.shared import GridUpdateMode
@@ -12,20 +13,18 @@ st.set_page_config(page_title="NSE Stock Dashboard", layout="wide")
 st.title("📊 NSE Stock Market Dashboard")
 st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# ---------- Convert Excel serial number to date ----------
-def excel_serial_to_date(val):
-    if pd.isna(val) or val == "" or val == "#N/A":
-        return ""
-    try:
-        num = float(val)
-        date = pd.to_datetime(num, unit='D', origin='1899-12-30')
-        return date.strftime('%Y-%m-%d')
-    except (ValueError, TypeError, OverflowError):
-        return str(val)
+# ---------- Helper: Convert Google RGB to HEX ----------
+def rgb_to_hex(color_dict):
+    if not color_dict:
+        return "#ffffff" # Default white
+    r = int(color_dict.get('red', 0) * 255)
+    g = int(color_dict.get('green', 0) * 255)
+    b = int(color_dict.get('blue', 0) * 255)
+    return f"#{r:02x}{g:02x}{b:02x}"
 
-# ---------- Load Google Sheet (Raw Data) ----------
+# ---------- Load Google Sheet (Values + Colors via API) ----------
 @st.cache_data(ttl=300)
-def load_sheet_data(sheet_name):
+def load_sheet_data_with_colors(sheet_name):
     try:
         if "gcp_service_account" not in st.secrets:
             st.error("Missing 'gcp_service_account' in secrets.")
@@ -40,15 +39,52 @@ def load_sheet_data(sheet_name):
         client = gspread.authorize(creds)
 
         spreadsheet_id = "1SFhuZbLLlwwFsNo1k2RRx_Zp6bAkRR20W0F_zTwgdwU"
-        sh = client.open_by_key(spreadsheet_id)
-        worksheet = sh.worksheet(sheet_name)
+        encoded_sheet = urllib.parse.quote(sheet_name)
+        
+        # Hit the Google Sheets API directly to get Grid Data (Values + Formatting)
+        url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}?includeGridData=true&ranges={encoded_sheet}"
+        response = client.request('get', url)
+        data = response.json()
 
-        all_values = worksheet.get_all_values(value_render_option='FORMULA')
-        if not all_values:
+        if 'sheets' not in data or not data['sheets']:
             return pd.DataFrame()
 
+        sheet_data = data['sheets'][0]['data'][0]
+        row_data = sheet_data.get('rowData', [])
+
+        if not row_data:
+            return pd.DataFrame()
+
+        values_list = []
+        bg_colors_list = []
+        txt_colors_list = []
+
+        # Parse the massive JSON response block by block
+        for row in row_data:
+            cells = row.get('values', [])
+            row_vals = []
+            row_bgs = []
+            row_txts = []
+            
+            for cell in cells:
+                # 1. Get the formatted text (exactly as it appears on screen, fixing dates automatically!)
+                val = cell.get('formattedValue', '')
+                row_vals.append(val)
+                
+                # 2. Get the colors
+                fmt = cell.get('effectiveFormat', {})
+                bg = fmt.get('backgroundColor', {})
+                txt = fmt.get('textFormat', {}).get('foregroundColor', {})
+                
+                row_bgs.append(rgb_to_hex(bg))
+                row_txts.append(rgb_to_hex(txt))
+                
+            values_list.append(row_vals)
+            bg_colors_list.append(row_bgs)
+            txt_colors_list.append(row_txts)
+
         # ---------- Clean headers ----------
-        raw_headers = all_values[0]
+        raw_headers = values_list[0]
         clean_headers = []
         seen = {}
         for h in raw_headers:
@@ -62,14 +98,17 @@ def load_sheet_data(sheet_name):
                 seen[h] = 0
             clean_headers.append(h)
 
-        data_rows = all_values[1:]
-        df = pd.DataFrame(data_rows, columns=clean_headers)
+        # Build main dataframe
+        df = pd.DataFrame(values_list[1:], columns=clean_headers)
 
-        # Fix Dates
-        date_columns_to_fix = ["52W High Date", "52W Low Date"]
-        for col in date_columns_to_fix:
-            if col in df.columns:
-                df[col] = df[col].apply(excel_serial_to_date)
+        # Build hidden color columns into the dataframe so AgGrid can read them
+        for i, col in enumerate(clean_headers):
+            bg_col_name = f"_bg_{col}"
+            txt_col_name = f"_txt_{col}"
+            
+            # Use list comprehension to map colors, handling uneven rows if they exist
+            df[bg_col_name] = [row[i] if i < len(row) else "#ffffff" for row in bg_colors_list[1:]]
+            df[txt_col_name] = [row[i] if i < len(row) else "#000000" for row in txt_colors_list[1:]]
 
         return df
 
@@ -83,55 +122,45 @@ def process_hyperlinks(df, symbol_col):
     
     for idx, row in df_proc.iterrows():
         sym = str(row[symbol_col]).strip()
-        if not sym or sym == "nan":
+        if not sym or sym == "nan" or not sym:
             continue
             
         for col in df_proc.columns:
+            # Skip the hidden color columns
+            if col.startswith("_bg_") or col.startswith("_txt_"):
+                continue
+                
             c_lower = col.lower()
             url = None
             label = "🔗 Link"
             
-            # Match the column to the correct URL
             if "trading view" in c_lower:
                 url = f"https://www.tradingview.com/symbols/{sym}"
                 if not c_lower.endswith("1"): label = f"Tre {sym}"
-                    
             elif "history data" in c_lower:
                 url = f"https://www.equitypandit.com/historical-data/{sym}"
                 if not c_lower.endswith("1"): label = f"History {sym}"
-                    
             elif "screener" in c_lower:
                 url = f"https://www.screener.in/company/{sym}"
                 if not c_lower.endswith("1"): label = f"Scr {sym}"
-                    
             elif "zerodha" in c_lower:
                 url = f"https://zerodha.com/markets/stocks/NSE/{sym}"
                 if not c_lower.endswith("1"): label = f"🪁 {sym}"
-                    
             elif "chartlink" in c_lower:
                 url = f"https://chartink.com/stocks-new?load-snapshot=exponential-moving-average-simple-moving-average-simple-moving-average-moving-average-convergence-divergence-chart-snapshot-175&symbol={sym}"
                 if not c_lower.endswith("1"): label = f"CL {sym}"
-                    
             elif "market smith" in c_lower:
                 url = f"https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp"
                 if not c_lower.endswith("1"): label = f"ms {sym}"
-                    
             elif "official nse" in c_lower:
                 url = f"https://www.nseindia.com/get-quotes/equity?symbol={sym}"
                 if not c_lower.endswith("1"): label = f"nse📰 {sym}"
-                    
             elif "nse" in c_lower:
                 url = f"https://charting.nseindia.com/?symbol={sym}-EQ"
                 if not c_lower.endswith("1"): label = f"nse {sym}"
                 
-            # Apply the HTML
             if url:
-                df_proc.at[idx, col] = f'<a href="{url}" target="_blank" style="color:#1f77b4; text-decoration:none;">{label}</a>'
-            else:
-                # Cleanup raw formulas that didn't match
-                cell_val = str(df_proc.at[idx, col])
-                if cell_val.startswith("=HYPERLINK"):
-                    df_proc.at[idx, col] = "⚠️ Update Column Settings"
+                df_proc.at[idx, col] = f'<a href="{url}" target="_blank" style="text-decoration:none; color:inherit;">{label}</a>'
 
     return df_proc
 
@@ -147,36 +176,36 @@ sheet_names = [
 
 st.sidebar.header("📑 Select a Tab")
 selected_sheet = st.sidebar.selectbox("Choose sheet", sheet_names)
-
 st.sidebar.markdown("---")
 
 # ---------- Main Execution ----------
 st.header(f"📄 {selected_sheet}")
 
-with st.spinner("Loading data..."):
-    raw_df = load_sheet_data(selected_sheet)
+with st.spinner("Downloading data and exact colors from Google API..."):
+    raw_df = load_sheet_data_with_colors(selected_sheet)
 
 if not raw_df.empty:
     
-    # --- Column Settings UI ---
+    # Auto-detect Symbol column
     guess_idx = 0
-    for i, col_name in enumerate(raw_df.columns):
+    actual_cols = [c for c in raw_df.columns if not c.startswith("_bg_") and not c.startswith("_txt_")]
+    
+    for i, col_name in enumerate(actual_cols):
         if col_name.lower() in ["nse code", "symbol", "ticker", "stock symbol", "id", "stock"]:
             guess_idx = i
             break
             
-    st.sidebar.header("⚙️ Column Settings")
-    selected_symbol_col = st.sidebar.selectbox("Symbol Column:", raw_df.columns, index=guess_idx)
+    st.sidebar.header("⚙️ Settings")
+    selected_symbol_col = st.sidebar.selectbox("Symbol Column:", actual_cols, index=guess_idx)
     
     final_df = process_hyperlinks(raw_df, selected_symbol_col)
 
-    st.write(f"**Rows:** {final_df.shape[0]} | **Columns:** {final_df.shape[1]}")
+    st.write(f"**Rows:** {final_df.shape[0]} | **Columns:** {len(actual_cols)}")
 
     # ==========================================
-    # 🎨 CONDITIONAL FORMATTING RULES (JAVASCRIPT)
+    # 🎨 EXACT COLOR REFLECTION LOGIC
     # ==========================================
 
-    # 1. HTML Link Renderer (Keep this for your clickable links)
     html_renderer = JsCode("""
     class HtmlRenderer {
         init(params) {
@@ -189,71 +218,44 @@ if not raw_df.empty:
     }
     """)
 
-    # 2. Rule: If value <= -3 (Light Red), If value >= 3 (Light Yellow)
-    price_percent_style = JsCode("""
+    # This script tells Streamlit to look at the hidden color columns we downloaded
+    exact_mirror_style = JsCode("""
     function(params) {
-        let val = parseFloat(params.value);
-        if (val <= -3) {
-            return {
-                'backgroundColor': '#fce8e6', // Light Red
-                'color': '#000000'
-            };
-        } else if (val >= 3) {
-            return {
-                'backgroundColor': '#fef7e0', // Light Yellow
-                'color': '#000000'
-            };
+        let colName = params.colDef.field;
+        let bgCol = "_bg_" + colName;
+        let txtCol = "_txt_" + colName;
+        
+        let bgColor = params.data[bgCol];
+        let txtColor = params.data[txtCol];
+        
+        // If the cell is white in Google Sheets, leave it transparent so Streamlit Dark Mode works!
+        if (!bgColor || bgColor.toLowerCase() === '#ffffff') {
+            return null;
         }
-        return null; // Default style
+        
+        return {
+            'backgroundColor': bgColor,
+            'color': txtColor || '#000000',
+            'fontWeight': (txtColor === '#ffffff' || bgColor === '#0f9d58') ? 'bold' : 'normal'
+        };
     }
     """)
-
-    # 3. Rule: Solid Green Background with White Text 
-    # (You can adjust this logic based on whatever makes the cell green in your sheet)
-    green_highlight_style = JsCode("""
-    function(params) {
-        // Example: If there is a value, make it green. 
-        // You can change 'val > 0' to your specific Google Sheet rule!
-        let val = parseFloat(params.value);
-        if (val > 0) { 
-            return {
-                'backgroundColor': '#0f9d58', // Dark Green
-                'color': '#ffffff',           // White Text
-                'fontWeight': 'bold'
-            };
-        }
-        return null;
-    }
-    """)
-
-    # ==========================================
-    # ⚙️ APPLY STYLES TO AG GRID
-    # ==========================================
 
     gb = GridOptionsBuilder.from_dataframe(final_df)
 
     priority_columns_lower = ["nse code", "id", "company name", "stock name", "symbol", "industry", "sector"]
 
     for col in final_df.columns:
-        # Default widths
+        # HIDE the secret color tracking columns from the user interface
+        if col.startswith("_bg_") or col.startswith("_txt_"):
+            gb.configure_column(col, hide=True)
+            continue
+
         if col.lower() in priority_columns_lower:
             width, min_width = 220, 150
         else:
             width, min_width = 120, 80
 
-        # --- Apply the conditional formatting here ---
-        cell_style = None
-        
-        # Apply the -3 / +3 rule to these specific columns
-        if col in ["Price %", "Difference from 200 DMA"]:
-            cell_style = price_percent_style
-            
-        # Apply the dark green rule to these specific columns
-        # (Remove columns from this list if you don't want them highlighted)
-        elif col in ["Close Price", "CMP", "52W High Date"]: 
-            cell_style = green_highlight_style
-
-        # Configure the column in AgGrid
         gb.configure_column(
             col,
             width=width,
@@ -262,8 +264,8 @@ if not raw_df.empty:
             filter=True,
             resizable=True,
             editable=False,
-            cellRenderer=html_renderer, # Keeps your links working
-            cellStyle=cell_style        # Adds the colors!
+            cellRenderer=html_renderer,
+            cellStyle=exact_mirror_style # Applies the exact color from the API
         )
 
     gb.configure_grid_options(
@@ -294,13 +296,5 @@ if not raw_df.empty:
         key="stock_grid"
     )
 
-    # Download button (strip HTML tags for CSV)
-    csv_df = final_df.replace(r'<a[^>]*>([^<]*)</a>', r'\1', regex=True)
-    csv = csv_df.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 Download as CSV", csv, f"{selected_sheet.replace(' ', '_')}.csv", "text/csv")
-
 else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
-
-st.markdown("---")
-st.caption("Powered by Google Sheets & Streamlit | Clickable Hyperlinks | Conditional Formatting Enabled")
