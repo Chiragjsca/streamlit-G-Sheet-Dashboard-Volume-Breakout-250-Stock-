@@ -19,7 +19,6 @@ st.set_page_config(page_title="NSE Stock Dashboard", layout="wide", page_icon="�
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
 # ==========================================
-# CHANGE YOUR PASSWORD HERE:
 ADMIN_PASSWORD = "admin"
 
 if "logged_in" not in st.session_state:
@@ -47,7 +46,6 @@ st.title("📊 NSE Stock Market Dashboard")
 st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 components.html("""
-<!-- TradingView Widget BEGIN -->
 <div class="tradingview-widget-container">
   <div class="tradingview-widget-container__widget"></div>
   <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
@@ -67,7 +65,6 @@ components.html("""
 }
   </script>
 </div>
-<!-- TradingView Widget END -->
 """, height=70)
 
 # ==========================================
@@ -291,7 +288,6 @@ if not raw_df.empty:
     st.sidebar.markdown("---")
     st.sidebar.header("📊 Numeric Range Filters")
     
-    # Custom Named Sliders
     diff_200_col = next((c for c in actual_cols if "diff" in c.lower() and "200" in c.lower()), None)
     if diff_200_col: filtered_df = apply_numeric_slider(filtered_df, diff_200_col, st.sidebar, "Diff. from 200 DMA Range:")
 
@@ -301,7 +297,6 @@ if not raw_df.empty:
     high_pct_col = next((c for c in actual_cols if "52" in c.lower() and "high" in c.lower() and ("%" in c.lower() or "per" in c.lower())), None)
     if high_pct_col: filtered_df = apply_numeric_slider(filtered_df, high_pct_col, st.sidebar, "From 52W High Range:")
 
-    # Remaining Auto Sliders
     numeric_targets = ["Volume", "CMP", "Price %", "Promoters %", "Institutional %", "Face Value", "Net Profit", "EPS", "RONW %", "Market Cap", "Enterprise Value"]
     processed_cols = {diff_200_col, low_pct_col, high_pct_col}
     for target in numeric_targets:
@@ -328,7 +323,7 @@ if not raw_df.empty:
     url_placeholder = col2.empty()
 
     # ==========================================
-    # 🎨 EXACT COLOR REFLECTION & HTML LOGIC
+    # 🎨 AG GRID INITIALIZATION
     # ==========================================
     html_renderer = JsCode("""
     class HtmlRenderer {
@@ -373,11 +368,8 @@ if not raw_df.empty:
             continue
 
         width, min_width = (220, 150) if col.lower() in priority_columns_lower else (120, 80)
-        
-        pinned_value = None
-        if is_first_visible_column:
-            pinned_value = "left"
-            is_first_visible_column = False 
+        pinned_value = "left" if is_first_visible_column else None
+        if is_first_visible_column: is_first_visible_column = False 
 
         gb.configure_column(
             col, width=width, minWidth=min_width, sortable=True, filter=True, resizable=True, 
@@ -389,11 +381,11 @@ if not raw_df.empty:
 
     grid_response = AgGrid(
         filtered_df, gridOptions=grid_options, theme="streamlit", update_mode=GridUpdateMode.SELECTION_CHANGED, 
-        allow_unsafe_jscode=True, fit_columns_on_grid_load=False, enable_enterprise_modules=False, height=500, width='100%'
+        allow_unsafe_jscode=True, fit_columns_on_grid_load=False, enable_enterprise_modules=False, height=400, width='100%'
     )
 
     # ==========================================
-    # 🎯 SELECTION LOGIC (LINKS + LIVE CHART)
+    # 🎯 SELECTION WORKSPACE (LINKS + EMBED PANELS)
     # ==========================================
     selected_rows = grid_response.get("selected_rows", [])
     if selected_rows is not None and len(selected_rows) > 0:
@@ -413,14 +405,89 @@ if not raw_df.empty:
                     f"[NSE URL (🔗)](https://www.nseindia.com/get-quotes/equity?symbol={sym})"
                 )
             
-            # Embed Live NSE Chart Below the Grid for the Selected Stock
-            st.markdown(f"### 📈 Live Chart: {sym}")
-            components.html(f"""
-            <iframe src="https://charting.nseindia.com/?symbol={sym}-EQ" width="100%" height="550" style="border:none; border-radius:5px;"></iframe>
-            """, height=550)
+            st.markdown(f"---")
+            st.subheader(f"🛠️ Live Workspace Panel: {sym}")
+            
+            # Save Option / Adjustable Height Feature
+            box_height = st.slider("📏 Adjust Panel Box Height (px):", min_value=300, max_value=1000, value=500, step=50, key="panel_height_slider")
+            
+            # Creating Tabs for Workspace Syncing
+            ws_tab1, ws_tab2, ws_tab3, ws_tab4 = st.tabs([
+                "📈 Chart & Trade Info (NSE Component)", 
+                "📋 History Data (EquityPandit)", 
+                "🎯 Bullish/Bearish Zone", 
+                "📁 Screener Documents"
+            ])
+            
+            with ws_tab1:
+                col_chart, col_info = st.columns([3, 2])
+                with col_chart:
+                    st.markdown("**NSE Interactive Chart Frame**")
+                    components.html(f'<iframe src="https://charting.nseindia.com/?symbol={sym}-EQ" width="100%" height="{box_height}" style="border:none; border-radius:5px;"></iframe>', height=box_height+20)
+                with col_info:
+                    st.markdown("**1ND Panel: NSE Live Trade Information View**")
+                    st.warning("⚠️ NSE India strictly prevents direct data element cropping inside iframes via security headers. Use the direct link actions to monitor live details.")
+                    st.markdown(f'<a href="https://www.nseindia.com/get-quotes/equity?symbol={sym}" target="_blank"><button style="width:100%; padding:10px; border-radius:5px; background-color:#1f77b4; color:white; border:none; cursor:pointer; font-weight:bold;">🌐 Open Official NSE Trade Info for {sym}</button></a>', unsafe_allow_html=True)
+            
+            with ws_tab2:
+                st.markdown("**2ND Panel: EquityPandit Historical Matrix Data**")
+                components.html(f'<iframe src="https://www.equitypandit.com/historical-data/{sym.lower()}" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
+                
+            with ws_tab3:
+                st.markdown("**3RD Panel: Bullish / Bearish Zone Technical Performance Indicator**")
+                components.html(f'<iframe src="https://www.equitypandit.com/share-price/{sym.lower()}#chart" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
+                
+            with ws_tab4:
+                st.markdown("**4TH Panel: Screener Corporate Filings & Accounting Analytics**")
+                components.html(f'<iframe src="https://www.screener.in/company/{sym}/consolidated/" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
     # ==========================================
-    # 🏆 TOP 10 & BOTTOM 10 PERFORMERS
+    # 🌍 NATIONAL MARKET ANALYTICS ENGINE (Tabs 5-10)
+    # ==========================================
+    st.markdown("---")
+    st.subheader("📊 National Live Market Analytics Framework")
+    
+    mkt_tab5, mkt_tab6, mkt_tab7, mkt_tab8, mkt_tab9, mkt_tab10 = st.tabs([
+        "🔥 Most Active Equities", 
+        "🚀 Volume Gainers", 
+        "🏆 Top Gainers/Losers", 
+        "⭐ 52-Week High/Low", 
+        "📦 Stocks Traded", 
+        "⚖️ Advances/Declines"
+    ])
+    
+    with mkt_tab5:
+        st.markdown("**5th Workspace: Value and Volume Heavyweight Action**")
+        st.markdown('[🌐 Open Live Source Matrix](https://www.nseindia.com/market-data/most-active-equities)')
+        components.html('<iframe src="https://www.nseindia.com/market-data/most-active-equities" width="100%" height="600" style="border:none; border-radius:5px;"></iframe>', height=620)
+        
+    with mkt_tab6:
+        st.markdown("**6th Workspace: Volume Spurts & Activity Gainers**")
+        st.markdown('[🌐 Open Live Source Matrix](https://www.nseindia.com/market-data/volume-gainers-spurts)')
+        components.html('<iframe src="https://www.nseindia.com/market-data/volume-gainers-spurts" width="100%" height="600" style="border:none; border-radius:5px;"></iframe>', height=620)
+        
+    with mkt_tab7:
+        st.markdown("**7th Workspace: Top 20 Directional Leaders**")
+        st.markdown('[🌐 Open Live Source Matrix](https://www.nseindia.com/market-data/top-gainers-losers)')
+        components.html('<iframe src="https://www.nseindia.com/market-data/top-gainers-losers" width="100%" height="600" style="border:none; border-radius:5px;"></iframe>', height=620)
+        
+    with mkt_tab8:
+        st.markdown("**8th Workspace: Price Extreme Milestones (52-Week Range Boundaries)**")
+        st.markdown('[🌐 Open Live Source Matrix](https://www.nseindia.com/market-data/52-week-high-equity-market)')
+        components.html('<iframe src="https://www.nseindia.com/market-data/52-week-high-equity-market" width="100%" height="600" style="border:none; border-radius:5px;"></iframe>', height=620)
+        
+    with mkt_tab9:
+        st.markdown("**9th Workspace: National Capital Market Depth Tracking**")
+        st.markdown('[🌐 Open Live Source Matrix](https://www.nseindia.com/market-data/stocks-traded)')
+        components.html('<iframe src="https://www.nseindia.com/market-data/stocks-traded" width="100%" height="600" style="border:none; border-radius:5px;"></iframe>', height=620)
+        
+    with mkt_tab10:
+        st.markdown("**10th Workspace: Market Breadth Indicators (A/D Ratio)**")
+        st.markdown('[🌐 Open Live Source Matrix](https://www.nseindia.com/market-data/advance)')
+        components.html('<iframe src="https://www.nseindia.com/market-data/advance" width="100%" height="600" style="border:none; border-radius:5px;"></iframe>', height=620)
+
+    # ==========================================
+    # 🏆 LEADERBOARDS
     # ==========================================
     price_col = next((c for c in actual_cols if "price %" in c.lower()), None)
     if price_col:
