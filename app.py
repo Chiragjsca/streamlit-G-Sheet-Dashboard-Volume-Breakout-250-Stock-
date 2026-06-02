@@ -136,25 +136,27 @@ if not df.empty:
     # Prepare grid options for AG Grid
     gb = GridOptionsBuilder.from_dataframe(df)
 
-    # Enable column resizing, reordering, and filtering
-    gb.configure_columns(enableRowGroup=False, enablePivot=False, enableValue=False)
+    # FIX 1: Use configure_default_column instead of configure_columns (which doesn't exist)
+    # FIX 2: Set default column width to 80px for compression (was 150)
     gb.configure_default_column(
+        enableRowGroup=False,
+        enablePivot=False,
+        enableValue=False,
         resizable=True,
         sortable=True,
         filter=True,
         editable=False,
-        width=150
+        width=80          # <-- compressed width (change to 100 if needed)
     )
+
     gb.configure_grid_options(
         domLayout='autoHeight',
         rowHeight=35,
         headerHeight=45,
         enableCellTextSelection=True,
-        ensureDomOrder=True
+        ensureDomOrder=True,
+        suppressMovableColumns=False   # allow column reordering
     )
-
-    # Allow column reordering (drag & drop)
-    gb.configure_grid_options(suppressMovableColumns=False)
 
     # Build grid options
     grid_options = gb.build()
@@ -165,7 +167,7 @@ if not df.empty:
         gridOptions=grid_options,
         update_mode=GridUpdateMode.SELECTION_CHANGED,
         allow_unsafe_jscode=True,
-        theme='streamlit',  # or 'balham', 'alpine'
+        theme='streamlit',
         fit_columns_on_grid_load=False,
         enable_enterprise_modules=False,
         height=600,
@@ -182,4 +184,4 @@ else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
 
 st.markdown("---")
-st.caption("Powered by Google Sheets & Streamlit | Columns are resizable & reorderable")
+st.caption("Powered by Google Sheets & Streamlit | Columns are resizable & reorderable | Default column width compressed to 80px")
