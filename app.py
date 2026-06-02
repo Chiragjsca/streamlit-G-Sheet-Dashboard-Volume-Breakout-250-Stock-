@@ -288,7 +288,7 @@ if not raw_df.empty:
     st.sidebar.markdown("---")
     st.sidebar.header("📊 Numeric Range Filters")
     
-    diff_200_col = next((c for c in actual_cols if "diff" in c.lower() and "200" in c.lower()), None)
+    diff_200_col = next((c for c in actual_cols if "diff" in c.lower() and "200" in r.lower() if 'r' in locals() else "diff" in c.lower() and "200" in c.lower()), None)
     if diff_200_col: filtered_df = apply_numeric_slider(filtered_df, diff_200_col, st.sidebar, "Diff. from 200 DMA Range:")
 
     low_pct_col = next((c for c in actual_cols if "52" in c.lower() and "low" in c.lower() and ("%" in c.lower() or "per" in c.lower())), None)
@@ -314,16 +314,57 @@ if not raw_df.empty:
     if low_date_col: filtered_df = apply_date_filter(filtered_df, low_date_col, st.sidebar)
 
     # ==========================================
+    # 🎨 CRITICAL: DYNAMIC COLUMN REORDERING LOGIC
+    # ==========================================
+    core_sequence = []
+    
+    # 1st Column: NSE Code / Symbol
+    if selected_symbol_col in filtered_df.columns:
+        core_sequence.append(selected_symbol_col)
+    
+    # 2nd Column: Volume
+    vol_target = next((c for c in actual_cols if "volume" in c.lower()), None)
+    if vol_target and vol_target not in core_sequence: core_sequence.append(vol_target)
+        
+    # 3rd Column: Close Price / Previous Close Price
+    close_target = next((c for c in actual_cols if "close price" in c.lower() or "prev" in c.lower()), None)
+    if close_target and close_target not in core_sequence: core_sequence.append(close_target)
+        
+    # 4th Column: CMP
+    cmp_target = next((c for c in actual_cols if "cmp" in c.lower()), None)
+    if cmp_target and cmp_target not in core_sequence: core_sequence.append(cmp_target)
+        
+    # 5th Column: Price %
+    pct_target = next((c for c in actual_cols if "price %" in c.lower()), None)
+    if pct_target and pct_target not in core_sequence: core_sequence.append(pct_target)
+        
+    # 6th Column: 52W High
+    high_target = next((c for c in actual_cols if "52" in c.lower() and "high" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
+    if high_target and high_target not in core_sequence: core_sequence.append(high_target)
+        
+    # 7th Column: 52W Low
+    low_target = next((c for c in actual_cols if "52" in c.lower() and "low" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
+    if low_target and low_target not in core_sequence: core_sequence.append(low_target)
+
+    # Gather remaining visible data fields and hidden configuration attributes
+    all_other_fields = [c for c in filtered_df.columns if c not in core_sequence and not c.startswith("_bg_") and not c.startswith("_txt_") and c != "_raw_symbol_"]
+    hidden_meta_attributes = [c for c in filtered_df.columns if c.startswith("_bg_") or c.startswith("_txt_") or c == "_raw_symbol_"]
+    
+    # Enforce strict sequential layout
+    enforced_column_layout = core_sequence + all_other_fields + hidden_meta_attributes
+    filtered_df = filtered_df[enforced_column_layout]
+
+    # ==========================================
     # 📌 TOP UI: ROWS COUNT & DYNAMIC QUICK LINKS
     # ==========================================
     col1, col2 = st.columns([1, 4])
     with col1:
-        st.write(f"**Rows:** {filtered_df.shape[0]} | **Columns:** {len(filtered_df.columns) - 1}") 
+        st.write(f"**Rows:** {filtered_df.shape[0]} | **Columns:** {len(actual_cols)}") 
     
     url_placeholder = col2.empty()
 
     # ==========================================
-    # 🎨 AG GRID INITIALIZATION
+    # 🎨 AG GRID INITIALIZATION WITH SELECTION ENGINE
     # ==========================================
     html_renderer = JsCode("""
     class HtmlRenderer {
@@ -368,6 +409,8 @@ if not raw_df.empty:
             continue
 
         width, min_width = (220, 150) if col.lower() in priority_columns_lower else (120, 80)
+        
+        # Enforce Freeze behavior on the absolute first position column (NSE Code)
         pinned_value = "left" if is_first_visible_column else None
         if is_first_visible_column: is_first_visible_column = False 
 
@@ -547,7 +590,7 @@ if not raw_df.empty:
     horizons = [
         "1 Day", "2 Day", "3 Day", "5 Day", "7 Day", "10 Day", "12 Day", "15 Days", "20 Days", "25 Days", "30 Days",
         "2 Months", "3 Months", "4 Months", "5 Months", "6 Months", "7 Months", "8 Months", "9 Months", "10 Months", "11 Months",
-        "1 Year", "18 Months", "1.5 Years", "2 Years", "2.5 Years", "3 Years", "Volume"  # Volume Added Here
+        "1 Year", "18 Months", "1.5 Years", "2 Years", "2.5 Years", "3 Years", "Volume"
     ]
     
     col_tools1, col_tools2, col_tools3 = st.columns([2, 2, 3])
@@ -559,12 +602,10 @@ if not raw_df.empty:
         summary_search = st.text_input("🔍 Filter stocks inside this matrix...", placeholder="Type symbol name...", key="perf_matrix_search")
 
     detected_metric_map = {}
-    cmp_col = next((c for c in actual_cols if c.lower() in ["cmp", "close price"]), None)
-    vol_col = next((c for c in actual_cols if "volume" in c.lower()), None)
     
     for h in horizons:
         if h == "Volume":
-            if vol_col: detected_metric_map[h] = vol_col
+            if vol_target: detected_metric_map[h] = vol_target
             continue
         keywords = [h.lower(), h.lower().replace(" ", ""), h.lower().replace("s", "")]
         if h == "1 Day": keywords.append("price %")
@@ -581,9 +622,7 @@ if not raw_df.empty:
             if "<a " in ticker:
                 ticker = ticker.split('">')[-1].split('</a>')[0]
                 
-            price_val = row.get(cmp_col, "") if cmp_col else ""
-            
-            # LINK LOGIC FOR SHARING ATTACHED LOOK: Renders stock name as hyperlinked entity redirecting to chart
+            price_val = row.get(cmp_target, "") if cmp_target else ""
             hyperlinked_name = f'<a href="https://charting.nseindia.com/?symbol={ticker}-EQ" target="_blank" style="text-decoration:none; color:#1f77b4; font-weight:bold;">{ticker}</a>'
             
             entry = {
@@ -603,7 +642,6 @@ if not raw_df.empty:
         perf_df = pd.DataFrame(reporting_data)
         
         if summary_search:
-            # Clean HTML out of string search target matching parameters
             perf_df = perf_df[perf_df["STOCK NAME"].str.replace(r'<[^>]*>', '', regex=True).str.contains(summary_search, case=False, na=False)]
             
         target_sort_col = sort_basis if sort_basis in perf_df.columns else perf_df.columns[2]
@@ -657,15 +695,14 @@ if not raw_df.empty:
     # ==========================================
     # 🏆 DAILY DIRECT BADGES LEADERBOARD
     # ==========================================
-    price_col = next((c for c in actual_cols if "price %" in c.lower()), None)
-    if price_col:
+    if pct_target:
         st.markdown("---")
         st.markdown("### 🏆 Top 10 & Bottom 10 Performers (Daily badges)")
         temp_df = filtered_df.copy()
-        temp_df[price_col] = pd.to_numeric(temp_df[price_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
-        temp_df = temp_df.dropna(subset=[price_col])
-        top_10 = temp_df.nlargest(10, price_col)
-        bottom_10 = temp_df.nsmallest(10, price_col)
+        temp_df[pct_target] = pd.to_numeric(temp_df[pct_target].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
+        temp_df = temp_df.dropna(subset=[pct_target])
+        top_10 = temp_df.nlargest(10, pct_target)
+        bottom_10 = temp_df.nsmallest(10, pct_target)
         
         colA, colB = st.columns(2)
         with colA:
@@ -673,14 +710,14 @@ if not raw_df.empty:
             for _, row in top_10.iterrows():
                 s = row.get(selected_symbol_col, 'Unknown')
                 if "<a " in str(s): s = str(s).split('">')[-1].split('</a>')[0]
-                v = row[price_col]
+                v = row[pct_target]
                 st.markdown(f"<div style='background-color:#0f9d58; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{s}: +{v}%</div>", unsafe_allow_html=True)
         with colB:
             st.markdown("#### ⬇️ Bottom 10 (Daily)")
             for _, row in bottom_10.iterrows():
                 s = row.get(selected_symbol_col, 'Unknown')
                 if "<a " in str(s): s = str(s).split('">')[-1].split('</a>')[0]
-                v = row[price_col]
+                v = row[pct_target]
                 st.markdown(f"<div style='background-color:#ea4335; padding:8px; margin:4px; border-radius:5px; color:white; font-weight:bold;'>{s}: {v}%</div>", unsafe_allow_html=True)
 else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
