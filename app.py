@@ -24,22 +24,20 @@ def extract_hyperlink_info(cell_value):
 
 # ---------- Convert Excel serial numbers to dates ----------
 def convert_excel_serial_to_date(val):
-    if not isinstance(val, str):
-        return val
-    # Remove any whitespace
-    val = val.strip()
-    # Handle #N/A or other error strings
-    if val.startswith("#N/A") or val.startswith("#"):
+    # If value is None or empty, return empty string
+    if pd.isna(val) or val == "" or val == "#N/A":
         return ""
-    # Check if it's a numeric string (integer or float)
+    
+    # Try to convert to float (handles both int, float, and numeric strings)
     try:
         num = float(val)
-        # Excel serial date: days since 1899-12-30 (Excel for Windows)
-        # Pandas conversion: pd.to_datetime(num, unit='D', origin='1899-12-30')
+        # Excel serial date: days since 1899-12-30 (Windows Excel)
+        # Pandas conversion: origin='1899-12-30'
         date = pd.to_datetime(num, unit='D', origin='1899-12-30')
-        # Format as YYYY-MM-DD (you can change the format)
+        # Format as YYYY-MM-DD (change if you prefer different format)
         return date.strftime('%Y-%m-%d')
-    except (ValueError, OverflowError):
+    except (ValueError, TypeError, OverflowError):
+        # If conversion fails, return original value (might already be a string date)
         return val
 
 # ---------- Load Google Sheet ----------
@@ -62,7 +60,6 @@ def load_sheet_data(sheet_name):
         sh = client.open_by_key(spreadsheet_id)
         worksheet = sh.worksheet(sheet_name)
 
-        # Fetch using FORMULA to capture HYPERLINK formulas
         all_values = worksheet.get_all_values(value_render_option='FORMULA')
         if not all_values:
             return pd.DataFrame()
@@ -115,11 +112,19 @@ def load_sheet_data(sheet_name):
                         new_values.append(val)
                 df[col] = new_values
 
-        # ---------- Convert date columns (e.g., 52W High Date, 52W Low Date) ----------
-        # Identify columns that contain "Date" in name (case insensitive)
-        date_columns = [col for col in df.columns if "date" in col.lower()]
+        # ---------- Convert date columns (Excel serial numbers -> readable dates) ----------
+        # Identify columns that contain "52W" AND "Date", or any column with "Date" in name
+        date_columns = [col for col in df.columns if "date" in col.lower() or ("52w" in col.lower() and "high" in col.lower()) or ("52w" in col.lower() and "low" in col.lower())]
+        # Also explicitly add known column names from your screenshot
+        known_date_cols = ["52W High Date", "52W Low Date", "52W L..."]  # adjust if needed
+        for kc in known_date_cols:
+            if kc in df.columns and kc not in date_columns:
+                date_columns.append(kc)
+        
+        # Apply conversion to each identified column
         for col in date_columns:
-            df[col] = df[col].apply(convert_excel_serial_to_date)
+            # Convert column to string first (to handle mixed types), then apply conversion
+            df[col] = df[col].astype(str).apply(convert_excel_serial_to_date)
 
         return df
 
@@ -156,7 +161,7 @@ with st.spinner("Loading data..."):
 if not df.empty:
     st.write(f"**Rows:** {df.shape[0]} | **Columns:** {df.shape[1]}")
 
-    # Custom cell renderer to display HTML links properly
+    # Custom cell renderer for HTML links
     html_renderer = JsCode("""
     function(params) {
         if (params.value && typeof params.value === 'string' && params.value.includes('<a')) {
@@ -166,7 +171,6 @@ if not df.empty:
     }
     """)
 
-    # Build grid options
     gb = GridOptionsBuilder.from_dataframe(df)
 
     # Priority columns (wider)
@@ -219,7 +223,7 @@ if not df.empty:
         key="stock_grid"
     )
 
-    # Download button (strip HTML tags for CSV)
+    # Download button (strip HTML tags)
     csv_df = df.replace(r'<a[^>]*>([^<]*)</a>', r'\1', regex=True)
     csv = csv_df.to_csv(index=False).encode('utf-8')
     st.download_button("📥 Download as CSV", csv, f"{selected_sheet.replace(' ', '_')}.csv", "text/csv")
@@ -228,4 +232,4 @@ else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
 
 st.markdown("---")
-st.caption("Powered by Google Sheets & Streamlit | Columns are resizable, reorderable, horizontally scrollable | Hyperlinks clickable | Dates correctly formatted")
+st.caption("Powered by Google Sheets & Streamlit | Columns are resizable, reorderable, horizontally scrollable | Hyperlinks clickable | Dates formatted from Excel serials")
