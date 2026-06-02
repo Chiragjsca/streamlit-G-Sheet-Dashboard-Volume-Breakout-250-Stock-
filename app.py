@@ -713,12 +713,11 @@ if not raw_df.empty:
         with colA:
             st.markdown("#### ⬆️ Top 10 (Daily)")
             for _, row in top_10.iterrows():
-                s = row.get(selected_symbol_col, 'Unknown')
-                if "<a " in str(s): s = str(s).split('">')[-1].split('</a>')[0]
+                # Grab pure symbol directly
+                clean_s = str(row.get('_raw_symbol_', '')).strip()
                 v = row[pct_target]
                 
-                # Clean the symbol and define the URL
-                clean_s = str(s).strip()
+                # Define URL
                 url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
                 
                 # Clickable NSE Technical Charting Link enveloping the badge (GREEN)
@@ -727,12 +726,11 @@ if not raw_df.empty:
         with colB:
             st.markdown("#### ⬇️ Bottom 10 (Daily)")
             for _, row in bottom_10.iterrows():
-                s = row.get(selected_symbol_col, 'Unknown')
-                if "<a " in str(s): s = str(s).split('">')[-1].split('</a>')[0]
+                # Grab pure symbol directly
+                clean_s = str(row.get('_raw_symbol_', '')).strip()
                 v = row[pct_target]
                 
-                # Clean the symbol and define the URL
-                clean_s = str(s).strip()
+                # Define URL
                 url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
                 
                 # Clickable NSE Technical Charting Link enveloping the badge (RED/PINK)
