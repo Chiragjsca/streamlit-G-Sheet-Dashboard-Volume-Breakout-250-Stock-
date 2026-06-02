@@ -22,23 +22,20 @@ def extract_hyperlink_info(cell_value):
             return match.group(1), match.group(2)
     return None, cell_value
 
-# ---------- Convert Excel serial numbers to dates ----------
-def convert_excel_serial_to_date(val):
-    # If value is None or empty, return empty string
+# ---------- Convert Excel serial number to date (for 52W High Date and 52W Low Date only) ----------
+def excel_serial_to_date(val):
+    """Convert Excel serial date (days since 1899-12-30) to YYYY-MM-DD string."""
     if pd.isna(val) or val == "" or val == "#N/A":
         return ""
-    
-    # Try to convert to float (handles both int, float, and numeric strings)
     try:
+        # Convert to float (handles int, float, and numeric strings)
         num = float(val)
-        # Excel serial date: days since 1899-12-30 (Windows Excel)
-        # Pandas conversion: origin='1899-12-30'
+        # pandas conversion: origin='1899-12-30' (Windows Excel epoch)
         date = pd.to_datetime(num, unit='D', origin='1899-12-30')
-        # Format as YYYY-MM-DD (change if you prefer different format)
         return date.strftime('%Y-%m-%d')
     except (ValueError, TypeError, OverflowError):
-        # If conversion fails, return original value (might already be a string date)
-        return val
+        # If conversion fails, return original value (might already be a date string)
+        return str(val)
 
 # ---------- Load Google Sheet ----------
 @st.cache_data(ttl=300)
@@ -112,19 +109,13 @@ def load_sheet_data(sheet_name):
                         new_values.append(val)
                 df[col] = new_values
 
-        # ---------- Convert date columns (Excel serial numbers -> readable dates) ----------
-        # Identify columns that contain "52W" AND "Date", or any column with "Date" in name
-        date_columns = [col for col in df.columns if "date" in col.lower() or ("52w" in col.lower() and "high" in col.lower()) or ("52w" in col.lower() and "low" in col.lower())]
-        # Also explicitly add known column names from your screenshot
-        known_date_cols = ["52W High Date", "52W Low Date", "52W L..."]  # adjust if needed
-        for kc in known_date_cols:
-            if kc in df.columns and kc not in date_columns:
-                date_columns.append(kc)
-        
-        # Apply conversion to each identified column
-        for col in date_columns:
-            # Convert column to string first (to handle mixed types), then apply conversion
-            df[col] = df[col].astype(str).apply(convert_excel_serial_to_date)
+        # ---------- Convert ONLY the two date columns: 52W High Date and 52W Low Date ----------
+        # Exact column names (case‑sensitive)
+        date_columns_to_fix = ["52W High Date", "52W Low Date"]
+        for col in date_columns_to_fix:
+            if col in df.columns:
+                # Convert each value using excel_serial_to_date
+                df[col] = df[col].apply(excel_serial_to_date)
 
         return df
 
@@ -223,7 +214,7 @@ if not df.empty:
         key="stock_grid"
     )
 
-    # Download button (strip HTML tags)
+    # Download button (strip HTML tags for CSV)
     csv_df = df.replace(r'<a[^>]*>([^<]*)</a>', r'\1', regex=True)
     csv = csv_df.to_csv(index=False).encode('utf-8')
     st.download_button("📥 Download as CSV", csv, f"{selected_sheet.replace(' ', '_')}.csv", "text/csv")
@@ -232,4 +223,4 @@ else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
 
 st.markdown("---")
-st.caption("Powered by Google Sheets & Streamlit | Columns are resizable, reorderable, horizontally scrollable | Hyperlinks clickable | Dates formatted from Excel serials")
+st.caption("Powered by Google Sheets & Streamlit | Columns are resizable, reorderable, horizontally scrollable | Hyperlinks clickable | 52W High/Low Dates converted from Excel serials")
