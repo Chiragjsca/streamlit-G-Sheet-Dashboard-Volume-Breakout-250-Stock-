@@ -115,13 +115,20 @@ def load_sheet_data_with_colors(sheet_name):
 # ---------- Process Hyperlinks Dynamically ----------
 def process_hyperlinks(df, symbol_col):
     df_proc = df.copy()
+    
+    # NEW FIX: Save a completely pure, hidden copy of the symbol column before adding HTML
+    df_proc['_raw_symbol_'] = df_proc[symbol_col]
+    
     for idx, row in df_proc.iterrows():
-        sym = str(row[symbol_col]).strip()
+        # Use the pure symbol we just saved
+        sym = str(row['_raw_symbol_']).strip()
         if not sym or sym == "nan":
             continue
+            
         for col in df_proc.columns:
-            if col.startswith("_bg_") or col.startswith("_txt_"):
+            if col.startswith("_bg_") or col.startswith("_txt_") or col == "_raw_symbol_":
                 continue
+                
             c_lower = col.lower()
             url = None
             label = "🔗 Link"
@@ -137,6 +144,7 @@ def process_hyperlinks(df, symbol_col):
                 
             if url:
                 df_proc.at[idx, col] = f'<a href="{url}" target="_blank" style="text-decoration:none; color:inherit;">{label}</a>'
+                
     return df_proc
 
 # ---------- Helper: Numeric and Date Filters ----------
@@ -316,7 +324,7 @@ if not raw_df.empty:
     # ==========================================
     # 📌 TOP UI: ROWS COUNT & DYNAMIC QUICK LINKS
     # ==========================================
-    col1, col2 = st.columns([1, 4])
+    col1, col2 = st.columns([1, 3])
     with col1:
         st.write(f"**Rows:** {filtered_df.shape[0]} | **Columns:** {len(actual_cols)}")
     
@@ -366,7 +374,8 @@ if not raw_df.empty:
     is_first_visible_column = True
 
     for col in filtered_df.columns:
-        if col.startswith("_bg_") or col.startswith("_txt_"):
+        # Hide the secret tracking columns from the user's grid
+        if col.startswith("_bg_") or col.startswith("_txt_") or col == "_raw_symbol_":
             gb.configure_column(col, hide=True)
             continue
 
@@ -423,20 +432,24 @@ if not raw_df.empty:
     # ==========================================
     selected_rows = grid_response.get("selected_rows", [])
     if selected_rows is not None and len(selected_rows) > 0:
-        # Compatibility handling for different st_aggrid versions
         sel_row = selected_rows.iloc[0] if isinstance(selected_rows, pd.DataFrame) else selected_rows[0]
         
-        sym = str(sel_row.get(selected_symbol_col, "")).strip()
+        # USE THE PURE, HIDDEN SYMBOL SO IT DOES NOT RENDER HTML CODE!
+        sym = str(sel_row.get("_raw_symbol_", "")).strip() 
+        
         if sym:
             with url_placeholder.container():
-                st.info(f"⚡ **{sym} Quick Links:** &nbsp;&nbsp;"
-                        f"[Trading View](https://www.tradingview.com/symbols/{sym}) &nbsp; | &nbsp; "
-                        f"[History](https://www.equitypandit.com/historical-data/{sym}) &nbsp; | &nbsp; "
-                        f"[Screener](https://www.screener.in/company/{sym}) &nbsp; | &nbsp; "
-                        f"[Zerodha](https://zerodha.com/markets/stocks/NSE/{sym}) &nbsp; | &nbsp; "
-                        f"[Chartlink](https://chartink.com/stocks-new?load-snapshot=exponential-moving-average-simple-moving-average-simple-moving-average-moving-average-convergence-divergence-chart-snapshot-175&symbol={sym}) &nbsp; | &nbsp; "
-                        f"[Market Smith](https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp) &nbsp; | &nbsp; "
-                        f"[NSE URL](https://www.nseindia.com/get-quotes/equity?symbol={sym})")
+                # Display in a clean, vertical list exactly as requested
+                with st.expander(f"⚡ **{sym} Quick Links:**", expanded=True):
+                    st.markdown(f"""
+* [Trading View (🔗)](https://www.tradingview.com/symbols/{sym})
+* [History Data (🔗)](https://www.equitypandit.com/historical-data/{sym})
+* [Screener (🔗)](https://www.screener.in/company/{sym})
+* [Zerodha (🔗)](https://zerodha.com/markets/stocks/NSE/{sym})
+* [Chartlink (🔗)](https://chartink.com/stocks-new?load-snapshot=exponential-moving-average-simple-moving-average-simple-moving-average-moving-average-convergence-divergence-chart-snapshot-175&symbol={sym})
+* [Market smith india (🔗)](https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp)
+* [Official NSE URL (🔗)](https://www.nseindia.com/get-quotes/equity?symbol={sym})
+                    """)
 
 else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
