@@ -228,72 +228,69 @@ if not df.empty:
         f"**Rows:** {df.shape[0]} | **Columns:** {df.shape[1]}"
     )
 
-# =================================================
-# AG GRID
-# =================================================
+    # =================================================
+    # AG GRID
+    # =================================================
 
-gb = GridOptionsBuilder.from_dataframe(df)
+    gb = GridOptionsBuilder.from_dataframe(df)
 
-# Default settings for all columns
-gb.configure_default_column(
-    sortable=True,
-    filter=True,
-    resizable=True,
-    editable=False
-)
+    gb.configure_default_column(
+        sortable=True,
+        filter=True,
+        resizable=True,
+        editable=False
+    )
 
-# Wider columns for important fields
-priority_columns = [
-    "ID",
-    "Company Name",
-    "Stock Name",
-    "Symbol",
-    "Industry",
-    "Sector"
-]
+    priority_columns = [
+        "ID",
+        "Company Name",
+        "Stock Name",
+        "Symbol",
+        "Industry",
+        "Sector"
+    ]
 
-for col in df.columns:
+    for col in df.columns:
 
-    if col in priority_columns:
-        gb.configure_column(
-            col,
-            width=220,
-            minWidth=150,
-            pinned=None
-        )
-    else:
-        gb.configure_column(
-            col,
-            width=120,
-            minWidth=80
-        )
+        if col in priority_columns:
+            gb.configure_column(
+                col,
+                width=220,
+                minWidth=150
+            )
+        else:
+            gb.configure_column(
+                col,
+                width=120,
+                minWidth=80
+            )
 
-gb.configure_grid_options(
-    domLayout="normal",
-    rowHeight=35,
-    headerHeight=45,
-    enableCellTextSelection=True,
-    ensureDomOrder=True,
-    suppressMovableColumns=False,
-    suppressColumnVirtualisation=False,
-    alwaysShowHorizontalScroll=True,
-    animateRows=True
-)
+    gb.configure_grid_options(
+        domLayout="normal",
+        rowHeight=35,
+        headerHeight=45,
+        enableCellTextSelection=True,
+        ensureDomOrder=True,
+        suppressMovableColumns=False,
+        suppressColumnVirtualisation=False,
+        alwaysShowHorizontalScroll=True,
+        animateRows=True
+    )
 
-grid_options = gb.build()
+    grid_options = gb.build()
 
-AgGrid(
-    df,
-    gridOptions=grid_options,
-    theme="streamlit",
-    update_mode=GridUpdateMode.SELECTION_CHANGED,
-    allow_unsafe_jscode=True,
-    fit_columns_on_grid_load=False,
-    enable_enterprise_modules=False,
-    height=700,
-    reload_data=False,
-    key="stock_grid"
-)
+    AgGrid(
+        df,
+        gridOptions=grid_options,
+        theme="streamlit",
+        update_mode=GridUpdateMode.SELECTION_CHANGED,
+        allow_unsafe_jscode=True,
+        fit_columns_on_grid_load=False,
+        enable_enterprise_modules=False,
+        height=700,
+        reload_data=False,
+        key="stock_grid"
+    )
 
     # =================================================
     # DOWNLOAD CSV
@@ -305,14 +302,12 @@ AgGrid(
         regex=True
     )
 
-    csv = csv_df.to_csv(
-        index=False
-    ).encode("utf-8")
+    csv = csv_df.to_csv(index=False).encode("utf-8")
 
     st.download_button(
         "📥 Download CSV",
         csv,
-        f"{selected_sheet.replace(' ','_')}.csv",
+        f"{selected_sheet.replace(' ', '_')}.csv",
         "text/csv"
     )
 
