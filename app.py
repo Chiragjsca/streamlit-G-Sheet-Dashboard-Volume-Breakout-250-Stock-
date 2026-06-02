@@ -19,7 +19,7 @@ st.set_page_config(page_title="NSE Stock Dashboard", layout="wide", page_icon="�
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
 # ==========================================
-ADMIN_PASSWORD = "solanki"
+ADMIN_PASSWORD = "admin"
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -418,7 +418,6 @@ if not raw_df.empty:
     gb.configure_grid_options(domLayout="normal", rowHeight=35, headerHeight=45, enableCellTextSelection=True, ensureDomOrder=True, alwaysShowHorizontalScroll=True)
     grid_options = gb.build()
 
-    # CRITICAL TRACKING SEGMENT FIX: Unique key registration attached to secure baseline frame components 
     grid_response = AgGrid(
         filtered_df, gridOptions=grid_options, theme="streamlit", update_mode=GridUpdateMode.SELECTION_CHANGED, 
         allow_unsafe_jscode=True, fit_columns_on_grid_load=False, enable_enterprise_modules=False, height=400, width='100%',
@@ -450,26 +449,40 @@ if not raw_df.empty:
             st.subheader(f"🛠️ Live Workspace Panel: {sym}")
             box_height = st.slider("📏 Adjust Panel Box Height (px):", min_value=300, max_value=1000, value=500, step=50, key="panel_height_slider")
             
-            ws_tab1, ws_tab2, ws_tab3, ws_tab4 = st.tabs([
+            # Expanded workspace frame layout matrix arrays to incorporate Zerodha, MarketSmith and TradingView Symbol tab elements
+            ws_tabs = st.tabs([
                 "📈 Chart & Trade Info (NSE Component)", "📋 History Data (EquityPandit)", 
-                "🎯 Bullish/Bearish Zone", "📁 Screener Documents"
+                "🎯 Bullish/Bearish Zone", "📁 Screener Documents",
+                "🪁 Zerodha Portal", "📊 MarketSmith India", "📉 TradingView Symbol Profile"
             ])
             
-            with ws_tab1:
+            with ws_tabs[0]:
                 st.markdown("**NSE Interactive Chart Frame**")
                 components.html(f'<iframe src="https://charting.nseindia.com/?symbol={sym}-EQ" width="100%" height="{box_height}" style="border:none; border-radius:5px;"></iframe>', height=box_height+20)
             
-            with ws_tab2:
+            with ws_tabs[1]:
                 st.markdown("**2ND Panel: EquityPandit Historical Matrix Data**")
                 components.html(f'<iframe src="https://www.equitypandit.com/historical-data/{sym.lower()}" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
                 
-            with ws_tab3:
+            with ws_tabs[2]:
                 st.markdown("**3RD Panel: Bullish / Bearish Zone Indicator**")
                 components.html(f'<iframe src="https://www.equitypandit.com/share-price/{sym.lower()}#chart" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
                 
-            with ws_tab4:
+            with ws_tabs[3]:
                 st.markdown("**4TH Panel: Screener Corporate Filings**")
                 components.html(f'<iframe src="https://www.screener.in/company/{sym}/consolidated/" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
+
+            with ws_tabs[4]:
+                st.markdown("**5TH Panel: Zerodha Markets Financial Performance Metrics**")
+                components.html(f'<iframe src="https://zerodha.com/markets/stocks/NSE/{sym}/" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
+
+            with ws_tabs[5]:
+                st.markdown("**6TH Panel: MarketSmith India Institutional Trading Evaluation Engine**")
+                components.html(f'<iframe src="https://marketsmithindia.com/mstool/eval/{sym.lower()}/evaluation.jsp" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
+
+            with ws_tabs[6]:
+                st.markdown("**7TH Panel: TradingView Comprehensive Asset Market Registry Summary Profile**")
+                components.html(f'<iframe src="https://www.tradingview.com/symbols/NSE-{sym}/" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
     # ==========================================
     # 🌍 NATIONAL ANALYTICS PORTAL WORKSPACE
@@ -477,18 +490,19 @@ if not raw_df.empty:
     st.markdown("---")
     st.subheader("📊 National Live Market Analytics Portal Framework")
 
+    # CUSTOM CSS MODIFICATION: Tightened margins and paddings to drop row gaps to absolute minimal dimensions
     st.markdown("""
     <style>
         div[data-baseweb="tab-list"] {
             flex-wrap: wrap !important;
-            row-gap: 5px !important;
-            column-gap: 10px !important;
+            row-gap: 3px !important;       /* Tightened line to line horizontal tracking */
+            column-gap: 8px !important;
         }
         div[data-baseweb="tab-list"] button {
-            margin-top: 0px !important;
-            margin-bottom: 0px !important;
-            padding-top: 8px !important;
-            padding-bottom: 8px !important;
+            margin-top: 1px !important;    /* Tight vertical stack tracking layouts */
+            margin-bottom: 1px !important;
+            padding-top: 6px !important;   /* Narrow button vertical boundaries */
+            padding-bottom: 6px !important;
             height: auto !important;
         }
         div[data-baseweb="tab-highlight"] {
