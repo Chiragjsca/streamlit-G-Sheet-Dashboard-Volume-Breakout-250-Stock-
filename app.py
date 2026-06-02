@@ -5,7 +5,7 @@ from google.oauth2.service_account import Credentials
 import json
 import re
 from datetime import datetime
-from st_aggrid import AgGrid, GridOptionsBuilder
+from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 from st_aggrid.shared import GridUpdateMode
 
 # ---------- Page config ----------
@@ -83,14 +83,14 @@ def load_sheet_data(sheet_name):
                     url, label = extract_hyperlink_info(val)
                     if url and label:
                         if col.endswith("1"):
-                            new_values.append(f'<a href="{url}" target="_blank">🔗 Link</a>')
+                            new_values.append(f'<a href="{url}" target="_blank" style="color: #1f77b4; text-decoration: none;">🔗 Link</a>')
                         else:
-                            new_values.append(f'<a href="{url}" target="_blank">{label}</a>')
+                            new_values.append(f'<a href="{url}" target="_blank" style="color: #1f77b4; text-decoration: none;">{label}</a>')
                     elif isinstance(val, str) and (val.startswith("http://") or val.startswith("https://")):
                         if col.endswith("1"):
-                            new_values.append(f'<a href="{val}" target="_blank">🔗 Link</a>')
+                            new_values.append(f'<a href="{val}" target="_blank" style="color: #1f77b4; text-decoration: none;">🔗 Link</a>')
                         else:
-                            new_values.append(f'<a href="{val}" target="_blank">{val}</a>')
+                            new_values.append(f'<a href="{val}" target="_blank" style="color: #1f77b4; text-decoration: none;">{val}</a>')
                     else:
                         new_values.append(val)
                 df[col] = new_values
@@ -133,12 +133,23 @@ if not df.empty:
     # Build grid options
     gb = GridOptionsBuilder.from_dataframe(df)
 
+    # Custom cell renderer that renders HTML strings as clickable links
+    # This JS function will be called for every cell; it uses innerHTML to insert the HTML.
+    html_renderer = JsCode("""
+    function(params) {
+        if (params.value && typeof params.value === 'string' && params.value.includes('<a')) {
+            return params.value;
+        }
+        return params.value;
+    }
+    """)
+
     # Priority columns (wider)
     priority_columns = [
         "ID", "Company Name", "Stock Name", "Symbol", "Industry", "Sector"
     ]
 
-    # Configure each column: set width, minWidth, and HTML renderer
+    # Configure each column
     for col in df.columns:
         if col in priority_columns:
             width, min_width = 220, 150
@@ -153,10 +164,10 @@ if not df.empty:
             filter=True,
             resizable=True,
             editable=False,
-            cellRenderer='html'          # 👈 This renders HTML strings as actual links
+            cellRenderer=html_renderer      # 👈 Use custom JS renderer
         )
 
-    # Enable horizontal scrolling and normal layout
+    # Grid options: enable horizontal scrolling and normal layout
     gb.configure_grid_options(
         domLayout="normal",
         rowHeight=35,
@@ -177,7 +188,7 @@ if not df.empty:
         gridOptions=grid_options,
         theme="streamlit",
         update_mode=GridUpdateMode.SELECTION_CHANGED,
-        allow_unsafe_jscode=True,
+        allow_unsafe_jscode=True,          # Required for custom JS
         fit_columns_on_grid_load=False,
         enable_enterprise_modules=False,
         height=600,
@@ -187,7 +198,7 @@ if not df.empty:
     )
 
     # Download button (strip HTML tags for CSV)
-    csv_df = df.replace(r'<a href="([^"]+)">([^<]+)</a>', r'\2 (\1)', regex=True)
+    csv_df = df.replace(r'<a[^>]*>([^<]*)</a>', r'\1', regex=True)
     csv = csv_df.to_csv(index=False).encode('utf-8')
     st.download_button("📥 Download as CSV", csv, f"{selected_sheet.replace(' ', '_')}.csv", "text/csv")
 
