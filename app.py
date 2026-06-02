@@ -116,11 +116,10 @@ def load_sheet_data_with_colors(sheet_name):
 def process_hyperlinks(df, symbol_col):
     df_proc = df.copy()
     
-    # NEW FIX: Save a completely pure, hidden copy of the symbol column before adding HTML
+    # Save a completely pure, hidden copy of the symbol column before adding HTML
     df_proc['_raw_symbol_'] = df_proc[symbol_col]
     
     for idx, row in df_proc.iterrows():
-        # Use the pure symbol we just saved
         sym = str(row['_raw_symbol_']).strip()
         if not sym or sym == "nan":
             continue
@@ -298,16 +297,23 @@ if not raw_df.empty:
     st.sidebar.markdown("---")
     st.sidebar.header("📊 Numeric Range Filters")
     
+    # Expanded list of target strings to catch your specific columns
     numeric_targets = [
-        "Volume", "CMP", "Price %", "Difference from 200 DMA", 
+        "Volume", "CMP", "Price %", 
+        "Difference from 200 DMA", "Diff. from 200 DMA", "Diff @ 200 DMA", # DMA diff variations
+        "% from 52W Low", "52W Low %", "% away from 52w low",              # 52W Low variations
+        "% from 52W High", "52W High %", "% away from 52w high",           # 52W High variations
         "Promoters %", "Institutional %", "Face Value", 
         "Net Profit", "EPS", "RONW %", "Market Cap", "Enterprise Value"
     ]
     
+    # Prevent creating duplicate sliders if strings overlap
+    processed_cols = set() 
     for target in numeric_targets:
-        col_match = next((c for c in actual_cols if target.lower() in c.lower()), None)
+        col_match = next((c for c in actual_cols if target.lower() in c.lower() and c not in processed_cols), None)
         if col_match:
             filtered_df = apply_numeric_slider(filtered_df, col_match, st.sidebar)
+            processed_cols.add(col_match)
 
     # ==========================================
     # 📅 5. APPLY DATE FILTERS
@@ -367,14 +373,13 @@ if not raw_df.empty:
 
     gb = GridOptionsBuilder.from_dataframe(filtered_df)
     
-    # Enable Row Selection (clicking a row will display the URLs in the top right)
+    # Enable Row Selection
     gb.configure_selection(selection_mode="single", use_checkbox=True)
 
     priority_columns_lower = ["nse code", "id", "company name", "stock name", "symbol", "industry", "sector"]
     is_first_visible_column = True
 
     for col in filtered_df.columns:
-        # Hide the secret tracking columns from the user's grid
         if col.startswith("_bg_") or col.startswith("_txt_") or col == "_raw_symbol_":
             gb.configure_column(col, hide=True)
             continue
@@ -433,13 +438,10 @@ if not raw_df.empty:
     selected_rows = grid_response.get("selected_rows", [])
     if selected_rows is not None and len(selected_rows) > 0:
         sel_row = selected_rows.iloc[0] if isinstance(selected_rows, pd.DataFrame) else selected_rows[0]
-        
-        # USE THE PURE, HIDDEN SYMBOL SO IT DOES NOT RENDER HTML CODE!
         sym = str(sel_row.get("_raw_symbol_", "")).strip() 
         
         if sym:
             with url_placeholder.container():
-                # Display in a clean, HORIZONTAL list with requested labels
                 with st.expander(f"⚡ **{sym} Quick Links:**", expanded=True):
                     st.markdown(
                         f"[Trading View (🔗)](https://www.tradingview.com/symbols/{sym}) &nbsp; | &nbsp; "
