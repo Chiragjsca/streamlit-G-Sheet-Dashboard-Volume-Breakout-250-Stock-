@@ -133,30 +133,40 @@ with st.spinner("Loading data..."):
 if not df.empty:
     st.write(f"**Rows:** {df.shape[0]} | **Columns:** {df.shape[1]}")
 
-    # Prepare grid options for AG Grid
+    # ---------- FORCE COMPRESSED COLUMNS (50px each) ----------
     gb = GridOptionsBuilder.from_dataframe(df)
 
-    # Enable column resizing, reordering, and filtering
-    gb.configure_columns(enableRowGroup=False, enablePivot=False, enableValue=False)
-    gb.configure_default_column(
-        resizable=True,
-        sortable=True,
-        filter=True,
-        editable=False,
-        width=150
-    )
+    # Build column definitions with fixed narrow width for EVERY column
+    column_defs = []
+    for col in df.columns:
+        column_defs.append({
+            "headerName": col,
+            "field": col,
+            "width": 50,           # <-- Change this number to adjust width
+            "minWidth": 40,
+            "maxWidth": 60,
+            "sortable": True,
+            "filter": True,
+            "resizable": True
+        })
+
+    # Apply column definitions directly (overrides any previous settings)
+    gb.configure_grid_options(columnDefs=column_defs)
+
+    # Grid configuration
     gb.configure_grid_options(
         domLayout='autoHeight',
         rowHeight=35,
         headerHeight=45,
         enableCellTextSelection=True,
-        ensureDomOrder=True
+        ensureDomOrder=True,
+        suppressMovableColumns=False,
+        suppressAutoSize=True,            # prevents auto-expanding
+        suppressColumnVirtualisation=False,
+        suppressHorizontalScroll=False,
+        alwaysShowHorizontalScroll=True
     )
 
-    # Allow column reordering (drag & drop)
-    gb.configure_grid_options(suppressMovableColumns=False)
-
-    # Build grid options
     grid_options = gb.build()
 
     # Display AG Grid
@@ -165,15 +175,16 @@ if not df.empty:
         gridOptions=grid_options,
         update_mode=GridUpdateMode.SELECTION_CHANGED,
         allow_unsafe_jscode=True,
-        theme='streamlit',  # or 'balham', 'alpine'
-        fit_columns_on_grid_load=False,
+        theme='streamlit',
+        fit_columns_on_grid_load=False,   # CRITICAL: do NOT fit
         enable_enterprise_modules=False,
         height=600,
         width='100%',
-        reload_data=False
+        reload_data=False,
+        key='compressed_columns'
     )
 
-    # Download button (strip HTML tags for CSV)
+    # Download button
     csv_df = df.replace(r'<a href="([^"]+)">([^<]+)</a>', r'\2 (\1)', regex=True)
     csv = csv_df.to_csv(index=False).encode('utf-8')
     st.download_button("📥 Download as CSV", csv, f"{selected_sheet.replace(' ', '_')}.csv", "text/csv")
@@ -182,4 +193,4 @@ else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
 
 st.markdown("---")
-st.caption("Powered by Google Sheets & Streamlit | Columns are resizable & reorderable")
+st.caption("Powered by Google Sheets & Streamlit | All columns forced to 50px width | Columns are resizable & reorderable | Horizontal scroll enabled")
