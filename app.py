@@ -630,7 +630,7 @@ if not raw_df.empty:
             price_val = row.get(cmp_target, "") if cmp_target else ""
             
             # Clickable NSE Technical Charting Link
-            hyperlinked_name = f'<a href="https://charting.nseindia.com/?symbol={ticker}-EQ" target="_blank" style="text-decoration:none; color:#1f77b4; font-weight:bold;">{ticker}</a>'
+            hyperlinked_name = f'<a href="https://charting.nseindia.com/?symbol={ticker}-EQ" target="_blank" style="text-decoration:none; color:#000000; font-weight:bold;">{ticker}</a>'
             
             entry = {
                 "STOCK NAME": hyperlinked_name,
