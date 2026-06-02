@@ -23,7 +23,7 @@ def excel_serial_to_date(val):
     except (ValueError, TypeError, OverflowError):
         return str(val)
 
-# ---------- Load Google Sheet ----------
+# ---------- Load Google Sheet (Raw Data) ----------
 @st.cache_data(ttl=300)
 def load_sheet_data(sheet_name):
     try:
@@ -47,7 +47,7 @@ def load_sheet_data(sheet_name):
         if not all_values:
             return pd.DataFrame()
 
-        # ---------- Clean headers (strip spaces and deduplicate) ----------
+        # ---------- Clean headers ----------
         raw_headers = all_values[0]
         clean_headers = []
         seen = {}
@@ -65,64 +65,7 @@ def load_sheet_data(sheet_name):
         data_rows = all_values[1:]
         df = pd.DataFrame(data_rows, columns=clean_headers)
 
-        # ---------- Find the Symbol column robustly ----------
-        symbol_col = None
-        for c in df.columns:
-            if c.lower() in ["symbol", "ticker", "stock symbol"]:
-                symbol_col = c
-                break
-
-        # ---------- Generate Clickable HTML Links (Super Robust) ----------
-        if symbol_col:
-            for idx, row in df.iterrows():
-                sym = str(row[symbol_col]).strip()
-                if not sym or sym == "nan":
-                    continue
-                
-                # Iterate over every column to check if it's a link column
-                for col in df.columns:
-                    c_lower = col.lower()
-                    url = None
-                    label = "🔗 Link" # Default for columns ending in '1'
-                    
-                    # 1. Match the column to the correct URL
-                    if "trading view" in c_lower:
-                        url = f"https://www.tradingview.com/symbols/{sym}"
-                        if not c_lower.endswith("1"): label = f"Tre {sym}"
-                            
-                    elif "history data" in c_lower:
-                        url = f"https://www.equitypandit.com/historical-data/{sym}"
-                        if not c_lower.endswith("1"): label = f"History {sym}"
-                            
-                    elif "screener" in c_lower:
-                        url = f"https://www.screener.in/company/{sym}"
-                        if not c_lower.endswith("1"): label = f"Scr {sym}"
-                            
-                    elif "zerodha" in c_lower:
-                        url = f"https://zerodha.com/markets/stocks/NSE/{sym}"
-                        if not c_lower.endswith("1"): label = f"🪁 {sym}"
-                            
-                    elif "chartlink" in c_lower:
-                        url = f"https://chartink.com/stocks-new?load-snapshot=exponential-moving-average-simple-moving-average-simple-moving-average-moving-average-convergence-divergence-chart-snapshot-175&symbol={sym}"
-                        if not c_lower.endswith("1"): label = f"CL {sym}"
-                            
-                    elif "market smith" in c_lower:
-                        url = f"https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp"
-                        if not c_lower.endswith("1"): label = f"ms {sym}"
-                            
-                    elif "official nse" in c_lower:
-                        url = f"https://www.nseindia.com/get-quotes/equity?symbol={sym}"
-                        if not c_lower.endswith("1"): label = f"nse📰 {sym}"
-                            
-                    elif "nse" in c_lower: # Catches "NSE Chart" and "NSE 1"
-                        url = f"https://charting.nseindia.com/?symbol={sym}-EQ"
-                        if not c_lower.endswith("1"): label = f"nse {sym}"
-                        
-                    # 2. If a URL was matched, inject the HTML format
-                    if url:
-                        df.at[idx, col] = f'<a href="{url}" target="_blank" style="color:#1f77b4; text-decoration:none;">{label}</a>'
-
-        # ---------- Date Column Fixes ----------
+        # Fix Dates
         date_columns_to_fix = ["52W High Date", "52W Low Date"]
         for col in date_columns_to_fix:
             if col in df.columns:
@@ -133,6 +76,64 @@ def load_sheet_data(sheet_name):
     except Exception as e:
         st.error(f"Error loading sheet '{sheet_name}': {str(e)}")
         return pd.DataFrame()
+
+# ---------- Process Hyperlinks Dynamically ----------
+def process_hyperlinks(df, symbol_col):
+    df_proc = df.copy()
+    
+    for idx, row in df_proc.iterrows():
+        sym = str(row[symbol_col]).strip()
+        if not sym or sym == "nan":
+            continue
+            
+        for col in df_proc.columns:
+            c_lower = col.lower()
+            url = None
+            label = "🔗 Link"
+            
+            # Match the column to the correct URL
+            if "trading view" in c_lower:
+                url = f"https://www.tradingview.com/symbols/{sym}"
+                if not c_lower.endswith("1"): label = f"Tre {sym}"
+                    
+            elif "history data" in c_lower:
+                url = f"https://www.equitypandit.com/historical-data/{sym}"
+                if not c_lower.endswith("1"): label = f"History {sym}"
+                    
+            elif "screener" in c_lower:
+                url = f"https://www.screener.in/company/{sym}"
+                if not c_lower.endswith("1"): label = f"Scr {sym}"
+                    
+            elif "zerodha" in c_lower:
+                url = f"https://zerodha.com/markets/stocks/NSE/{sym}"
+                if not c_lower.endswith("1"): label = f"🪁 {sym}"
+                    
+            elif "chartlink" in c_lower:
+                url = f"https://chartink.com/stocks-new?load-snapshot=exponential-moving-average-simple-moving-average-simple-moving-average-moving-average-convergence-divergence-chart-snapshot-175&symbol={sym}"
+                if not c_lower.endswith("1"): label = f"CL {sym}"
+                    
+            elif "market smith" in c_lower:
+                url = f"https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp"
+                if not c_lower.endswith("1"): label = f"ms {sym}"
+                    
+            elif "official nse" in c_lower:
+                url = f"https://www.nseindia.com/get-quotes/equity?symbol={sym}"
+                if not c_lower.endswith("1"): label = f"nse📰 {sym}"
+                    
+            elif "nse" in c_lower:
+                url = f"https://charting.nseindia.com/?symbol={sym}-EQ"
+                if not c_lower.endswith("1"): label = f"nse {sym}"
+                
+            # Apply the HTML
+            if url:
+                df_proc.at[idx, col] = f'<a href="{url}" target="_blank" style="color:#1f77b4; text-decoration:none;">{label}</a>'
+            else:
+                # Cleanup raw formulas that didn't match so they don't look ugly
+                cell_val = str(df_proc.at[idx, col])
+                if cell_val.startswith("=HYPERLINK"):
+                    df_proc.at[idx, col] = "⚠️ Update Column Settings"
+
+    return df_proc
 
 # ---------- Sidebar ----------
 sheet_names = [
@@ -154,14 +155,33 @@ st.sidebar.info(
     "`streamlit-g-sheet-dashboard-vo@axiomatic-idiom-496012-p8.iam.gserviceaccount.com`"
 )
 
-# ---------- Main display with AG Grid ----------
+# ---------- Main Execution ----------
 st.header(f"📄 {selected_sheet}")
 
 with st.spinner("Loading data..."):
-    df = load_sheet_data(selected_sheet)
+    raw_df = load_sheet_data(selected_sheet)
 
-if not df.empty:
-    st.write(f"**Rows:** {df.shape[0]} | **Columns:** {df.shape[1]}")
+if not raw_df.empty:
+    
+    # --- Column Settings UI ---
+    st.sidebar.markdown("---")
+    st.sidebar.header("⚙️ Column Settings")
+    st.sidebar.caption("Select the column that contains your Stock Symbols (e.g., RELIANCE).")
+    
+    # Try to auto-guess the symbol column to save the user time
+    guess_idx = 0
+    for i, col_name in enumerate(raw_df.columns):
+        if col_name.lower() in ["symbol", "ticker", "stock symbol", "id", "stock"]:
+            guess_idx = i
+            break
+            
+    # Dropdown to explicitly tell the script where the symbols are
+    selected_symbol_col = st.sidebar.selectbox("Symbol Column:", raw_df.columns, index=guess_idx)
+    
+    # Process links based on the chosen column
+    final_df = process_hyperlinks(raw_df, selected_symbol_col)
+
+    st.write(f"**Rows:** {final_df.shape[0]} | **Columns:** {final_df.shape[1]}")
 
     # Custom cell renderer for HTML links
     html_renderer = JsCode("""
@@ -176,12 +196,11 @@ if not df.empty:
     }
     """)
 
-    gb = GridOptionsBuilder.from_dataframe(df)
+    gb = GridOptionsBuilder.from_dataframe(final_df)
 
-    # Priority columns (wider)
     priority_columns_lower = ["id", "company name", "stock name", "symbol", "industry", "sector"]
 
-    for col in df.columns:
+    for col in final_df.columns:
         if col.lower() in priority_columns_lower:
             width, min_width = 220, 150
         else:
@@ -213,7 +232,7 @@ if not df.empty:
     grid_options = gb.build()
 
     AgGrid(
-        df,
+        final_df,
         gridOptions=grid_options,
         theme="streamlit",
         update_mode=GridUpdateMode.SELECTION_CHANGED,
@@ -227,7 +246,7 @@ if not df.empty:
     )
 
     # Download button (strip HTML tags for CSV)
-    csv_df = df.replace(r'<a[^>]*>([^<]*)</a>', r'\1', regex=True)
+    csv_df = final_df.replace(r'<a[^>]*>([^<]*)</a>', r'\1', regex=True)
     csv = csv_df.to_csv(index=False).encode('utf-8')
     st.download_button("📥 Download as CSV", csv, f"{selected_sheet.replace(' ', '_')}.csv", "text/csv")
 
