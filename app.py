@@ -13,28 +13,87 @@ st.set_page_config(page_title="NSE Stock Dashboard", layout="wide")
 st.title("📊 NSE Stock Market Dashboard")
 st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# ---------- Helper: extract URL and label from HYPERLINK formula ----------
-def extract_hyperlink_info(cell_value):
-    if isinstance(cell_value, str) and cell_value.startswith("=HYPERLINK("):
-        pattern = r'=HYPERLINK\("([^"]+)",\s*"([^"]*)"\)'
-        match = re.search(pattern, cell_value)
-        if match:
-            return match.group(1), match.group(2)
-    return None, cell_value
+# ---------- Helper: extract URL and label from HYPERLINK formula (supports CONCATENATE and &) ----------
+def extract_hyperlink_info(cell_value, symbol):
+    """Return (url, label) from a HYPERLINK formula, using the provided symbol for dynamic parts."""
+    if not isinstance(cell_value, str) or not cell_value.startswith("=HYPERLINK("):
+        return None, cell_value
 
-# ---------- Convert Excel serial number to date (for 52W High Date and 52W Low Date only) ----------
+    # Pattern to capture the entire arguments inside HYPERLINK(...)
+    # It matches: HYPERLINK( something , something )
+    match = re.search(r'=HYPERLINK\((.*),\s*(.*)\)', cell_value, re.DOTALL)
+    if not match:
+        return None, cell_value
+
+    url_part = match.group(1).strip()
+    label_part = match.group(2).strip()
+
+    # Function to evaluate a string that may contain CONCATENATE() or & concatenation
+    def evaluate_concat(expr, symbol):
+        # Remove surrounding quotes if present (literal string)
+        if expr.startswith('"') and expr.endswith('"'):
+            return expr[1:-1]
+        # Handle CONCATENATE(...)
+        concat_match = re.search(r'CONCATENATE\((.*)\)', expr, re.IGNORECASE)
+        if concat_match:
+            inner = concat_match.group(1)
+            # Split by commas, but careful with nested quotes
+            parts = []
+            current = ''
+            in_quotes = False
+            for ch in inner:
+                if ch == '"':
+                    in_quotes = not in_quotes
+                if ch == ',' and not in_quotes:
+                    parts.append(current.strip())
+                    current = ''
+                else:
+                    current += ch
+            parts.append(current.strip())
+            # Evaluate each part (which can be string literal or & concatenation)
+            evaluated_parts = []
+            for p in parts:
+                evaluated_parts.append(evaluate_concat(p, symbol))
+            return ''.join(evaluated_parts)
+        # Handle & concatenation
+        if '&' in expr:
+            subparts = expr.split('&')
+            result = ''
+            for sp in subparts:
+                sp = sp.strip()
+                if sp.startswith('"') and sp.endswith('"'):
+                    result += sp[1:-1]
+                elif sp.upper() == 'A2':  # Assuming A2 is the symbol cell reference
+                    result += str(symbol)
+                else:
+                    # Could be a cell reference like A2, but we'll assume it's the symbol
+                    result += str(symbol)
+            return result
+        # If it's a plain cell reference like A2
+        if expr.upper() == 'A2':
+            return str(symbol)
+        # If it's a string literal
+        if expr.startswith('"') and expr.endswith('"'):
+            return expr[1:-1]
+        return expr
+
+    # Extract URL and label using the symbol
+    try:
+        url = evaluate_concat(url_part, symbol)
+        label = evaluate_concat(label_part, symbol)
+        return url, label
+    except Exception:
+        return None, cell_value
+
+# ---------- Convert Excel serial numbers to date (for 52W High Date and 52W Low Date) ----------
 def excel_serial_to_date(val):
-    """Convert Excel serial date (days since 1899-12-30) to YYYY-MM-DD string."""
     if pd.isna(val) or val == "" or val == "#N/A":
         return ""
     try:
-        # Convert to float (handles int, float, and numeric strings)
         num = float(val)
-        # pandas conversion: origin='1899-12-30' (Windows Excel epoch)
         date = pd.to_datetime(num, unit='D', origin='1899-12-30')
         return date.strftime('%Y-%m-%d')
     except (ValueError, TypeError, OverflowError):
-        # If conversion fails, return original value (might already be a date string)
         return str(val)
 
 # ---------- Load Google Sheet ----------
@@ -61,7 +120,6 @@ def load_sheet_data(sheet_name):
         if not all_values:
             return pd.DataFrame()
 
-        # Clean headers (deduplicate)
         raw_headers = all_values[0]
         clean_headers = []
         seen = {}
@@ -78,7 +136,16 @@ def load_sheet_data(sheet_name):
         data_rows = all_values[1:]
         df = pd.DataFrame(data_rows, columns=clean_headers)
 
-        # ---------- Process HYPERLINK columns (convert to HTML <a> tags) ----------
+        # Identify the column that contains stock symbols (used for HYPERLINK evaluation)
+        symbol_col = None
+        for col in ["Symbol", "Stock Name", "Company Name", "Ticker"]:
+            if col in df.columns:
+                symbol_col = col
+                break
+        if symbol_col is None and len(df.columns) > 0:
+            symbol_col = df.columns[0]  # fallback to first column
+
+        # Columns with HYPERLINK formulas
         link_columns = [
             "Trading View", "History Data", "Screener", "Zerodha", "Chartlink",
             "Market smith india", "NSE Chart", "Official NSE URL",
@@ -86,35 +153,35 @@ def load_sheet_data(sheet_name):
             "Zerodha 1", "Chartlink 1", "Market smith india 1", "Official NSE URL 1"
         ]
 
+        # Process each row and column to convert HYPERLINK formulas to HTML links
         for col in link_columns:
-            if col in df.columns:
-                new_values = []
-                for val in df[col]:
-                    if pd.isna(val) or val == "":
-                        new_values.append("")
-                        continue
-
-                    url, label = extract_hyperlink_info(val)
-                    if url and label:
-                        if col.endswith("1"):
-                            new_values.append(f'<a href="{url}" target="_blank" style="color:#1f77b4; text-decoration:none;">🔗 Link</a>')
-                        else:
-                            new_values.append(f'<a href="{url}" target="_blank" style="color:#1f77b4; text-decoration:none;">{label}</a>')
-                    elif isinstance(val, str) and (val.startswith("http://") or val.startswith("https://")):
-                        if col.endswith("1"):
-                            new_values.append(f'<a href="{val}" target="_blank" style="color:#1f77b4; text-decoration:none;">🔗 Link</a>')
-                        else:
-                            new_values.append(f'<a href="{val}" target="_blank" style="color:#1f77b4; text-decoration:none;">{val}</a>')
+            if col not in df.columns:
+                continue
+            new_values = []
+            for idx, val in enumerate(df[col]):
+                if pd.isna(val) or val == "":
+                    new_values.append("")
+                    continue
+                # Get the symbol for this row
+                symbol = df.iloc[idx][symbol_col] if symbol_col else ""
+                url, label = extract_hyperlink_info(val, symbol)
+                if url and label:
+                    if col.endswith("1"):
+                        new_values.append(f'<a href="{url}" target="_blank" style="color:#1f77b4; text-decoration:none;">🔗 Link</a>')
                     else:
-                        new_values.append(val)
-                df[col] = new_values
+                        new_values.append(f'<a href="{url}" target="_blank" style="color:#1f77b4; text-decoration:none;">{label}</a>')
+                elif isinstance(val, str) and (val.startswith("http://") or val.startswith("https://")):
+                    if col.endswith("1"):
+                        new_values.append(f'<a href="{val}" target="_blank" style="color:#1f77b4; text-decoration:none;">🔗 Link</a>')
+                    else:
+                        new_values.append(f'<a href="{val}" target="_blank" style="color:#1f77b4; text-decoration:none;">{val}</a>')
+                else:
+                    new_values.append(val)
+            df[col] = new_values
 
-        # ---------- Convert ONLY the two date columns: 52W High Date and 52W Low Date ----------
-        # Exact column names (case‑sensitive)
-        date_columns_to_fix = ["52W High Date", "52W Low Date"]
-        for col in date_columns_to_fix:
+        # Convert only the two date columns
+        for col in ["52W High Date", "52W Low Date"]:
             if col in df.columns:
-                # Convert each value using excel_serial_to_date
                 df[col] = df[col].apply(excel_serial_to_date)
 
         return df
@@ -152,10 +219,10 @@ with st.spinner("Loading data..."):
 if not df.empty:
     st.write(f"**Rows:** {df.shape[0]} | **Columns:** {df.shape[1]}")
 
-    # Custom cell renderer for HTML links
+    # Custom cell renderer that forces HTML rendering
     html_renderer = JsCode("""
     function(params) {
-        if (params.value && typeof params.value === 'string' && params.value.includes('<a')) {
+        if (params.value && typeof params.value === 'string' && params.value.indexOf('<a') !== -1) {
             return params.value;
         }
         return params.value;
@@ -164,17 +231,13 @@ if not df.empty:
 
     gb = GridOptionsBuilder.from_dataframe(df)
 
-    # Priority columns (wider)
-    priority_columns = [
-        "ID", "Company Name", "Stock Name", "Symbol", "Industry", "Sector"
-    ]
+    priority_columns = ["ID", "Company Name", "Stock Name", "Symbol", "Industry", "Sector"]
 
     for col in df.columns:
         if col in priority_columns:
             width, min_width = 220, 150
         else:
             width, min_width = 120, 80
-
         gb.configure_column(
             col,
             width=width,
@@ -223,4 +286,4 @@ else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
 
 st.markdown("---")
-st.caption("Powered by Google Sheets & Streamlit | Columns are resizable, reorderable, horizontally scrollable | Hyperlinks clickable | 52W High/Low Dates converted from Excel serials")
+st.caption("Powered by Google Sheets & Streamlit | Columns are resizable, reorderable, horizontally scrollable | Hyperlinks clickable | Dates formatted")
