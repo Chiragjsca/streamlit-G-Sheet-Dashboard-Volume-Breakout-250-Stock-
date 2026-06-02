@@ -623,18 +623,16 @@ if not raw_df.empty:
     if detected_metric_map:
         reporting_data = []
         for idx, row in filtered_df.iterrows():
-            ticker = str(row.get(selected_symbol_col, 'Unknown')).strip()
-            if "<a " in ticker:
-                ticker = ticker.split('">')[-1].split('</a>')[0]
-                
+            
+            # 1. Grab the pure, unformatted symbol directly from your hidden column
+            # This completely bypasses the HTML and guarantees no "nse " prefix!
+            clean_ticker = str(row.get('_raw_symbol_', '')).strip()
+            
             price_val = row.get(cmp_target, "") if cmp_target else ""
             
-            # 1. Clean the ticker to ensure no hidden spaces break the URL
-            clean_ticker = ticker.strip()
-            
-            # 2. Define URL and Label (Matching your preferred logic style)
+            # 2. Define URL and Label
             url = f"https://charting.nseindia.com/?symbol={clean_ticker}-EQ"
-            label = clean_ticker # Can be changed to "🔗 Link" if you prefer
+            label = clean_ticker 
             
             # 3. Build the HTML tag for AgGrid
             # NOTE: Changed color:#000000 to color:inherit so it adapts to light/dark themes
