@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
-from google.auth.transport.requests import AuthorizedSession # NEW IMPORT ADDED HERE
+from google.auth.transport.requests import AuthorizedSession
 import json
 import urllib.parse
 from datetime import datetime
@@ -38,20 +38,15 @@ def load_sheet_data_with_colors(sheet_name):
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = Credentials.from_service_account_info(service_account_info, scopes=scope)
         
-        # We still authorize gspread for potential future use, but we won't use it for the direct API call
         client = gspread.authorize(creds)
-
         spreadsheet_id = "1SFhuZbLLlwwFsNo1k2RRx_Zp6bAkRR20W0F_zTwgdwU"
         encoded_sheet = urllib.parse.quote(sheet_name)
         
-        # FIXED: Use Google's official AuthorizedSession to make the request. 
-        # This is 100% stable and won't break based on your gspread version.
         authed_session = AuthorizedSession(creds)
         url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}?includeGridData=true&ranges={encoded_sheet}"
         response = authed_session.get(url)
         data = response.json()
 
-        # Check for API errors returned in the JSON
         if 'error' in data:
             st.error(f"Google API Error: {data['error'].get('message', 'Unknown Error')}")
             return pd.DataFrame()
@@ -69,7 +64,6 @@ def load_sheet_data_with_colors(sheet_name):
         bg_colors_list = []
         txt_colors_list = []
 
-        # Parse the JSON response block by block
         for row in row_data:
             cells = row.get('values', [])
             row_vals = []
@@ -91,7 +85,6 @@ def load_sheet_data_with_colors(sheet_name):
             bg_colors_list.append(row_bgs)
             txt_colors_list.append(row_txts)
 
-        # ---------- Clean headers ----------
         raw_headers = values_list[0]
         clean_headers = []
         seen = {}
@@ -106,10 +99,8 @@ def load_sheet_data_with_colors(sheet_name):
                 seen[h] = 0
             clean_headers.append(h)
 
-        # Build main dataframe
         df = pd.DataFrame(values_list[1:], columns=clean_headers)
 
-        # Build hidden color columns into the dataframe so AgGrid can read them
         for i, col in enumerate(clean_headers):
             bg_col_name = f"_bg_{col}"
             txt_col_name = f"_txt_{col}"
@@ -170,16 +161,8 @@ def process_hyperlinks(df, symbol_col):
 
     return df_proc
 
-# ---------- Sidebar ----------
-sheet_names = [
-    "Top 250 Stocks",
-    "Final List",
-    "Final List 2",
-    "Diff @ 200 DMA",
-    "+%",
-    "-%"
-]
-
+# ---------- Sidebar Selection ----------
+sheet_names = ["Top 250 Stocks", "Final List", "Final List 2", "Diff @ 200 DMA", "+%", "-%"]
 st.sidebar.header("📑 Select a Tab")
 selected_sheet = st.sidebar.selectbox("Choose sheet", sheet_names)
 st.sidebar.markdown("---")
@@ -206,7 +189,29 @@ if not raw_df.empty:
     
     final_df = process_hyperlinks(raw_df, selected_symbol_col)
 
-    st.write(f"**Rows:** {final_df.shape[0]} | **Columns:** {len(actual_cols)}")
+    # ==========================================
+    # 🔍 DYNAMIC SIDEBAR DROP DOWN FILTERS
+    # ==========================================
+    st.sidebar.header("🎯 Drop Down Filters")
+    
+    # Auto-detect filtering target columns if they exist in your sheet data
+    filter_candidates = ["Industry", "Sector", "Output", "Cumulative Average Rating", "Start GTT Order"]
+    active_filters = [c for c in filter_candidates if c in final_df.columns]
+    
+    # Fallback to text columns if specific targets are missing
+    if not active_filters:
+        active_filters = [c for c in actual_cols[:3] if final_df[c].nunique() < 40]
+
+    # Create dynamic multiselect dropdown choices
+    filtered_df = final_df.copy()
+    for col_to_filter in active_filters:
+        unique_options = sorted(list(final_df[col_to_filter].unique()))
+        selected_options = st.sidebar.multiselect(f"Filter by {col_to_filter}:", options=unique_options)
+        
+        if selected_options:
+            filtered_df = filtered_df[filtered_df[col_to_filter].isin(selected_options)]
+
+    st.write(f"**Rows:** {filtered_df.shape[0]} | **Columns:** {len(actual_cols)}")
 
     # ==========================================
     # 🎨 EXACT COLOR REFLECTION LOGIC
@@ -233,7 +238,6 @@ if not raw_df.empty:
         let bgColor = params.data[bgCol];
         let txtColor = params.data[txtCol];
         
-        // If the cell is white/blank in Google Sheets, let Streamlit handle it
         if (!bgColor || bgColor.toLowerCase() === '#ffffff') {
             return null;
         }
@@ -246,11 +250,13 @@ if not raw_df.empty:
     }
     """)
 
-    gb = GridOptionsBuilder.from_dataframe(final_df)
-
+    gb = GridOptionsBuilder.from_dataframe(filtered_df)
     priority_columns_lower = ["nse code", "id", "company name", "stock name", "symbol", "industry", "sector"]
 
-    for col in final_df.columns:
+    # Tracking variable to freeze only the absolute first visible data column
+    is_first_visible_column = True
+
+    for col in filtered_df.columns:
         if col.startswith("_bg_") or col.startswith("_txt_"):
             gb.configure_column(col, hide=True)
             continue
@@ -260,6 +266,12 @@ if not raw_df.empty:
         else:
             width, min_width = 120, 80
 
+        # Determine if this column should be pinned (frozen)
+        pinned_value = None
+        if is_first_visible_column:
+            pinned_value = "left"
+            is_first_visible_column = False # Turn off so subsequent columns don't freeze
+
         gb.configure_column(
             col,
             width=width,
@@ -268,6 +280,7 @@ if not raw_df.empty:
             filter=True,
             resizable=True,
             editable=False,
+            pinned=pinned_value, # <--- THIS FREEZES THE FIRST COLUMN
             cellRenderer=html_renderer,
             cellStyle=exact_mirror_style
         )
@@ -287,7 +300,7 @@ if not raw_df.empty:
     grid_options = gb.build()
 
     AgGrid(
-        final_df,
+        filtered_df,
         gridOptions=grid_options,
         theme="streamlit",
         update_mode=GridUpdateMode.SELECTION_CHANGED,
