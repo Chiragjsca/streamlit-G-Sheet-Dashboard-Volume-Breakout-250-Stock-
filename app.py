@@ -17,7 +17,7 @@ st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 # ---------- Helper: Convert Google RGB to HEX ----------
 def rgb_to_hex(color_dict):
     if not color_dict:
-        return "#ffffff" # Default white
+        return "#ffffff"
     r = int(color_dict.get('red', 0) * 255)
     g = int(color_dict.get('green', 0) * 255)
     b = int(color_dict.get('blue', 0) * 255)
@@ -104,12 +104,10 @@ def load_sheet_data_with_colors(sheet_name):
         for i, col in enumerate(clean_headers):
             bg_col_name = f"_bg_{col}"
             txt_col_name = f"_txt_{col}"
-            
             df[bg_col_name] = [row[i] if i < len(row) else "#ffffff" for row in bg_colors_list[1:]]
             df[txt_col_name] = [row[i] if i < len(row) else "#000000" for row in txt_colors_list[1:]]
 
         return df
-
     except Exception as e:
         st.error(f"Error loading sheet '{sheet_name}': {str(e)}")
         return pd.DataFrame()
@@ -117,52 +115,85 @@ def load_sheet_data_with_colors(sheet_name):
 # ---------- Process Hyperlinks Dynamically ----------
 def process_hyperlinks(df, symbol_col):
     df_proc = df.copy()
-    
     for idx, row in df_proc.iterrows():
         sym = str(row[symbol_col]).strip()
         if not sym or sym == "nan":
             continue
-            
         for col in df_proc.columns:
             if col.startswith("_bg_") or col.startswith("_txt_"):
                 continue
-                
             c_lower = col.lower()
             url = None
             label = "🔗 Link"
             
-            if "trading view" in c_lower:
-                url = f"https://www.tradingview.com/symbols/{sym}"
-                if not c_lower.endswith("1"): label = f"Tre {sym}"
-            elif "history data" in c_lower:
-                url = f"https://www.equitypandit.com/historical-data/{sym}"
-                if not c_lower.endswith("1"): label = f"History {sym}"
-            elif "screener" in c_lower:
-                url = f"https://www.screener.in/company/{sym}"
-                if not c_lower.endswith("1"): label = f"Scr {sym}"
-            elif "zerodha" in c_lower:
-                url = f"https://zerodha.com/markets/stocks/NSE/{sym}"
-                if not c_lower.endswith("1"): label = f"🪁 {sym}"
-            elif "chartlink" in c_lower:
-                url = f"https://chartink.com/stocks-new?load-snapshot=exponential-moving-average-simple-moving-average-simple-moving-average-moving-average-convergence-divergence-chart-snapshot-175&symbol={sym}"
-                if not c_lower.endswith("1"): label = f"CL {sym}"
-            elif "market smith" in c_lower:
-                url = f"https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp"
-                if not c_lower.endswith("1"): label = f"ms {sym}"
-            elif "official nse" in c_lower:
-                url = f"https://www.nseindia.com/get-quotes/equity?symbol={sym}"
-                if not c_lower.endswith("1"): label = f"nse📰 {sym}"
-            elif "nse" in c_lower:
-                url = f"https://charting.nseindia.com/?symbol={sym}-EQ"
-                if not c_lower.endswith("1"): label = f"nse {sym}"
+            if "trading view" in c_lower: url, label = f"https://www.tradingview.com/symbols/{sym}", f"Tre {sym}" if not c_lower.endswith("1") else "🔗 Link"
+            elif "history data" in c_lower: url, label = f"https://www.equitypandit.com/historical-data/{sym}", f"History {sym}" if not c_lower.endswith("1") else "🔗 Link"
+            elif "screener" in c_lower: url, label = f"https://www.screener.in/company/{sym}", f"Scr {sym}" if not c_lower.endswith("1") else "🔗 Link"
+            elif "zerodha" in c_lower: url, label = f"https://zerodha.com/markets/stocks/NSE/{sym}", f"🪁 {sym}" if not c_lower.endswith("1") else "🔗 Link"
+            elif "chartlink" in c_lower: url, label = f"https://chartink.com/stocks-new?load-snapshot=exponential-moving-average-simple-moving-average-simple-moving-average-moving-average-convergence-divergence-chart-snapshot-175&symbol={sym}", f"CL {sym}" if not c_lower.endswith("1") else "🔗 Link"
+            elif "market smith" in c_lower: url, label = f"https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp", f"ms {sym}" if not c_lower.endswith("1") else "🔗 Link"
+            elif "official nse" in c_lower: url, label = f"https://www.nseindia.com/get-quotes/equity?symbol={sym}", f"nse📰 {sym}" if not c_lower.endswith("1") else "🔗 Link"
+            elif "nse" in c_lower: url, label = f"https://charting.nseindia.com/?symbol={sym}-EQ", f"nse {sym}" if not c_lower.endswith("1") else "🔗 Link"
                 
             if url:
                 df_proc.at[idx, col] = f'<a href="{url}" target="_blank" style="text-decoration:none; color:inherit;">{label}</a>'
-
     return df_proc
 
+# ---------- Helper: Numeric and Date Filters ----------
+def apply_numeric_slider(df, col_name, st_container):
+    """Parses formatted strings to numbers and applies a slider filter."""
+    if col_name in df.columns:
+        # Clean the strings (remove commas, percent signs)
+        num_series = df[col_name].astype(str).str.replace(r'[%,]', '', regex=True)
+        num_series = pd.to_numeric(num_series, errors='coerce')
+        
+        valid_nums = num_series.dropna()
+        if not valid_nums.empty:
+            min_val = float(valid_nums.min())
+            max_val = float(valid_nums.max())
+            
+            if min_val < max_val:
+                selected_range = st_container.slider(
+                    f"{col_name} Range:", 
+                    min_value=min_val, 
+                    max_value=max_val, 
+                    value=(min_val, max_val)
+                )
+                # Apply filter
+                return df[(num_series >= selected_range[0]) & (num_series <= selected_range[1])]
+    return df
+
+def apply_date_filter(df, col_name, st_container):
+    """Parses dates and filters based on selected timeframe."""
+    if col_name in df.columns:
+        options = ["All Time", "Past 5 Days", "Past 10 Days", "Past 15 Days", "Past 20 Days", 
+                   "Past 25 Days", "Past 30 Days", "Past 1 Month", "Past 2 Months", 
+                   "Past 6 Months", "Past 1 Year"]
+        
+        selection = st_container.selectbox(f"{col_name}:", options)
+        
+        if selection != "All Time":
+            # Convert column to datetime (assuming DD/MM/YYYY or YYYY-MM-DD)
+            date_series = pd.to_datetime(df[col_name], errors='coerce', dayfirst=True)
+            today = pd.Timestamp.now()
+            
+            # Determine start date threshold
+            if selection == "Past 5 Days": threshold = today - pd.Timedelta(days=5)
+            elif selection == "Past 10 Days": threshold = today - pd.Timedelta(days=10)
+            elif selection == "Past 15 Days": threshold = today - pd.Timedelta(days=15)
+            elif selection == "Past 20 Days": threshold = today - pd.Timedelta(days=20)
+            elif selection == "Past 25 Days": threshold = today - pd.Timedelta(days=25)
+            elif selection == "Past 30 Days": threshold = today - pd.Timedelta(days=30)
+            elif selection == "Past 1 Month": threshold = today - pd.DateOffset(months=1)
+            elif selection == "Past 2 Months": threshold = today - pd.DateOffset(months=2)
+            elif selection == "Past 6 Months": threshold = today - pd.DateOffset(months=6)
+            elif selection == "Past 1 Year": threshold = today - pd.DateOffset(years=1)
+            
+            return df[date_series >= threshold]
+    return df
+
 # ==========================================
-# 📑 SIDEBAR CONTROLS (Top Left)
+# 📑 SIDEBAR CONTROLS 
 # ==========================================
 st.sidebar.header("🔍 Global Search")
 search_query = st.sidebar.text_input("Search by Symbol, Name, etc...")
@@ -180,7 +211,7 @@ with st.spinner("Downloading data and exact colors from Google API..."):
 
 if not raw_df.empty:
     
-    # Auto-detect Symbol column for hyperlinks
+    # Auto-detect Symbol column
     guess_idx = 0
     actual_cols = [c for c in raw_df.columns if not c.startswith("_bg_") and not c.startswith("_txt_")]
     
@@ -194,44 +225,61 @@ if not raw_df.empty:
     selected_symbol_col = st.sidebar.selectbox("Symbol Column:", actual_cols, index=guess_idx)
     
     final_df = process_hyperlinks(raw_df, selected_symbol_col)
-
-    # ==========================================
-    # 🔍 APPLY SEARCH & DROP DOWN FILTERS
-    # ==========================================
     filtered_df = final_df.copy()
 
-    # 1. Apply Top-Left Search Bar Filter
+    # ==========================================
+    # 🔍 1. APPLY SEARCH BAR FILTER
+    # ==========================================
     if search_query:
-        # Search across all visible columns (ignore hidden color columns)
         mask = filtered_df[actual_cols].astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)
         filtered_df = filtered_df[mask]
 
+    # ==========================================
+    # 🎯 2. APPLY CATEGORY DROP DOWN FILTERS
+    # ==========================================
     st.sidebar.markdown("---")
-    st.sidebar.header("🎯 Drop Down Filters")
+    st.sidebar.header("🎯 Categorical Filters")
     
-    # Identify specific columns you want to filter (Case-insensitive matching to find your specific columns)
-    active_filters = []
-    for c in actual_cols:
-        c_lower = c.lower()
-        if "cumulative average" in c_lower or "industry" in c_lower or "sector" in c_lower or "output" in c_lower or "start gtt order" in c_lower:
-            active_filters.append(c)
+    active_filters = [c for c in actual_cols if any(key in c.lower() for key in ["cumulative average", "industry", "sector", "output", "start gtt order"])]
     
-    # 2. Apply Dropdown Filters
     for col_to_filter in active_filters:
-        # Get unique values, ignoring empty strings
         unique_options = sorted([val for val in final_df[col_to_filter].unique() if str(val).strip() != ""])
-        
         selected_options = st.sidebar.multiselect(f"Filter by {col_to_filter}:", options=unique_options)
-        
         if selected_options:
             filtered_df = filtered_df[filtered_df[col_to_filter].isin(selected_options)]
+
+    # ==========================================
+    # 📊 3. APPLY NUMERIC RANGE SLIDERS
+    # ==========================================
+    st.sidebar.markdown("---")
+    st.sidebar.header("📊 Numeric Range Filters")
+    
+    # Find matching columns for your specific numeric requests
+    cmp_col = next((c for c in actual_cols if "cmp" in c.lower()), None)
+    price_pct_col = next((c for c in actual_cols if "price %" in c.lower()), None)
+    diff_dma_col = next((c for c in actual_cols if "diff" in c.lower() and "200" in c.lower()), None)
+
+    if cmp_col: filtered_df = apply_numeric_slider(filtered_df, cmp_col, st.sidebar)
+    if price_pct_col: filtered_df = apply_numeric_slider(filtered_df, price_pct_col, st.sidebar)
+    if diff_dma_col: filtered_df = apply_numeric_slider(filtered_df, diff_dma_col, st.sidebar)
+
+    # ==========================================
+    # 📅 4. APPLY DATE FILTERS
+    # ==========================================
+    st.sidebar.markdown("---")
+    st.sidebar.header("📅 Date Filters")
+    
+    high_date_col = next((c for c in actual_cols if "52w high date" in c.lower()), None)
+    low_date_col = next((c for c in actual_cols if "52w low date" in c.lower()), None)
+
+    if high_date_col: filtered_df = apply_date_filter(filtered_df, high_date_col, st.sidebar)
+    if low_date_col: filtered_df = apply_date_filter(filtered_df, low_date_col, st.sidebar)
 
     st.write(f"**Rows:** {filtered_df.shape[0]} | **Columns:** {len(actual_cols)}")
 
     # ==========================================
     # 🎨 EXACT COLOR REFLECTION & HTML LOGIC
     # ==========================================
-
     html_renderer = JsCode("""
     class HtmlRenderer {
         init(params) {
@@ -253,9 +301,7 @@ if not raw_df.empty:
         let bgColor = params.data[bgCol];
         let txtColor = params.data[txtCol];
         
-        if (!bgColor || bgColor.toLowerCase() === '#ffffff') {
-            return null;
-        }
+        if (!bgColor || bgColor.toLowerCase() === '#ffffff') return null;
         
         return {
             'backgroundColor': bgColor,
@@ -268,7 +314,7 @@ if not raw_df.empty:
     gb = GridOptionsBuilder.from_dataframe(filtered_df)
     priority_columns_lower = ["nse code", "id", "company name", "stock name", "symbol", "industry", "sector"]
 
-    # Tracking variable to freeze only the absolute first visible data column
+    # First visible column freezing logic
     is_first_visible_column = True
 
     for col in filtered_df.columns:
@@ -276,16 +322,12 @@ if not raw_df.empty:
             gb.configure_column(col, hide=True)
             continue
 
-        if col.lower() in priority_columns_lower:
-            width, min_width = 220, 150
-        else:
-            width, min_width = 120, 80
-
-        # Determine if this column should be pinned (frozen)
+        width, min_width = (220, 150) if col.lower() in priority_columns_lower else (120, 80)
+        
         pinned_value = None
         if is_first_visible_column:
             pinned_value = "left"
-            is_first_visible_column = False # Turn off so subsequent columns don't freeze
+            is_first_visible_column = False 
 
         gb.configure_column(
             col,
@@ -295,7 +337,7 @@ if not raw_df.empty:
             filter=True,
             resizable=True,
             editable=False,
-            pinned=pinned_value, # <--- THIS FREEZES THE FIRST COLUMN
+            pinned=pinned_value, # FREEZES FIRST COLUMN
             cellRenderer=html_renderer,
             cellStyle=exact_mirror_style
         )
