@@ -155,7 +155,7 @@ def process_hyperlinks(df, symbol_col):
             c_lower = col.lower()
             url, label = None, "🔗 Link"
             
-            if "trading view" in c_lower: url, label = f"https://www.tradingview.com/symbols/{sym}/", f"Tre {sym}" if not c_lower.endswith("1") else "🔗 Link"
+            if "trading view" in c_lower: url, label = f"https://www.tradingview.com/symbols/{sym}", f"Tre {sym}" if not c_lower.endswith("1") else "🔗 Link"
             elif "history data" in c_lower: url, label = f"https://www.equitypandit.com/historical-data/{sym}", f"History {sym}" if not c_lower.endswith("1") else "🔗 Link"
             elif "screener" in c_lower: url, label = f"https://www.screener.in/company/{sym}", f"Scr {sym}" if not c_lower.endswith("1") else "🔗 Link"
             elif "zerodha" in c_lower: url, label = f"https://zerodha.com/markets/stocks/NSE/{sym}", f"🪁 {sym}" if not c_lower.endswith("1") else "🔗 Link"
@@ -436,7 +436,7 @@ if not raw_df.empty:
             with url_placeholder.container():
                 st.markdown(
                     f"**⚡ {sym} Links:** "
-                    f"[Trading View (🔗)](https://www.tradingview.com/symbols/{sym}/) &nbsp;|&nbsp; "
+                    f"[Trading View (🔗)](https://www.tradingview.com/symbols/{sym}) &nbsp;|&nbsp; "
                     f"[History Data (🔗)](https://www.equitypandit.com/historical-data/{sym}) &nbsp;|&nbsp; "
                     f"[Screener (🔗)](https://www.screener.in/company/{sym}) &nbsp;|&nbsp; "
                     f"[Zerodha (🔗)](https://zerodha.com/markets/stocks/NSE/{sym}) &nbsp;|&nbsp; "
@@ -452,7 +452,7 @@ if not raw_df.empty:
             ws_tabs = st.tabs([
                 "📈 Chart & Trade Info (NSE Component)", "📋 History Data (EquityPandit)", 
                 "🎯 Bullish/Bearish Zone", "📁 Screener Documents",
-                "🪁 Zerodha Portal", "📊 MarketSmith India", "📉 TradingView Symbol Profile"
+                "🪁 Zerodha Portal", "📊 MarketSmith India"
             ])
             
             with ws_tabs[0]:
@@ -478,11 +478,6 @@ if not raw_df.empty:
             with ws_tabs[5]:
                 st.markdown("**6TH Panel: MarketSmith India Institutional Trading Evaluation Engine**")
                 components.html(f'<iframe src="https://marketsmithindia.com/mstool/eval/{sym.lower()}/evaluation.jsp" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
-
-            with ws_tabs[6]:
-                # REMOVED: NSE- prefix removed to load correctly on Trading View panel
-                st.markdown("**7TH Panel: TradingView Comprehensive Asset Market Registry Summary Profile**")
-                components.html(f'<iframe src="https://www.tradingview.com/symbols/{sym}/" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
     # ==========================================
     # 🌍 NATIONAL ANALYTICS PORTAL WORKSPACE
