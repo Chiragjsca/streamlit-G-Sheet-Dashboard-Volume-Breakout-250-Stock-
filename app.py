@@ -449,6 +449,7 @@ if not raw_df.empty:
             st.subheader(f"🛠️ Live Workspace Panel: {sym}")
             box_height = st.slider("📏 Adjust Panel Box Height (px):", min_value=300, max_value=1000, value=500, step=50, key="panel_height_slider")
             
+            # Expanded workspace frame layout matrix arrays to incorporate Zerodha, MarketSmith and TradingView Symbol tab elements
             ws_tabs = st.tabs([
                 "📈 Chart & Trade Info (NSE Component)", "📋 History Data (EquityPandit)", 
                 "🎯 Bullish/Bearish Zone", "📁 Screener Documents",
@@ -476,11 +477,8 @@ if not raw_df.empty:
                 components.html(f'<iframe src="https://zerodha.com/markets/stocks/NSE/{sym}/" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
             with ws_tabs[5]:
-                # CLEAN SYSTEM OVERHAUL: Replaced the iframe security wall with a professional external action button launcher
                 st.markdown("**6TH Panel: MarketSmith India Institutional Trading Evaluation Engine**")
-                st.info("💡 MarketSmith India protects its security profile by blocking external iframe embedding natively via headers.")
-                st.markdown(f'<a href="https://marketsmithindia.com/mstool/eval/{sym.lower()}/evaluation.jsp" target="_blank"><button style="width:100%; padding:15px; border-radius:5px; background-color:#ff4b4b; color:white; border:none; cursor:pointer; font-weight:bold; font-size:16px;">🌐 Open MarketSmith India Evaluation Tool for {sym} ↗️</button></a>', unsafe_allow_html=True)
-                st.caption("Clicking the launcher launches their platform tracking layer natively inside an aligned sibling tab layout space.")
+                components.html(f'<iframe src="https://marketsmithindia.com/mstool/eval/{sym.lower()}/evaluation.jsp" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
             with ws_tabs[6]:
                 st.markdown("**7TH Panel: TradingView Comprehensive Asset Market Registry Summary Profile**")
@@ -492,17 +490,18 @@ if not raw_df.empty:
     st.markdown("---")
     st.subheader("📊 National Live Market Analytics Portal Framework")
 
+    # CUSTOM CSS MODIFICATION: Tightened margins and paddings to drop row gaps to absolute minimal dimensions
     st.markdown("""
     <style>
         div[data-baseweb="tab-list"] {
             flex-wrap: wrap !important;
-            row-gap: 3px !important;       
+            row-gap: 3px !important;       /* Tightened line to line horizontal tracking */
             column-gap: 8px !important;
         }
         div[data-baseweb="tab-list"] button {
-            margin-top: 1px !important;    
+            margin-top: 1px !important;    /* Tight vertical stack tracking layouts */
             margin-bottom: 1px !important;
-            padding-top: 6px !important;   
+            padding-top: 6px !important;   /* Narrow button vertical boundaries */
             padding-bottom: 6px !important;
             height: auto !important;
         }
