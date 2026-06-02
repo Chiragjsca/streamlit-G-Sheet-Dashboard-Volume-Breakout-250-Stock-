@@ -288,7 +288,8 @@ if not raw_df.empty:
     st.sidebar.markdown("---")
     st.sidebar.header("📊 Numeric Range Filters")
     
-    diff_200_col = next((c for c in actual_cols if "diff" in c.lower() and "200" in r.lower() if 'r' in locals() else "diff" in c.lower() and "200" in c.lower()), None)
+    # FIXED: Cleaned up list comprehension search logic below
+    diff_200_col = next((c for c in actual_cols if "diff" in c.lower() and "200" in c.lower()), None)
     if diff_200_col: filtered_df = apply_numeric_slider(filtered_df, diff_200_col, st.sidebar, "Diff. from 200 DMA Range:")
 
     low_pct_col = next((c for c in actual_cols if "52" in c.lower() and "low" in c.lower() and ("%" in c.lower() or "per" in c.lower())), None)
@@ -314,7 +315,7 @@ if not raw_df.empty:
     if low_date_col: filtered_df = apply_date_filter(filtered_df, low_date_col, st.sidebar)
 
     # ==========================================
-    # 🎨 CRITICAL: DYNAMIC COLUMN REORDERING LOGIC
+    # 🎨 DYNAMIC COLUMN REORDERING LOGIC
     # ==========================================
     core_sequence = []
     
@@ -346,11 +347,9 @@ if not raw_df.empty:
     low_target = next((c for c in actual_cols if "52" in c.lower() and "low" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
     if low_target and low_target not in core_sequence: core_sequence.append(low_target)
 
-    # Gather remaining visible data fields and hidden configuration attributes
     all_other_fields = [c for c in filtered_df.columns if c not in core_sequence and not c.startswith("_bg_") and not c.startswith("_txt_") and c != "_raw_symbol_"]
     hidden_meta_attributes = [c for c in filtered_df.columns if c.startswith("_bg_") or c.startswith("_txt_") or c == "_raw_symbol_"]
     
-    # Enforce strict sequential layout
     enforced_column_layout = core_sequence + all_other_fields + hidden_meta_attributes
     filtered_df = filtered_df[enforced_column_layout]
 
@@ -410,7 +409,6 @@ if not raw_df.empty:
 
         width, min_width = (220, 150) if col.lower() in priority_columns_lower else (120, 80)
         
-        # Enforce Freeze behavior on the absolute first position column (NSE Code)
         pinned_value = "left" if is_first_visible_column else None
         if is_first_visible_column: is_first_visible_column = False 
 
