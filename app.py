@@ -5,7 +5,7 @@ from google.oauth2.service_account import Credentials
 import json
 import re
 from datetime import datetime
-from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
+from st_aggrid import AgGrid, GridOptionsBuilder
 from st_aggrid.shared import GridUpdateMode
 
 # ---------- Page config ----------
@@ -42,7 +42,6 @@ def load_sheet_data(sheet_name):
         sh = client.open_by_key(spreadsheet_id)
         worksheet = sh.worksheet(sheet_name)
 
-        # Get formulas (not rendered values)
         all_values = worksheet.get_all_values(value_render_option='FORMULA')
         if not all_values:
             return pd.DataFrame()
@@ -72,7 +71,7 @@ def load_sheet_data(sheet_name):
             "Zerodha 1", "Chartlink 1", "Market smith india 1", "Official NSE URL 1"
         ]
 
-        # Process each column – convert to HTML <a> tags
+        # Convert each cell to an HTML anchor tag
         for col in link_columns:
             if col in df.columns:
                 new_values = []
@@ -131,51 +130,33 @@ with st.spinner("Loading data..."):
 if not df.empty:
     st.write(f"**Rows:** {df.shape[0]} | **Columns:** {df.shape[1]}")
 
-    # ========== FIX 1: COLUMN WIDTHS & HORIZONTAL SCROLL ==========
+    # Build grid options
     gb = GridOptionsBuilder.from_dataframe(df)
 
-    # Priority columns that should be wider
+    # Priority columns (wider)
     priority_columns = [
         "ID", "Company Name", "Stock Name", "Symbol", "Industry", "Sector"
     ]
 
-    # ========== FIX 2: CUSTOM CELL RENDERER TO RENDER HTML LINKS ==========
-    # This JavaScript function tells AG Grid to render HTML content (like <a> tags) as actual HTML.
-    html_renderer = JsCode("""
-    function(params) {
-        if (params.value && typeof params.value === 'string' && (params.value.includes('<a') || params.value.includes('</a>'))) {
-            return params.value;
-        }
-        return params.value;
-    }
-    """)
-
-    # Apply to all columns: set default width, sort/filter, and the HTML renderer
+    # Configure each column: set width, minWidth, and HTML renderer
     for col in df.columns:
         if col in priority_columns:
-            gb.configure_column(
-                col,
-                width=220,
-                minWidth=150,
-                sortable=True,
-                filter=True,
-                resizable=True,
-                editable=False,
-                cellRenderer=html_renderer
-            )
+            width, min_width = 220, 150
         else:
-            gb.configure_column(
-                col,
-                width=120,
-                minWidth=80,
-                sortable=True,
-                filter=True,
-                resizable=True,
-                editable=False,
-                cellRenderer=html_renderer
-            )
+            width, min_width = 120, 80
 
-    # Grid options: enable horizontal scroll and normal layout
+        gb.configure_column(
+            col,
+            width=width,
+            minWidth=min_width,
+            sortable=True,
+            filter=True,
+            resizable=True,
+            editable=False,
+            cellRenderer='html'          # 👈 This renders HTML strings as actual links
+        )
+
+    # Enable horizontal scrolling and normal layout
     gb.configure_grid_options(
         domLayout="normal",
         rowHeight=35,
@@ -196,7 +177,7 @@ if not df.empty:
         gridOptions=grid_options,
         theme="streamlit",
         update_mode=GridUpdateMode.SELECTION_CHANGED,
-        allow_unsafe_jscode=True,      # Required for custom cell renderer
+        allow_unsafe_jscode=True,
         fit_columns_on_grid_load=False,
         enable_enterprise_modules=False,
         height=600,
