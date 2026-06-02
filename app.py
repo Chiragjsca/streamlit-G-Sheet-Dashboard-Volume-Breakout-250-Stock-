@@ -14,7 +14,7 @@ import streamlit.components.v1 as components
 # ==========================================
 # ⚙️ PAGE CONFIGURATION
 # ==========================================
-st.set_page_config(page_title="NSE Stock Dashboard", layout="wide", page_icon="📊")
+st.set_page_config(page_title="Top 250 NSE Stock-Volume Breakout Dashboard", layout="wide", page_icon="📊")
 
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
