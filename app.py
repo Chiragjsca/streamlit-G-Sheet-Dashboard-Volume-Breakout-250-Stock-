@@ -709,6 +709,7 @@ if not raw_df.empty:
         bottom_10 = temp_df.nsmallest(10, pct_target)
         
         colA, colB = st.columns(2)
+        
         with colA:
             st.markdown("#### ⬆️ Top 10 (Daily)")
             for _, row in top_10.iterrows():
@@ -717,15 +718,12 @@ if not raw_df.empty:
                 v = row[pct_target]
                 
                 # Clean the symbol and define the URL
-clean_s = str(s).strip()
-url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
-
-# Clean the symbol and define the URL
-clean_s = str(s).strip()
-url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
-
-# Clickable NSE Technical Charting Link enveloping the badge
-st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:Black; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
+                clean_s = str(s).strip()
+                url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
+                
+                # Clickable NSE Technical Charting Link enveloping the badge (GREEN)
+                st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#16e37f; padding:8px; margin:4px; border-radius:5px; color:Black; font-weight:bold;'>{clean_s}: +{v}%</div></a>", unsafe_allow_html=True)
+                
         with colB:
             st.markdown("#### ⬇️ Bottom 10 (Daily)")
             for _, row in bottom_10.iterrows():
@@ -733,8 +731,12 @@ st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div
                 if "<a " in str(s): s = str(s).split('">')[-1].split('</a>')[0]
                 v = row[pct_target]
                 
-                # Clickable NSE Technical Charting Link enveloping the badge
-                st.markdown(f"<a href='https://charting.nseindia.com/?symbol={s}-EQ' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:Black; font-weight:bold;'>{s}: {v}%</div></a>", unsafe_allow_html=True)
+                # Clean the symbol and define the URL
+                clean_s = str(s).strip()
+                url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
+                
+                # Clickable NSE Technical Charting Link enveloping the badge (RED/PINK)
+                st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:Black; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
 
 else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
