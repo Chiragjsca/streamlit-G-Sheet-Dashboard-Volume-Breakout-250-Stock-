@@ -161,11 +161,16 @@ def process_hyperlinks(df, symbol_col):
 
     return df_proc
 
-# ---------- Sidebar Selection ----------
-sheet_names = ["Top 250 Stocks", "Final List", "Final List 2", "Diff @ 200 DMA", "+%", "-%"]
-st.sidebar.header("📑 Select a Tab")
-selected_sheet = st.sidebar.selectbox("Choose sheet", sheet_names)
+# ==========================================
+# 📑 SIDEBAR CONTROLS (Top Left)
+# ==========================================
+st.sidebar.header("🔍 Global Search")
+search_query = st.sidebar.text_input("Search by Symbol, Name, etc...")
+
 st.sidebar.markdown("---")
+st.sidebar.header("📑 Select a Tab")
+sheet_names = ["Top 250 Stocks", "Final List", "Final List 2", "Diff @ 200 DMA", "+%", "-%"]
+selected_sheet = st.sidebar.selectbox("Choose sheet", sheet_names)
 
 # ---------- Main Execution ----------
 st.header(f"📄 {selected_sheet}")
@@ -175,7 +180,7 @@ with st.spinner("Downloading data and exact colors from Google API..."):
 
 if not raw_df.empty:
     
-    # Auto-detect Symbol column
+    # Auto-detect Symbol column for hyperlinks
     guess_idx = 0
     actual_cols = [c for c in raw_df.columns if not c.startswith("_bg_") and not c.startswith("_txt_")]
     
@@ -184,28 +189,38 @@ if not raw_df.empty:
             guess_idx = i
             break
             
+    st.sidebar.markdown("---")
     st.sidebar.header("⚙️ Settings")
     selected_symbol_col = st.sidebar.selectbox("Symbol Column:", actual_cols, index=guess_idx)
     
     final_df = process_hyperlinks(raw_df, selected_symbol_col)
 
     # ==========================================
-    # 🔍 DYNAMIC SIDEBAR DROP DOWN FILTERS
+    # 🔍 APPLY SEARCH & DROP DOWN FILTERS
     # ==========================================
+    filtered_df = final_df.copy()
+
+    # 1. Apply Top-Left Search Bar Filter
+    if search_query:
+        # Search across all visible columns (ignore hidden color columns)
+        mask = filtered_df[actual_cols].astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)
+        filtered_df = filtered_df[mask]
+
+    st.sidebar.markdown("---")
     st.sidebar.header("🎯 Drop Down Filters")
     
-    # Auto-detect filtering target columns if they exist in your sheet data
-    filter_candidates = ["Industry", "Sector", "Output", "Cumulative Average Rating", "Start GTT Order"]
-    active_filters = [c for c in filter_candidates if c in final_df.columns]
+    # Identify specific columns you want to filter (Case-insensitive matching to find your specific columns)
+    active_filters = []
+    for c in actual_cols:
+        c_lower = c.lower()
+        if "cumulative average" in c_lower or "industry" in c_lower or "sector" in c_lower or "output" in c_lower or "start gtt order" in c_lower:
+            active_filters.append(c)
     
-    # Fallback to text columns if specific targets are missing
-    if not active_filters:
-        active_filters = [c for c in actual_cols[:3] if final_df[c].nunique() < 40]
-
-    # Create dynamic multiselect dropdown choices
-    filtered_df = final_df.copy()
+    # 2. Apply Dropdown Filters
     for col_to_filter in active_filters:
-        unique_options = sorted(list(final_df[col_to_filter].unique()))
+        # Get unique values, ignoring empty strings
+        unique_options = sorted([val for val in final_df[col_to_filter].unique() if str(val).strip() != ""])
+        
         selected_options = st.sidebar.multiselect(f"Filter by {col_to_filter}:", options=unique_options)
         
         if selected_options:
@@ -214,7 +229,7 @@ if not raw_df.empty:
     st.write(f"**Rows:** {filtered_df.shape[0]} | **Columns:** {len(actual_cols)}")
 
     # ==========================================
-    # 🎨 EXACT COLOR REFLECTION LOGIC
+    # 🎨 EXACT COLOR REFLECTION & HTML LOGIC
     # ==========================================
 
     html_renderer = JsCode("""
