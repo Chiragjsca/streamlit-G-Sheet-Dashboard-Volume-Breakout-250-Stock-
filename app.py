@@ -143,7 +143,6 @@ def process_hyperlinks(df, symbol_col):
 def apply_numeric_slider(df, col_name, st_container):
     """Parses formatted strings to numbers and applies a slider filter."""
     if col_name in df.columns:
-        # Clean the strings (remove commas, percent signs)
         num_series = df[col_name].astype(str).str.replace(r'[%,]', '', regex=True)
         num_series = pd.to_numeric(num_series, errors='coerce')
         
@@ -157,9 +156,9 @@ def apply_numeric_slider(df, col_name, st_container):
                     f"{col_name} Range:", 
                     min_value=min_val, 
                     max_value=max_val, 
-                    value=(min_val, max_val)
+                    value=(min_val, max_val),
+                    key=f"filter_num_{col_name}" # ADDED KEY
                 )
-                # Apply filter
                 return df[(num_series >= selected_range[0]) & (num_series <= selected_range[1])]
     return df
 
@@ -170,14 +169,12 @@ def apply_date_filter(df, col_name, st_container):
                    "Past 25 Days", "Past 30 Days", "Past 1 Month", "Past 2 Months", 
                    "Past 6 Months", "Past 1 Year"]
         
-        selection = st_container.selectbox(f"{col_name}:", options)
+        selection = st_container.selectbox(f"{col_name}:", options, key=f"filter_date_{col_name}") # ADDED KEY
         
         if selection != "All Time":
-            # Convert column to datetime (assuming DD/MM/YYYY or YYYY-MM-DD)
             date_series = pd.to_datetime(df[col_name], errors='coerce', dayfirst=True)
             today = pd.Timestamp.now()
             
-            # Determine start date threshold
             if selection == "Past 5 Days": threshold = today - pd.Timedelta(days=5)
             elif selection == "Past 10 Days": threshold = today - pd.Timedelta(days=10)
             elif selection == "Past 15 Days": threshold = today - pd.Timedelta(days=15)
@@ -195,13 +192,22 @@ def apply_date_filter(df, col_name, st_container):
 # ==========================================
 # 📑 SIDEBAR CONTROLS 
 # ==========================================
+
+# 1. CLEAR FILTERS BUTTON LOGIC
+if st.sidebar.button("🧹 Clear All Filters", use_container_width=True):
+    for key in list(st.session_state.keys()):
+        if key.startswith("filter_") or key == "search_query":
+            del st.session_state[key]
+    st.rerun() # Forces the app to refresh immediately
+
+st.sidebar.markdown("---")
 st.sidebar.header("🔍 Global Search")
-search_query = st.sidebar.text_input("Search by Symbol, Name, etc...")
+search_query = st.sidebar.text_input("Search by Symbol, Name, etc...", key="search_query")
 
 st.sidebar.markdown("---")
 st.sidebar.header("📑 Select a Tab")
 sheet_names = ["Top 250 Stocks", "Final List", "Final List 2", "Diff @ 200 DMA", "+%", "-%"]
-selected_sheet = st.sidebar.selectbox("Choose sheet", sheet_names)
+selected_sheet = st.sidebar.selectbox("Choose sheet", sheet_names, key="filter_sheet")
 
 # ---------- Main Execution ----------
 st.header(f"📄 {selected_sheet}")
@@ -222,7 +228,7 @@ if not raw_df.empty:
             
     st.sidebar.markdown("---")
     st.sidebar.header("⚙️ Settings")
-    selected_symbol_col = st.sidebar.selectbox("Symbol Column:", actual_cols, index=guess_idx)
+    selected_symbol_col = st.sidebar.selectbox("Symbol Column:", actual_cols, index=guess_idx, key="filter_symbol_col")
     
     final_df = process_hyperlinks(raw_df, selected_symbol_col)
     filtered_df = final_df.copy()
@@ -244,7 +250,7 @@ if not raw_df.empty:
     
     for col_to_filter in active_filters:
         unique_options = sorted([val for val in final_df[col_to_filter].unique() if str(val).strip() != ""])
-        selected_options = st.sidebar.multiselect(f"Filter by {col_to_filter}:", options=unique_options)
+        selected_options = st.sidebar.multiselect(f"Filter by {col_to_filter}:", options=unique_options, key=f"filter_cat_{col_to_filter}")
         if selected_options:
             filtered_df = filtered_df[filtered_df[col_to_filter].isin(selected_options)]
 
@@ -254,7 +260,6 @@ if not raw_df.empty:
     st.sidebar.markdown("---")
     st.sidebar.header("📊 Numeric Range Filters")
     
-    # Find matching columns for your specific numeric requests
     cmp_col = next((c for c in actual_cols if "cmp" in c.lower()), None)
     price_pct_col = next((c for c in actual_cols if "price %" in c.lower()), None)
     diff_dma_col = next((c for c in actual_cols if "diff" in c.lower() and "200" in c.lower()), None)
@@ -314,7 +319,6 @@ if not raw_df.empty:
     gb = GridOptionsBuilder.from_dataframe(filtered_df)
     priority_columns_lower = ["nse code", "id", "company name", "stock name", "symbol", "industry", "sector"]
 
-    # First visible column freezing logic
     is_first_visible_column = True
 
     for col in filtered_df.columns:
@@ -337,7 +341,7 @@ if not raw_df.empty:
             filter=True,
             resizable=True,
             editable=False,
-            pinned=pinned_value, # FREEZES FIRST COLUMN
+            pinned=pinned_value,
             cellRenderer=html_renderer,
             cellStyle=exact_mirror_style
         )
