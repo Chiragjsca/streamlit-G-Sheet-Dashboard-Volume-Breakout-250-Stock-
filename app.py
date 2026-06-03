@@ -11,6 +11,7 @@ from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 from st_aggrid.shared import GridUpdateMode
 import streamlit.components.v1 as components
 import re
+import io
 
 # ==========================================
 # ⚙️ PAGE CONFIGURATION
@@ -226,6 +227,18 @@ def get_clean_text_length(val):
     clean_text = re.sub(r'<[^>]*>', '', str(val))
     return len(clean_text)
 
+def clean_for_export(df):
+    """Removes HTML and hidden style columns for a clean Excel download."""
+    export_df = df.copy()
+    cols_to_drop = [c for c in export_df.columns if c.startswith("_bg_") or c.startswith("_txt_") or c == "_raw_symbol_"]
+    export_df = export_df.drop(columns=cols_to_drop, errors='ignore')
+    
+    # Strip HTML tags from all object (string) columns
+    for col in export_df.select_dtypes(include=['object']).columns:
+        export_df[col] = export_df[col].apply(lambda x: re.sub(r'<[^>]*>', '', str(x)) if pd.notnull(x) else x)
+        
+    return export_df
+
 # ==========================================
 # 📑 SIDEBAR CONTROLS 
 # ==========================================
@@ -283,7 +296,6 @@ if not raw_df.empty:
         if bg_col_reference in filtered_df.columns:
             unique_hexes = filtered_df[bg_col_reference].unique()
             
-            # User-friendly names for common Google Sheet colors
             color_dictionary = {
                 "#ffffff": "⚪ White (Default)",
                 "#0f9d58": "🟢 Green",
@@ -309,14 +321,12 @@ if not raw_df.empty:
             if selected_ui_colors:
                 valid_hexes_to_keep = []
                 for ui_choice in selected_ui_colors:
-                    # Reverse map UI name back to hex
                     for hex_key, name in color_dictionary.items():
                         if name == ui_choice:
                             valid_hexes_to_keep.append(hex_key)
                     if ui_choice.startswith("🎨 Custom Hex: "):
                         valid_hexes_to_keep.append(ui_choice.replace("🎨 Custom Hex: ", ""))
                 
-                # Apply the filter based on the hidden background color column
                 filtered_df = filtered_df[filtered_df[bg_col_reference].str.lower().isin(valid_hexes_to_keep)]
 
     # 2. Categorical Filters
@@ -414,7 +424,7 @@ if not raw_df.empty:
     filtered_df = filtered_df[enforced_column_layout]
 
     # ==========================================
-    # 📌 TOP UI: ROWS COUNT & COLUMN WIDTH ADJUSTER
+    # 📌 TOP UI: ROWS COUNT, COLUMN WIDTH ADJUSTER & EXCEL DOWNLOAD
     # ==========================================
     st.markdown("---")
     
@@ -427,11 +437,29 @@ if not raw_df.empty:
             help="Automatically adjust the column widths based on the text length of the selected row."
         )
 
-    col1, col2 = st.columns([1, 4])
+    # Added download button structure
+    col1, col2, col3 = st.columns([1, 1.5, 2.5])
     with col1:
         st.write(f"**Rows:** {filtered_df.shape[0]} | **Columns:** {len(actual_cols)}") 
+        
+    with col2:
+        # Generate clean data for Excel export
+        export_df = clean_for_export(filtered_df)
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            # Excel sheet names have a 31 character limit
+            safe_sheet_name = selected_sheet[:31].replace(":", "").replace("/", "")
+            export_df.to_excel(writer, index=False, sheet_name=safe_sheet_name)
+        
+        st.download_button(
+            label="📥 Download as Excel",
+            data=buffer.getvalue(),
+            file_name=f"{selected_sheet}_Export_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
 
-    url_placeholder = col2.empty()
+    url_placeholder = col3.empty()
 
     # ==========================================
     # 🎨 AG GRID INITIALIZATION WITH SELECTION ENGINE
@@ -485,7 +513,6 @@ if not raw_df.empty:
     gb = GridOptionsBuilder.from_dataframe(filtered_df)
     gb.configure_selection(selection_mode="single", use_checkbox=True)
     
-    # NEW FEATURE: Enables the right-hand sidebar where users can natively hide/show columns
     gb.configure_side_bar(filters_panel=False, columns_panel=True)
 
     priority_columns_lower = ["nse code", "id", "company name", "stock name", "symbol", "industry", "sector"]
