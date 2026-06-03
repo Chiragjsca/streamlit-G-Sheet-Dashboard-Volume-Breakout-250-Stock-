@@ -17,6 +17,20 @@ import streamlit.components.v1 as components
 st.set_page_config(page_title="Top 250 NSE Stock-Volume Breakout Dashboard", layout="wide", page_icon="📊")
 
 # ==========================================
+# 🛡️ HIDE ONLY GITHUB ICON & RIGHT MENU (KEEPS LEFT MENU)
+# ==========================================
+hide_github_icon = """
+<style>
+    /* Hides exactly the right-side icon cluster (GitHub, Deploy, 3-dots) */
+    [data-testid="stHeaderActions"] {visibility: hidden;}
+    
+    /* Hides the 'Made with Streamlit' footer at the bottom */
+    footer {visibility: hidden;}
+</style>
+"""
+st.markdown(hide_github_icon, unsafe_allow_html=True)
+
+# ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
 # ==========================================
 ADMIN_PASSWORD = "dada"
