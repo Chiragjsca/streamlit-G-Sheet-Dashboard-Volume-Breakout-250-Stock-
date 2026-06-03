@@ -441,25 +441,24 @@ if not raw_df.empty:
             continue
             
         # ----------------------------------------------------
-        # TIGHTER DYNAMIC SIZING LOGIC (SAME FOR BOTH)
+        # ULTRA-TIGHT DYNAMIC SIZING LOGIC (SAME FOR BOTH)
         # ----------------------------------------------------
         if sizing_mode == "✅ Fit to Row 1" and len(filtered_df) > 0:
             char_count = get_clean_text_length(filtered_df.iloc[0][col])
             header_count = len(str(col))
-            base_calc = int(max(char_count, header_count) * 7.5 + 35)
-            calculated_width = max(base_calc, 70) 
+            # Extreme tight calculation: 7px per character + 22px absolute base padding
+            base_calc = int(max(char_count, header_count) * 7 + 22)
             if is_first_visible_column: 
-                calculated_width += 20 # 20 pixels exactly
-            width, min_width = (calculated_width, 50)
+                base_calc += 30 # Strict allowance for the exact checkbox width
+            width, min_width = (base_calc, 40)
         
         elif sizing_mode == "✅✅ Fit to Row 2" and len(filtered_df) > 1:
             char_count = get_clean_text_length(filtered_df.iloc[1][col])
             header_count = len(str(col))
-            base_calc = int(max(char_count, header_count) * 7.5 + 35)
-            calculated_width = max(base_calc, 70) 
+            base_calc = int(max(char_count, header_count) * 7 + 22)
             if is_first_visible_column: 
-                calculated_width += 20 # 20 pixels exactly, matching Row 1
-            width, min_width = (calculated_width, 50)
+                base_calc += 30
+            width, min_width = (base_calc, 40)
             
         else: # "Default"
             width, min_width = (220, 150) if col.lower() in priority_columns_lower else (120, 80)
