@@ -150,7 +150,6 @@ def load_sheet_data_with_colors(sheet_name):
         df = pd.DataFrame(values_list[1:], columns=clean_headers)
         for i, col in enumerate(clean_headers):
             df[f"_bg_{col}"] = [row[i] if i < len(row) else "#ffffff" for row in bg_colors_list[1:]]
-            # Restored original text color extraction so CMP/Close Price can use it
             df[f"_txt_{col}"] = [row[i] if i < len(row) else "#000000" for row in txt_colors_list[1:]]
 
         return df
@@ -180,7 +179,6 @@ def process_hyperlinks(df, symbol_col):
             elif "official nse" in c_lower: url, label = f"https://www.nseindia.com/get-quotes/equity?symbol={sym}", f"nse📰 {sym}" if not c_lower.endswith("1") else "🔗 Link"
             elif "nse" in c_lower: url, label = f"https://charting.nseindia.com/?symbol={sym}-EQ", f"nse {sym}" if not c_lower.endswith("1") else "🔗 Link"
 
-            # Kept hyperlinks black as requested in the overall update
             if url: df_proc.at[idx, col] = f'<a href="{url}" target="_blank" style="text-decoration:none; color:#000000;">{label}</a>'
 
     return df_proc
@@ -224,7 +222,6 @@ def apply_date_filter(df, col_name, st_container):
     return df
 
 def get_clean_text_length(val):
-    """Helper to remove HTML tags from hyperlinked cells so we measure true visual text width."""
     if pd.isna(val): return 0
     clean_text = re.sub(r'<[^>]*>', '', str(val))
     return len(clean_text)
@@ -269,12 +266,10 @@ if not raw_df.empty:
     final_df = process_hyperlinks(raw_df, selected_symbol_col)
     filtered_df = final_df.copy()
 
-    # 1. Search Bar Filter
     if search_query:
         mask = filtered_df[actual_cols].astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)
         filtered_df = filtered_df[mask]
 
-    # 2. Categorical Filters
     st.sidebar.markdown("---")
     st.sidebar.header("🎯 Categorical Filters")
     active_filters = [c for c in actual_cols if any(key in c.lower() for key in ["cumulative average", "industry", "sector", "output", "start gtt order"])]
@@ -284,7 +279,6 @@ if not raw_df.empty:
         if selected_options:
             filtered_df = filtered_df[filtered_df[col_to_filter].isin(selected_options)]
 
-    # 3. DMA Trend Filter
     st.sidebar.markdown("---")
     st.sidebar.header("📈 DMA Trend Filter")
     dma_choice = st.sidebar.selectbox("Select DMA Condition:", [
@@ -307,7 +301,6 @@ if not raw_df.empty:
                 if dma_choice == "50 DMA < 100 DMA < 200 DMA": filtered_df = filtered_df[(s50 < s100) & (s100 < s200)]
                 elif dma_choice == "50 DMA > 100 DMA > 200 DMA": filtered_df = filtered_df[(s50 > s100) & (s100 > s200)]
 
-    # 4. Numeric Range Filters
     st.sidebar.markdown("---")
     st.sidebar.header("📊 Numeric Range Filters")
 
@@ -328,7 +321,6 @@ if not raw_df.empty:
             filtered_df = apply_numeric_slider(filtered_df, col_match, st.sidebar)
             processed_cols.add(col_match)
 
-    # 5. Date Filters
     st.sidebar.markdown("---")
     st.sidebar.header("📅 Date Filters")
     high_date_col = next((c for c in actual_cols if "52w high date" in c.lower()), None)
@@ -369,11 +361,10 @@ if not raw_df.empty:
     filtered_df = filtered_df[enforced_column_layout]
 
     # ==========================================
-    # 📌 TOP UI: ROWS COUNT, DYNAMIC QUICK LINKS & COLUMN WIDTH ADJUSTER
+    # 📌 TOP UI: ROWS COUNT & COLUMN WIDTH ADJUSTER
     # ==========================================
     st.markdown("---")
     
-    # NEW FEATURE: Column Sizing Radio Buttons above grid
     col_size_1, col_size_2 = st.columns([2, 3])
     with col_size_1:
         sizing_mode = st.radio(
@@ -404,7 +395,6 @@ if not raw_df.empty:
     }
     """)
 
-    # Modified to revert to previous code strictly for CMP and Close Price
     exact_mirror_style = JsCode("""
     function(params) {
         let colName = params.colDef.field;
@@ -416,10 +406,8 @@ if not raw_df.empty:
         let bgColor = params.data[bgCol];
         let txtColor = params.data[txtCol];
         
-        // Target specifically CMP and Close Price columns
         let isTargetCol = c_low.includes("cmp") || c_low.includes("close price") || c_low.includes("prev");
         
-        // Revert to original styling for CMP and Close Price
         if (isTargetCol) {
             if (!bgColor || bgColor.toLowerCase() === '#ffffff') return null;
             return {
@@ -429,7 +417,6 @@ if not raw_df.empty:
             };
         }
         
-        // For everything else, force the black text styling
         if (!bgColor || bgColor.toLowerCase() === '#ffffff') {
             return { 'color': '#000000' };
         }
@@ -454,20 +441,26 @@ if not raw_df.empty:
             continue
             
         # ----------------------------------------------------
-        # NEW DYNAMIC SIZING LOGIC
+        # TIGHTER DYNAMIC SIZING LOGIC
         # ----------------------------------------------------
         if sizing_mode == "✅ Fit to Row 1" and len(filtered_df) > 0:
             char_count = get_clean_text_length(filtered_df.iloc[0][col])
             header_count = len(str(col))
-            # roughly 9 pixels per character + 50 pixels for padding/sorting icons
-            calculated_width = max(char_count, header_count) * 9 + 50
-            width, min_width = (calculated_width, calculated_width - 20)
+            # Tighter calculation: 7.5px per character + 35px padding for sorting/menu icons
+            base_calc = int(max(char_count, header_count) * 7.5 + 35)
+            calculated_width = max(base_calc, 70) # Absolute minimum so headers aren't completely crushed
+            if is_first_visible_column: 
+                calculated_width += 40 # Exact space needed for the checkbox [ ]
+            width, min_width = (calculated_width, 50)
         
         elif sizing_mode == "✅✅ Fit to Row 2" and len(filtered_df) > 1:
             char_count = get_clean_text_length(filtered_df.iloc[1][col])
             header_count = len(str(col))
-            calculated_width = max(char_count, header_count) * 9 + 50
-            width, min_width = (calculated_width, calculated_width - 20)
+            base_calc = int(max(char_count, header_count) * 7.5 + 35)
+            calculated_width = max(base_calc, 70) 
+            if is_first_visible_column: 
+                calculated_width += 40 
+            width, min_width = (calculated_width, 50)
             
         else: # "Default"
             width, min_width = (220, 150) if col.lower() in priority_columns_lower else (120, 80)
@@ -553,7 +546,6 @@ if not raw_df.empty:
                 components.html(f'<iframe src="https://marketsmithindia.com/mstool/eval/{sym.lower()}/evaluation.jsp" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
             with ws_tabs[6]:
-                # REMOVED: NSE- prefix removed to load correctly on Trading View panel
                 st.markdown("**7TH Panel: TradingView Comprehensive Asset Market Registry Summary Profile**")
                 components.html(f'<iframe src="https://www.tradingview.com/symbols/{sym}/" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
@@ -700,18 +692,12 @@ if not raw_df.empty:
         reporting_data = []
         for idx, row in filtered_df.iterrows():
 
-            # 1. Grab the pure, unformatted symbol directly from your hidden column
-            # This completely bypasses the HTML and guarantees no "nse " prefix!
             clean_ticker = str(row.get('_raw_symbol_', '')).strip()
-
             price_val = row.get(cmp_target, "") if cmp_target else ""
 
-            # 2. Define URL and Label
             url = f"https://charting.nseindia.com/?symbol={clean_ticker}-EQ"
             label = clean_ticker 
 
-            # 3. Build the HTML tag for AgGrid
-            # Enforcing color:#000000;
             hyperlinked_name = f'<a href="{url}" target="_blank" style="text-decoration:none; color:#000000; font-weight:bold;">{label}</a>'
 
             entry = {
@@ -751,7 +737,6 @@ if not raw_df.empty:
         perf_gb.configure_column("STOCK NAME", width=140, pinned="left", cellRenderer=html_renderer)
         perf_gb.configure_column("CURRENT PRICE", width=130)
 
-        # Updated to keep all text black while maintaining visual background differences
         color_code_js = JsCode("""
         function(params) {
             if (params.value === undefined || params.value === null || params.colDef.field === "Volume") return null;
@@ -788,27 +773,17 @@ if not raw_df.empty:
         with colA:
             st.markdown("#### ⬆️ Top 10 (Daily)")
             for _, row in top_10.iterrows():
-                # Grab pure symbol directly
                 clean_s = str(row.get('_raw_symbol_', '')).strip()
                 v = row[pct_target]
-
-                # Define URL
                 url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
-
-                # Clickable NSE Technical Charting Link enveloping the badge (GREEN)
                 st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#16e37f; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: +{v}%</div></a>", unsafe_allow_html=True)
 
         with colB:
             st.markdown("#### ⬇️ Bottom 10 (Daily)")
             for _, row in bottom_10.iterrows():
-                # Grab pure symbol directly
                 clean_s = str(row.get('_raw_symbol_', '')).strip()
                 v = row[pct_target]
-
-                # Define URL
                 url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
-
-                # Clickable NSE Technical Charting Link enveloping the badge (RED/PINK)
                 st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
 
 else:
