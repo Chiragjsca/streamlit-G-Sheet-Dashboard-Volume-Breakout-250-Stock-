@@ -144,6 +144,7 @@ def load_sheet_data_with_colors(sheet_name):
         df = pd.DataFrame(values_list[1:], columns=raw_headers)
         return df
     except Exception as e:
+        st.error(f"DEBUG ERROR: {e}") # This will show the real problem on your page
         return pd.DataFrame()
 
 def process_hyperlinks(df, symbol_col):
