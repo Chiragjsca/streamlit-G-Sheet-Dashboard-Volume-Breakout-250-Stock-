@@ -12,11 +12,21 @@ from st_aggrid.shared import GridUpdateMode
 import streamlit.components.v1 as components
 import re
 import io
+import google.generativeai as genai
 
 # ==========================================
 # ⚙️ PAGE CONFIGURATION
 # ==========================================
 st.set_page_config(page_title="Top 250 NSE Stock-Volume Breakout Dashboard", layout="wide", page_icon="📊")
+
+# ==========================================
+# 🤖 CONFIGURE AI (GEMINI)
+# ==========================================
+if "GEMINI_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    ai_enabled = True
+else:
+    ai_enabled = False
 
 # ==========================================
 # 🛡️ HIDE ONLY GITHUB ICON & RIGHT MENU (KEEPS LEFT MENU)
@@ -228,12 +238,10 @@ def get_clean_text_length(val):
     return len(clean_text)
 
 def clean_for_export(df):
-    """Removes HTML and hidden style columns for a clean Excel download."""
     export_df = df.copy()
     cols_to_drop = [c for c in export_df.columns if c.startswith("_bg_") or c.startswith("_txt_") or c == "_raw_symbol_"]
     export_df = export_df.drop(columns=cols_to_drop, errors='ignore')
     
-    # Strip HTML tags from all object (string) columns
     for col in export_df.select_dtypes(include=['object']).columns:
         export_df[col] = export_df[col].apply(lambda x: re.sub(r'<[^>]*>', '', str(x)) if pd.notnull(x) else x)
         
@@ -279,13 +287,12 @@ if not raw_df.empty:
     final_df = process_hyperlinks(raw_df, selected_symbol_col)
     filtered_df = final_df.copy()
 
-    # 1. Search Filter
     if search_query:
         mask = filtered_df[actual_cols].astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)
         filtered_df = filtered_df[mask]
 
     # ==========================================
-    # 🎨 NEW FEATURE: COLOR FILTERS
+    # 🎨 COLOR FILTERS
     # ==========================================
     st.sidebar.markdown("---")
     st.sidebar.header("🎨 Color Filters")
@@ -329,7 +336,6 @@ if not raw_df.empty:
                 
                 filtered_df = filtered_df[filtered_df[bg_col_reference].str.lower().isin(valid_hexes_to_keep)]
 
-    # 2. Categorical Filters
     st.sidebar.markdown("---")
     st.sidebar.header("🎯 Categorical Filters")
     active_filters = [c for c in actual_cols if any(key in c.lower() for key in ["cumulative average", "industry", "sector", "output", "start gtt order"])]
@@ -339,7 +345,6 @@ if not raw_df.empty:
         if selected_options:
             filtered_df = filtered_df[filtered_df[col_to_filter].isin(selected_options)]
 
-    # 3. DMA Trend Filter
     st.sidebar.markdown("---")
     st.sidebar.header("📈 DMA Trend Filter")
     dma_choice = st.sidebar.selectbox("Select DMA Condition:", [
@@ -362,7 +367,6 @@ if not raw_df.empty:
                 if dma_choice == "50 DMA < 100 DMA < 200 DMA": filtered_df = filtered_df[(s50 < s100) & (s100 < s200)]
                 elif dma_choice == "50 DMA > 100 DMA > 200 DMA": filtered_df = filtered_df[(s50 > s100) & (s100 > s200)]
 
-    # 4. Numeric Range Filters
     st.sidebar.markdown("---")
     st.sidebar.header("📊 Numeric Range Filters")
 
@@ -383,7 +387,6 @@ if not raw_df.empty:
             filtered_df = apply_numeric_slider(filtered_df, col_match, st.sidebar)
             processed_cols.add(col_match)
 
-    # 5. Date Filters
     st.sidebar.markdown("---")
     st.sidebar.header("📅 Date Filters")
     high_date_col = next((c for c in actual_cols if "52w high date" in c.lower()), None)
@@ -437,17 +440,14 @@ if not raw_df.empty:
             help="Automatically adjust the column widths based on the text length of the selected row."
         )
 
-    # Added download button structure
     col1, col2, col3 = st.columns([1, 1.5, 2.5])
     with col1:
         st.write(f"**Rows:** {filtered_df.shape[0]} | **Columns:** {len(actual_cols)}") 
         
     with col2:
-        # Generate clean data for Excel export
         export_df = clean_for_export(filtered_df)
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-            # Excel sheet names have a 31 character limit
             safe_sheet_name = selected_sheet[:31].replace(":", "").replace("/", "")
             export_df.to_excel(writer, index=False, sheet_name=safe_sheet_name)
         
@@ -594,7 +594,8 @@ if not raw_df.empty:
             ws_tabs = st.tabs([
                 "📈 Chart & Trade Info (NSE Component)", "📋 History Data (EquityPandit)", 
                 "🎯 Bullish/Bearish Zone", "📁 Screener Documents",
-                "🪁 Zerodha Portal", "📊 MarketSmith India", "📉 TradingView Symbol Profile"
+                "🪁 Zerodha Portal", "📊 MarketSmith India", "📉 TradingView Symbol Profile",
+                "🤖 AI Stock Analysis"
             ])
 
             with ws_tabs[0]:
@@ -624,6 +625,40 @@ if not raw_df.empty:
             with ws_tabs[6]:
                 st.markdown("**7TH Panel: TradingView Comprehensive Asset Market Registry Summary Profile**")
                 components.html(f'<iframe src="https://www.tradingview.com/symbols/{sym}/" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
+                
+            with ws_tabs[7]:
+                st.markdown(f"### 🤖 Ask Gemini About **{sym}**")
+                
+                if not ai_enabled:
+                    st.warning("⚠️ Google Gemini API is not configured. Please add `GEMINI_API_KEY` to your Streamlit secrets to enable this feature.")
+                else:
+                    st.write("Using the live data pulled from your dashboard, the AI can analyze technicals, ranges, and context.")
+                    
+                    ai_query = st.text_area("Your Query:", value=f"Based on the current data provided, give me a quick summary of the technical performance and trend for {sym}.", height=80)
+                    
+                    if st.button("✨ Generate AI Analysis", use_container_width=True):
+                        with st.spinner(f"Analyzing {sym} data..."):
+                            try:
+                                clean_row_context = {k: v for k, v in sel_row.items() if not str(k).startswith('_')}
+                                
+                                model = genai.GenerativeModel('gemini-2.5-flash')
+                                prompt = f"""
+                                You are a professional stock market analyst evaluating Indian NSE stocks.
+                                The user is asking about the stock: {sym}.
+                                
+                                Here is the live data extracted directly from the user's dashboard for this stock:
+                                {clean_row_context}
+                                
+                                User Query: {ai_query}
+                                
+                                Please provide a clear, concise, and professional response.
+                                """
+                                
+                                response = model.generate_content(prompt)
+                                st.info(response.text)
+                                
+                            except Exception as e:
+                                st.error(f"There was an error communicating with the AI: {e}")
 
     # ==========================================
     # 🌍 NATIONAL ANALYTICS PORTAL WORKSPACE
@@ -756,6 +791,7 @@ if not raw_df.empty:
         if h == "Volume":
             if vol_target: detected_metric_map[h] = vol_target
             continue
+            
         keywords = [h.lower(), h.lower().replace(" ", ""), h.lower().replace("s", "")]
         if h == "1 Day": keywords.append("price %")
 
