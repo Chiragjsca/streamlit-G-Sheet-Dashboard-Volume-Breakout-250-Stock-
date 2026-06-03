@@ -10,6 +10,7 @@ from datetime import datetime
 from st_aggrid import AgGrid, GridOptionsBuilder, JsCode
 from st_aggrid.shared import GridUpdateMode
 import streamlit.components.v1 as components
+import re
 
 # ==========================================
 # ⚙️ PAGE CONFIGURATION
@@ -222,6 +223,12 @@ def apply_date_filter(df, col_name, st_container):
             return df[date_series >= threshold]
     return df
 
+def get_clean_text_length(val):
+    """Helper to remove HTML tags from hyperlinked cells so we measure true visual text width."""
+    if pd.isna(val): return 0
+    clean_text = re.sub(r'<[^>]*>', '', str(val))
+    return len(clean_text)
+
 # ==========================================
 # 📑 SIDEBAR CONTROLS 
 # ==========================================
@@ -362,8 +369,20 @@ if not raw_df.empty:
     filtered_df = filtered_df[enforced_column_layout]
 
     # ==========================================
-    # 📌 TOP UI: ROWS COUNT & DYNAMIC QUICK LINKS
+    # 📌 TOP UI: ROWS COUNT, DYNAMIC QUICK LINKS & COLUMN WIDTH ADJUSTER
     # ==========================================
+    st.markdown("---")
+    
+    # NEW FEATURE: Column Sizing Radio Buttons above grid
+    col_size_1, col_size_2 = st.columns([2, 3])
+    with col_size_1:
+        sizing_mode = st.radio(
+            "📏 Column Width Adjustment:", 
+            ["Default", "✅ Fit to Row 1", "✅✅ Fit to Row 2"], 
+            horizontal=True,
+            help="Automatically adjust the column widths based on the text length of the selected row."
+        )
+
     col1, col2 = st.columns([1, 4])
     with col1:
         st.write(f"**Rows:** {filtered_df.shape[0]} | **Columns:** {len(actual_cols)}") 
@@ -433,8 +452,27 @@ if not raw_df.empty:
         if col.startswith("_bg_") or col.startswith("_txt_") or col == "_raw_symbol_":
             gb.configure_column(col, hide=True)
             continue
+            
+        # ----------------------------------------------------
+        # NEW DYNAMIC SIZING LOGIC
+        # ----------------------------------------------------
+        if sizing_mode == "✅ Fit to Row 1" and len(filtered_df) > 0:
+            char_count = get_clean_text_length(filtered_df.iloc[0][col])
+            header_count = len(str(col))
+            # roughly 9 pixels per character + 50 pixels for padding/sorting icons
+            calculated_width = max(char_count, header_count) * 9 + 50
+            width, min_width = (calculated_width, calculated_width - 20)
+        
+        elif sizing_mode == "✅✅ Fit to Row 2" and len(filtered_df) > 1:
+            char_count = get_clean_text_length(filtered_df.iloc[1][col])
+            header_count = len(str(col))
+            calculated_width = max(char_count, header_count) * 9 + 50
+            width, min_width = (calculated_width, calculated_width - 20)
+            
+        else: # "Default"
+            width, min_width = (220, 150) if col.lower() in priority_columns_lower else (120, 80)
+        # ----------------------------------------------------
 
-        width, min_width = (220, 150) if col.lower() in priority_columns_lower else (120, 80)
         pinned_value = "left" if is_first_visible_column else None
         if is_first_visible_column: is_first_visible_column = False 
 
