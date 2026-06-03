@@ -441,16 +441,15 @@ if not raw_df.empty:
             continue
             
         # ----------------------------------------------------
-        # TIGHTER DYNAMIC SIZING LOGIC
+        # TIGHTER DYNAMIC SIZING LOGIC (SAME FOR BOTH)
         # ----------------------------------------------------
         if sizing_mode == "✅ Fit to Row 1" and len(filtered_df) > 0:
             char_count = get_clean_text_length(filtered_df.iloc[0][col])
             header_count = len(str(col))
-            # Tighter calculation: 7.5px per character + 35px padding for sorting/menu icons
             base_calc = int(max(char_count, header_count) * 7.5 + 35)
-            calculated_width = max(base_calc, 70) # Absolute minimum so headers aren't completely crushed
+            calculated_width = max(base_calc, 70) 
             if is_first_visible_column: 
-                calculated_width += 40 # Exact space needed for the checkbox [ ]
+                calculated_width += 20 # 20 pixels exactly
             width, min_width = (calculated_width, 50)
         
         elif sizing_mode == "✅✅ Fit to Row 2" and len(filtered_df) > 1:
@@ -459,7 +458,7 @@ if not raw_df.empty:
             base_calc = int(max(char_count, header_count) * 7.5 + 35)
             calculated_width = max(base_calc, 70) 
             if is_first_visible_column: 
-                calculated_width += 40 
+                calculated_width += 20 # 20 pixels exactly, matching Row 1
             width, min_width = (calculated_width, 50)
             
         else: # "Default"
