@@ -446,10 +446,9 @@ if not raw_df.empty:
         if sizing_mode == "✅ Fit to Row 1" and len(filtered_df) > 0:
             char_count = get_clean_text_length(filtered_df.iloc[0][col])
             header_count = len(str(col))
-            # Extreme tight calculation: 7px per character + 22px absolute base padding
             base_calc = int(max(char_count, header_count) * 7 + 22)
             if is_first_visible_column: 
-                base_calc += 30 # Strict allowance for the exact checkbox width
+                base_calc += 30 
             width, min_width = (base_calc, 40)
         
         elif sizing_mode == "✅✅ Fit to Row 2" and len(filtered_df) > 1:
