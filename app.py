@@ -29,18 +29,21 @@ else:
     ai_enabled = False
 
 # ==========================================
-# 🛡️ HIDE ONLY GITHUB ICON & RIGHT MENU (KEEPS LEFT MENU)
+# 🛡️ HIDE STREAMLIT MENU & GITHUB ICON
 # ==========================================
-hide_github_icon = """
+hide_streamlit_ui = """
 <style>
-    /* Hides exactly the right-side icon cluster (GitHub, Deploy, 3-dots) */
-    [data-testid="stHeaderActions"] {visibility: hidden;}
-    
-    /* Hides the 'Made with Streamlit' footer at the bottom */
+    /* Hides the top-right menu (hamburger menu) */
+    #MainMenu {visibility: hidden;}
+    /* Hides the header containing the GitHub icon and Deploy button */
+    header {visibility: hidden;}
+    /* Hides the toolbar specifically */
+    [data-testid="stToolbar"] {visibility: hidden;}
+    /* Hides the footer (optional, removes 'Made with Streamlit') */
     footer {visibility: hidden;}
 </style>
 """
-st.markdown(hide_github_icon, unsafe_allow_html=True)
+st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
 
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
