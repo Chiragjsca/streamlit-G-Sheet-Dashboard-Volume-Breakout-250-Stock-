@@ -443,7 +443,8 @@ if not raw_df.empty:
             help="Automatically adjust the column widths based on the text length of the selected row."
         )
 
-    col1, col2, col3 = st.columns([1, 1.5, 2.5])
+    # 🔄 UPDATED LAYOUT: Button on the right, narrower width, directly above links
+    col1, col2 = st.columns([1, 4])
     with col1:
         st.write(f"**Rows:** {filtered_df.shape[0]} | **Columns:** {len(actual_cols)}") 
         
@@ -454,15 +455,17 @@ if not raw_df.empty:
             safe_sheet_name = selected_sheet[:31].replace(":", "").replace("/", "")
             export_df.to_excel(writer, index=False, sheet_name=safe_sheet_name)
         
+        # Disabled use_container_width to shrink the button down 80% to fit the text naturally
         st.download_button(
             label="📥 Download as Excel",
             data=buffer.getvalue(),
             file_name=f"{selected_sheet}_Export_{datetime.now().strftime('%Y%m%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
+            use_container_width=False 
         )
-
-    url_placeholder = col3.empty()
+        
+        # The links section will now automatically generate right below this button
+        url_placeholder = st.empty()
 
     # ==========================================
     # 🎨 AG GRID INITIALIZATION WITH SELECTION ENGINE
