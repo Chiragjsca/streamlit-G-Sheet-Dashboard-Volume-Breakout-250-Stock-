@@ -434,8 +434,17 @@ if not raw_df.empty:
     # ==========================================
     st.markdown("---")
     
-    col_size_1, col_size_2 = st.columns([2, 3])
-    with col_size_1:
+    # Generate export data silently before drawing the UI
+    export_df = clean_for_export(filtered_df)
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+        safe_sheet_name = selected_sheet[:31].replace(":", "").replace("/", "")
+        export_df.to_excel(writer, index=False, sheet_name=safe_sheet_name)
+    
+    # 🔄 UPDATED LAYOUT: Top Row (Width Adjuster on Left, Excel Button on Right)
+    top_col1, top_col2 = st.columns([4, 1])
+    
+    with top_col1:
         sizing_mode = st.radio(
             "📏 Column Width Adjustment:", 
             ["Default", "✅ Fit to Row 1", "✅✅ Fit to Row 2"], 
@@ -443,19 +452,9 @@ if not raw_df.empty:
             help="Automatically adjust the column widths based on the text length of the selected row."
         )
 
-    # 🔄 UPDATED LAYOUT: Button on the right, narrower width, directly above links
-    col1, col2 = st.columns([1, 4])
-    with col1:
-        st.write(f"**Rows:** {filtered_df.shape[0]} | **Columns:** {len(actual_cols)}") 
-        
-    with col2:
-        export_df = clean_for_export(filtered_df)
-        buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-            safe_sheet_name = selected_sheet[:31].replace(":", "").replace("/", "")
-            export_df.to_excel(writer, index=False, sheet_name=safe_sheet_name)
-        
-        # Disabled use_container_width to shrink the button down 80% to fit the text naturally
+    with top_col2:
+        # Pushing the button down slightly so it aligns nicely with the radio buttons
+        st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
         st.download_button(
             label="📥 Download as Excel",
             data=buffer.getvalue(),
@@ -463,8 +462,13 @@ if not raw_df.empty:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=False 
         )
+
+    # Bottom Row: Row/Column Count (Left), Links Workspace (Right)
+    bot_col1, bot_col2 = st.columns([1, 4])
+    with bot_col1:
+        st.write(f"**Rows:** {filtered_df.shape[0]} | **Columns:** {len(actual_cols)}") 
         
-        # The links section will now automatically generate right below this button
+    with bot_col2:
         url_placeholder = st.empty()
 
     # ==========================================
