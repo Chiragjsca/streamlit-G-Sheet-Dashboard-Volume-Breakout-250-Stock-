@@ -266,10 +266,60 @@ if not raw_df.empty:
     final_df = process_hyperlinks(raw_df, selected_symbol_col)
     filtered_df = final_df.copy()
 
+    # 1. Search Filter
     if search_query:
         mask = filtered_df[actual_cols].astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)
         filtered_df = filtered_df[mask]
 
+    # ==========================================
+    # 🎨 NEW FEATURE: COLOR FILTERS
+    # ==========================================
+    st.sidebar.markdown("---")
+    st.sidebar.header("🎨 Color Filters")
+    color_filter_col = st.sidebar.selectbox("Select Column to Filter by Color:", ["None"] + actual_cols, key="filter_color_col")
+    
+    if color_filter_col != "None":
+        bg_col_reference = f"_bg_{color_filter_col}"
+        if bg_col_reference in filtered_df.columns:
+            unique_hexes = filtered_df[bg_col_reference].unique()
+            
+            # User-friendly names for common Google Sheet colors
+            color_dictionary = {
+                "#ffffff": "⚪ White (Default)",
+                "#0f9d58": "🟢 Green",
+                "#ea4335": "🔴 Red",
+                "#f4b400": "🟡 Yellow",
+                "#4285f4": "🔵 Blue",
+                "#ff9900": "🟠 Orange",
+                "#b6d7a8": "🟩 Light Green",
+                "#f4cccc": "🟥 Light Red",
+                "#d9d2e9": "🟪 Light Purple"
+            }
+            
+            ui_color_options = []
+            for hx in unique_hexes:
+                hx_lower = str(hx).lower()
+                if hx_lower in color_dictionary:
+                    ui_color_options.append(color_dictionary[hx_lower])
+                else:
+                    ui_color_options.append(f"🎨 Custom Hex: {hx_lower}")
+            
+            selected_ui_colors = st.sidebar.multiselect(f"Select Colors in '{color_filter_col}':", sorted(ui_color_options), key="filter_color_selections")
+            
+            if selected_ui_colors:
+                valid_hexes_to_keep = []
+                for ui_choice in selected_ui_colors:
+                    # Reverse map UI name back to hex
+                    for hex_key, name in color_dictionary.items():
+                        if name == ui_choice:
+                            valid_hexes_to_keep.append(hex_key)
+                    if ui_choice.startswith("🎨 Custom Hex: "):
+                        valid_hexes_to_keep.append(ui_choice.replace("🎨 Custom Hex: ", ""))
+                
+                # Apply the filter based on the hidden background color column
+                filtered_df = filtered_df[filtered_df[bg_col_reference].str.lower().isin(valid_hexes_to_keep)]
+
+    # 2. Categorical Filters
     st.sidebar.markdown("---")
     st.sidebar.header("🎯 Categorical Filters")
     active_filters = [c for c in actual_cols if any(key in c.lower() for key in ["cumulative average", "industry", "sector", "output", "start gtt order"])]
@@ -279,6 +329,7 @@ if not raw_df.empty:
         if selected_options:
             filtered_df = filtered_df[filtered_df[col_to_filter].isin(selected_options)]
 
+    # 3. DMA Trend Filter
     st.sidebar.markdown("---")
     st.sidebar.header("📈 DMA Trend Filter")
     dma_choice = st.sidebar.selectbox("Select DMA Condition:", [
@@ -301,6 +352,7 @@ if not raw_df.empty:
                 if dma_choice == "50 DMA < 100 DMA < 200 DMA": filtered_df = filtered_df[(s50 < s100) & (s100 < s200)]
                 elif dma_choice == "50 DMA > 100 DMA > 200 DMA": filtered_df = filtered_df[(s50 > s100) & (s100 > s200)]
 
+    # 4. Numeric Range Filters
     st.sidebar.markdown("---")
     st.sidebar.header("📊 Numeric Range Filters")
 
@@ -321,6 +373,7 @@ if not raw_df.empty:
             filtered_df = apply_numeric_slider(filtered_df, col_match, st.sidebar)
             processed_cols.add(col_match)
 
+    # 5. Date Filters
     st.sidebar.markdown("---")
     st.sidebar.header("📅 Date Filters")
     high_date_col = next((c for c in actual_cols if "52w high date" in c.lower()), None)
@@ -431,6 +484,9 @@ if not raw_df.empty:
 
     gb = GridOptionsBuilder.from_dataframe(filtered_df)
     gb.configure_selection(selection_mode="single", use_checkbox=True)
+    
+    # NEW FEATURE: Enables the right-hand sidebar where users can natively hide/show columns
+    gb.configure_side_bar(filters_panel=False, columns_panel=True)
 
     priority_columns_lower = ["nse code", "id", "company name", "stock name", "symbol", "industry", "sector"]
     is_first_visible_column = True
@@ -440,9 +496,6 @@ if not raw_df.empty:
             gb.configure_column(col, hide=True)
             continue
             
-        # ----------------------------------------------------
-        # ULTRA-TIGHT DYNAMIC SIZING LOGIC (SAME FOR BOTH)
-        # ----------------------------------------------------
         if sizing_mode == "✅ Fit to Row 1" and len(filtered_df) > 0:
             char_count = get_clean_text_length(filtered_df.iloc[0][col])
             header_count = len(str(col))
@@ -459,9 +512,8 @@ if not raw_df.empty:
                 base_calc += 30
             width, min_width = (base_calc, 40)
             
-        else: # "Default"
+        else:
             width, min_width = (220, 150) if col.lower() in priority_columns_lower else (120, 80)
-        # ----------------------------------------------------
 
         pinned_value = "left" if is_first_visible_column else None
         if is_first_visible_column: is_first_visible_column = False 
