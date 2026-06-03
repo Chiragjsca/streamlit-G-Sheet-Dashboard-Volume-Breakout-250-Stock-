@@ -135,8 +135,8 @@ def load_sheet_data_with_colors(sheet_name):
         df = pd.DataFrame(values_list[1:], columns=clean_headers)
         for i, col in enumerate(clean_headers):
             df[f"_bg_{col}"] = [row[i] if i < len(row) else "#ffffff" for row in bg_colors_list[1:]]
-            # Enforcing #000000 strictly at the data loading level as well
-            df[f"_txt_{col}"] = ["#000000"] * len(bg_colors_list[1:])
+            # Restored original text color extraction so CMP/Close Price can use it
+            df[f"_txt_{col}"] = [row[i] if i < len(row) else "#000000" for row in txt_colors_list[1:]]
 
         return df
     except Exception as e:
@@ -165,7 +165,7 @@ def process_hyperlinks(df, symbol_col):
             elif "official nse" in c_lower: url, label = f"https://www.nseindia.com/get-quotes/equity?symbol={sym}", f"nse📰 {sym}" if not c_lower.endswith("1") else "🔗 Link"
             elif "nse" in c_lower: url, label = f"https://charting.nseindia.com/?symbol={sym}-EQ", f"nse {sym}" if not c_lower.endswith("1") else "🔗 Link"
 
-            # Applied color:#000000 inline style to all generated hyperlinks
+            # Kept hyperlinks black as requested in the overall update
             if url: df_proc.at[idx, col] = f'<a href="{url}" target="_blank" style="text-decoration:none; color:#000000;">{label}</a>'
 
     return df_proc
@@ -371,14 +371,32 @@ if not raw_df.empty:
     }
     """)
 
-    # Modified exactly to enforce #000000 text color globally
+    # Modified to revert to previous code strictly for CMP and Close Price
     exact_mirror_style = JsCode("""
     function(params) {
         let colName = params.colDef.field;
+        let c_low = colName.toLowerCase();
+        
         let bgCol = "_bg_" + colName;
+        let txtCol = "_txt_" + colName;
         
         let bgColor = params.data[bgCol];
+        let txtColor = params.data[txtCol];
         
+        // Target specifically CMP and Close Price columns
+        let isTargetCol = c_low.includes("cmp") || c_low.includes("close price") || c_low.includes("prev");
+        
+        // Revert to original styling for CMP and Close Price
+        if (isTargetCol) {
+            if (!bgColor || bgColor.toLowerCase() === '#ffffff') return null;
+            return {
+                'backgroundColor': bgColor,
+                'color': txtColor || '#000000',
+                'fontWeight': (txtColor === '#ffffff' || bgColor === '#0f9d58' || bgColor === '#ea4335') ? 'bold' : 'normal'
+            };
+        }
+        
+        // For everything else, force the black text styling
         if (!bgColor || bgColor.toLowerCase() === '#ffffff') {
             return { 'color': '#000000' };
         }
