@@ -598,7 +598,7 @@ if not raw_df.empty:
                 "📈 Chart & Trade Info (NSE Component)", "📋 History Data (EquityPandit)", 
                 "🎯 Bullish/Bearish Zone", "📁 Screener Documents",
                 "🪁 Zerodha Portal", "📊 MarketSmith India", "📉 TradingView Symbol Profile",
-                "🤖 AI Stock Analysis"
+                "🤖 AI Stock Analysis", "💻 AI Pine Script Builder"
             ])
 
             with ws_tabs[0]:
@@ -659,6 +659,57 @@ if not raw_df.empty:
                                 
                                 response = model.generate_content(prompt)
                                 st.info(response.text)
+                                
+                            except Exception as e:
+                                st.error(f"There was an error communicating with the AI: {e}")
+
+            # ==========================================
+            # 💻 AI PINE SCRIPT BUILDER
+            # ==========================================
+            with ws_tabs[8]:
+                st.markdown(f"### 💻 AI Pine Script Generator for **{sym}**")
+                
+                if not ai_enabled:
+                    st.warning("⚠️ Google Gemini API is not configured. Please add `GEMINI_API_KEY` to your Streamlit secrets to enable this feature.")
+                else:
+                    st.write("Generate a custom TradingView Pine Script v5 strategy tailored to this stock's current metrics.")
+                    
+                    strategy_focus = st.selectbox("Select Strategy Focus:", [
+                        "Volume Breakout with Dynamic Stop Loss",
+                        "Moving Average Crossover (50/100/200 DMA)",
+                        "Trend Following with Trailing Stop",
+                        "Mean Reversion from 52W High/Low"
+                    ])
+                    
+                    pine_query = st.text_area("Additional Custom Rules (Optional):", value=f"Include risk management parameters and plot signals on the chart.", height=60, key="pine_query")
+                    
+                    if st.button("⚙️ Generate TradingView Pine Script", use_container_width=True):
+                        with st.spinner(f"Writing Pine Script v5 code for {sym}..."):
+                            try:
+                                clean_row_context = {k: v for k, v in sel_row.items() if not str(k).startswith('_')}
+                                
+                                model = genai.GenerativeModel('gemini-2.5-flash')
+                                prompt = f"""
+                                You are an expert quantitative developer specializing in TradingView Pine Script v5.
+                                
+                                Write a complete, ready-to-copy Pine Script v5 strategy for the stock: {sym}.
+                                
+                                Strategy Focus: {strategy_focus}
+                                Custom Rules: {pine_query}
+                                
+                                Here is the live fundamental and technical data for {sym} to incorporate as baseline context or threshold values if relevant:
+                                {clean_row_context}
+                                
+                                Formatting Requirements:
+                                1. Start with `//@version=5` and `strategy("{sym} Custom Script", overlay=true)`
+                                2. Include clear comments explaining the logic.
+                                3. Provide ONLY the Pine Script code inside a markdown code block, no other conversational text.
+                                """
+                                
+                                response = model.generate_content(prompt)
+                                st.markdown("### 📋 Your Custom Strategy Code:")
+                                st.write("Copy the code below and paste it into the TradingView Pine Editor.")
+                                st.markdown(response.text)
                                 
                             except Exception as e:
                                 st.error(f"There was an error communicating with the AI: {e}")
