@@ -691,7 +691,7 @@ if not raw_df.empty:
                             try:
                                 clean_row_context = {k: v for k, v in sel_row.items() if not str(k).startswith('_')}
                                 
-                                model = genai.GenerativeModel('gemini-2.5-flash')
+                                model = genai.GenerativeModel('gemini-1.5-flash')
                                 prompt = f"""
                                 You are a professional stock market analyst evaluating Indian NSE stocks.
                                 The user is asking about the stock: {sym}.
@@ -743,7 +743,7 @@ if not raw_df.empty:
                             try:
                                 clean_row_context = {k: v for k, v in sel_row.items() if not str(k).startswith('_')}
                                 
-                                model = genai.GenerativeModel('gemini-2.5-flash')
+                                model = genai.GenerativeModel('gemini-1.5-flash')
                                 prompt = f"""
                                 You are an expert quantitative developer specializing in TradingView Pine Script v5.
                                 
