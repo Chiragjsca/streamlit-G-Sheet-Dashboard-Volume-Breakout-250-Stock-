@@ -32,7 +32,7 @@ else:
 # 💡 AI PROMPT LIBRARY — edit freely, use {sym} for stock name
 # ==========================================
 SUGGESTED_AI_PROMPTS = [
-    "Based on the current data provided, give me a quick summary of the technical performance and trend for {sym}. Also give me all other details and calculate everything if this company is profitable or not.",
+    "Based on the current data provided, give me a quick summary of the technical performance and trend for {sym}. Also give me all other details and calculate if this company is profitable or not.",
     "Analyze the 52-week high and low data for {sym}. Is the stock closer to its peak or bottom? What does this imply for entry or exit timing? Identify the ideal buy zone.",
     "Examine the 50 DMA, 100 DMA, and 200 DMA data for {sym}. Is the stock in a bullish crossover, bearish zone, or consolidation phase? Explain the trend strength and momentum.",
     "Using the volume data for {sym}, identify if there is unusual volume activity. Does the current volume indicate institutional buying, selling, or accumulation? What does it signal?",
@@ -43,6 +43,30 @@ SUGGESTED_AI_PROMPTS = [
     "Based on the CAR Rating and Output signal for {sym}, what is the system suggesting? Does the historical price action and current data support this signal? How reliable is it?",
     "Summarize {sym}'s sector positioning, market cap, enterprise value, book value, and promoter holding. How does this stock compare to typical benchmarks in its sector in the Indian market?",
 ]
+
+# ==========================================
+# 🌲 PINE SCRIPT CUSTOM RULES LIBRARY — edit freely
+# 3 rules per Strategy Focus (12 total)
+# ==========================================
+PINE_CUSTOM_RULES = """Strategy 1 — Volume Breakout with Dynamic Stop Loss
+  Rule 1: Enter long when today's volume > 2× the 20-day average volume AND price closes above the prior day's high; set stop loss at 1.5× ATR below entry price.
+  Rule 2: Add a false breakout filter — price must hold above the breakout level for 2 consecutive candles before confirming entry; trail stop at the lowest low of the last 3 bars.
+  Rule 3: Set profit target at 2:1 risk-reward ratio; plot a volume histogram overlay to identify surge bars visually; include an alert condition for live breakout detection.
+
+Strategy 2 — Moving Average Crossover (50/100/200 DMA)
+  Rule 4: Buy when 50 DMA crosses above 100 DMA with price trading above the 200 DMA; exit when 50 DMA crosses back below 100 DMA; use 200 DMA as the hard stop-loss floor.
+  Rule 5: Add RSI confirmation — only enter when RSI is between 50–70 at the crossover candle; plot all three DMAs on the chart with distinct colours for visual clarity.
+  Rule 6: Allow a re-entry if 50 DMA pulls back to 100 DMA without breaking below 200 DMA; set stop loss 2% below the 50 DMA value at the time of entry.
+
+Strategy 3 — Trend Following with Trailing Stop
+  Rule 7: Enter long when price breaks a 20-day high with above-average volume and ADX > 25; apply a Chandelier Exit trailing stop set at 3× ATR from the highest close after entry.
+  Rule 8: Use 200 DMA direction as the trend filter — only take long trades when price is above 200 DMA; tighten trailing stop to 2× ATR once profit exceeds 10% from entry.
+  Rule 9: Add a re-entry condition: if stopped out but price remains above 200 DMA, re-enter on the next pullback to the 50 DMA; limit to a maximum of 2 re-entries per trend leg.
+
+Strategy 4 — Mean Reversion from 52W High/Low
+  Rule 10: Buy when price is within 15% of the 52-week low AND RSI < 35; set profit target at the 52-week midpoint; place hard stop loss 5% below the 52-week low level.
+  Rule 11: Exit/short signal when price is within 5% of the 52-week high with RSI > 70; use Bollinger Band upper band touch as secondary confirmation; target the middle Bollinger Band as exit.
+  Rule 12: Apply a volume reversal filter — only enter when the reversal candle's volume is ≥ 1.5× the 20-day average; plot the 52-week high and low as horizontal reference lines on the chart."""
 
 # ==========================================
 # 🛡️ HIDE STREAMLIT MENU & GITHUB ICON
@@ -744,6 +768,11 @@ if not raw_df.empty:
                                 
                             except Exception as e:
                                 st.error(f"There was an error communicating with the AI: {e}")
+
+                    # ── 12 Custom Rules (plain text, 3 per Strategy Focus) ───────
+                    st.markdown("---")
+                    st.markdown("**📋 Custom Rules Reference** — copy any rule and paste it into the Additional Custom Rules box above:")
+                    st.text(PINE_CUSTOM_RULES)
 
     # ==========================================
     # 🌍 NATIONAL ANALYTICS PORTAL WORKSPACE
