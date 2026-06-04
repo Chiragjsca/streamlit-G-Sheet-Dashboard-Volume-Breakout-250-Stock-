@@ -29,6 +29,24 @@ else:
     ai_enabled = False
 
 # ==========================================
+# 💡 AI PROMPT LIBRARY — EDIT THIS LIST FREELY
+# Use {sym} as placeholder for the stock symbol.
+# Add, remove, or reorder prompts here anytime.
+# ==========================================
+SUGGESTED_AI_PROMPTS = [
+    "Based on the current data provided, give me a quick summary of the technical performance and trend for {sym}. Also give me all other details and calculate if this company is profitable or not.",
+    "Analyze the 52-week high and low data for {sym}. Is the stock closer to its peak or bottom? What does this imply for entry or exit timing? Identify the ideal buy zone.",
+    "Examine the 50 DMA, 100 DMA, and 200 DMA data for {sym}. Is the stock in a bullish crossover, bearish zone, or consolidation phase? Explain the trend strength and momentum.",
+    "Using the volume data for {sym}, identify if there is unusual volume activity. Does the current volume indicate institutional buying, selling, or accumulation? What does it signal?",
+    "Evaluate the full fundamentals of {sym} — EPS, RONW%, D/E ratio, Net Profit (Cr.), Book Value, and Market Cap. Is this company financially healthy and worth long-term investment?",
+    "What is the risk profile of {sym} based on its Pledged %, Promoters Holding %, Institutional Holding %, and Debt-to-Equity ratio? Should a retail investor be cautious right now?",
+    "Compare {sym}'s current CMP vs its 200 DMA. Is the stock overbought, oversold, or fairly valued based on the Difference from 200 DMA metric? What is the ideal risk-reward entry zone?",
+    "Give a complete Buy / Hold / Sell recommendation for {sym} using all available technical and fundamental data. Include specific price targets, support levels, and a stop-loss level.",
+    "Based on the CAR Rating and Output signal for {sym}, what is the system suggesting? Does the historical price action and current data support this signal? How reliable is it?",
+    "Summarize {sym}'s sector positioning, market cap, enterprise value, book value, and promoter holding. How does this stock compare to typical benchmarks in its sector in the Indian market?",
+]
+
+# ==========================================
 # 🛡️ HIDE STREAMLIT MENU & GITHUB ICON
 # ==========================================
 hide_streamlit_ui = """
@@ -638,37 +656,76 @@ if not raw_df.empty:
                 
             with ws_tabs[7]:
                 st.markdown(f"### 🤖 Ask Gemini About **{sym}**")
-                
+
                 if not ai_enabled:
                     st.warning("⚠️ Google Gemini API is not configured. Please add `GEMINI_API_KEY` to your Streamlit secrets to enable this feature.")
                 else:
                     st.write("Using the live data pulled from your dashboard, the AI can analyze technicals, ranges, and context.")
-                    
-                    ai_query = st.text_area("Your Query:", value=f"Based on the current data provided, give me a quick summary of the technical performance and trend for {sym}.", height=80)
-                    
-                    if st.button("✨ Generate AI Analysis", use_container_width=True):
+
+                    # --------------------------------------------------
+                    # Session-state key for this stock's query text
+                    # --------------------------------------------------
+                    ai_key = f"ai_query_{sym}"
+                    default_prompt = SUGGESTED_AI_PROMPTS[0].replace("{sym}", sym)
+                    if ai_key not in st.session_state:
+                        st.session_state[ai_key] = default_prompt
+
+                    # Text area bound to session state (updates when a prompt button is clicked)
+                    st.text_area("Your Query:", key=ai_key, height=100)
+                    ai_query = st.session_state[ai_key]
+
+                    if st.button("✨ Generate AI Analysis", use_container_width=True, key=f"gen_btn_{sym}"):
                         with st.spinner(f"Analyzing {sym} data..."):
                             try:
                                 clean_row_context = {k: v for k, v in sel_row.items() if not str(k).startswith('_')}
-                                
+
                                 model = genai.GenerativeModel('gemini-2.5-flash')
-                                prompt = f"""
+                                full_prompt = f"""
                                 You are a professional stock market analyst evaluating Indian NSE stocks.
                                 The user is asking about the stock: {sym}.
-                                
+
                                 Here is the live data extracted directly from the user's dashboard for this stock:
                                 {clean_row_context}
-                                
+
                                 User Query: {ai_query}
-                                
+
                                 Please provide a clear, concise, and professional response.
                                 """
-                                
-                                response = model.generate_content(prompt)
+
+                                response = model.generate_content(full_prompt)
                                 st.info(response.text)
-                                
+
                             except Exception as e:
                                 st.error(f"There was an error communicating with the AI: {e}")
+
+                    # --------------------------------------------------
+                    # 💡 SUGGESTED PROMPT BUTTONS (from SUGGESTED_AI_PROMPTS list)
+                    # --------------------------------------------------
+                    st.markdown("---")
+
+                    # Clickable stock hyperlinks row
+                    nse_url  = f"https://charting.nseindia.com/?symbol={sym}-EQ"
+                    scr_url  = f"https://www.screener.in/company/{sym}/consolidated/"
+                    tv_url   = f"https://www.tradingview.com/symbols/{sym}/"
+                    ms_url   = f"https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp"
+                    st.markdown(
+                        f"**📌 Quick Links for** "
+                        f"<a href='{nse_url}' target='_blank' style='color:#1a73e8;font-weight:bold;text-decoration:none;'>🔗 {sym} NSE Chart</a> &nbsp;|&nbsp; "
+                        f"<a href='{scr_url}' target='_blank' style='color:#1a73e8;text-decoration:none;'>📋 Screener</a> &nbsp;|&nbsp; "
+                        f"<a href='{tv_url}' target='_blank' style='color:#1a73e8;text-decoration:none;'>📈 TradingView</a> &nbsp;|&nbsp; "
+                        f"<a href='{ms_url}' target='_blank' style='color:#1a73e8;text-decoration:none;'>🏆 MarketSmith</a>",
+                        unsafe_allow_html=True
+                    )
+
+                    st.markdown("**💡 Suggested Prompts** — *click any to load into the query box:*")
+
+                    for i, tmpl in enumerate(SUGGESTED_AI_PROMPTS):
+                        filled = tmpl.replace("{sym}", sym)
+                        # Show a short label for the button, full text goes into the text area
+                        short_label = filled[:90] + " ..." if len(filled) > 93 else filled
+                        if st.button(f"📌 {short_label}", key=f"prompt_btn_{sym}_{i}", use_container_width=True):
+                            st.session_state[ai_key] = filled
+                            st.rerun()
 
             # ==========================================
             # 💻 AI PINE SCRIPT BUILDER
