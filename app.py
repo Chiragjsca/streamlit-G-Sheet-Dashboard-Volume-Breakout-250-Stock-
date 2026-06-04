@@ -809,7 +809,8 @@ if not raw_df.empty:
         "🔥 Most Active", "🚀 Volume Gainers", "🏆 Top Gainers/Losers", "⭐ 52W Boundaries", "📦 Stocks Traded", "⚖️ Advances/Declines",
         "🕒 Pre-Open Market", "⚡ Price Band Hitters", "🗺️ Index Ticker Heatmap", "🎫 IPO Tracker", "⚠️ Volume Shockers",
         "📂 Document Reports", "🖋️ TV Script Engine", "🔮 MunafaSutra Tickers", "🎯 Dhan Asset Registry", "💎 Weekly Activity Metrics",
-        "🔧 ScanX Core Screener", "🚦 ScanX Live Engine", "🎨 Screener Exploration", "📈 IPO Chittorgarh", "🏷️ IPO Watch Panel", "💓 NSE Pulse"
+        "🔧 ScanX Core Screener", "🚦 ScanX Live Engine", "🎨 Screener Exploration", "📈 IPO Chittorgarh", "🏷️ IPO Watch Panel", "💓 NSE Pulse",
+        "📊 Chartink Screeners", "📋 Chartink Dashboard", "🗾 Chartink Atlas", "📚 Mahesh Kaushik", "💰 EFTI Wealth"
     ])
 
     with mkt_tabs[0]:
@@ -878,6 +879,21 @@ if not raw_df.empty:
     with mkt_tabs[21]:
         st.markdown("[🌐 Open Matrix](https://nsepulse.streamlit.app/)")
         components.html('<iframe src="https://nsepulse.streamlit.app/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[22]:
+        st.markdown("[🌐 Open Matrix](https://chartink.com/screeners)")
+        components.html('<iframe src="https://chartink.com/screeners" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[23]:
+        st.markdown("[🌐 Open Matrix](https://chartink.com/scan_dashboard)")
+        components.html('<iframe src="https://chartink.com/scan_dashboard" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[24]:
+        st.markdown("[🌐 Open Matrix](https://chartink.com/atlas)")
+        components.html('<iframe src="https://chartink.com/atlas" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[25]:
+        st.markdown("[🌐 Open Matrix](https://www.maheshkaushik.com/)")
+        components.html('<iframe src="https://www.maheshkaushik.com/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
+    with mkt_tabs[26]:
+        st.markdown("[🌐 Open Matrix](https://eftiwealth.com/)")
+        components.html('<iframe src="https://eftiwealth.com/" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
 
     # ==========================================
     # 🏆 MULTI-HORIZON PERFORMANCE SUMMARY MATRIX
