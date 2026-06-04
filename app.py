@@ -29,9 +29,7 @@ else:
     ai_enabled = False
 
 # ==========================================
-# 💡 AI PROMPT LIBRARY — EDIT THIS LIST FREELY
-# Use {sym} as placeholder for the stock symbol.
-# Add, remove, or reorder prompts here anytime.
+# 💡 AI PROMPT LIBRARY — edit freely, use {sym} for stock name
 # ==========================================
 SUGGESTED_AI_PROMPTS = [
     "Based on the current data provided, give me a quick summary of the technical performance and trend for {sym}. Also give me all other details and calculate if this company is profitable or not.",
@@ -656,85 +654,45 @@ if not raw_df.empty:
                 
             with ws_tabs[7]:
                 st.markdown(f"### 🤖 Ask Gemini About **{sym}**")
-
+                
                 if not ai_enabled:
                     st.warning("⚠️ Google Gemini API is not configured. Please add `GEMINI_API_KEY` to your Streamlit secrets to enable this feature.")
                 else:
                     st.write("Using the live data pulled from your dashboard, the AI can analyze technicals, ranges, and context.")
-
-                    # ── Two-key pattern to avoid StreamlitAPIException ──────────
-                    # prompt_src holds the text VALUE (safe to write anytime)
-                    # ai_widget is the text_area widget key (NEVER written to directly)
-                    prompt_src  = f"prompt_src_{sym}"
-                    ai_widget   = f"ai_widget_{sym}"
-
-                    if prompt_src not in st.session_state:
-                        st.session_state[prompt_src] = SUGGESTED_AI_PROMPTS[0].replace("{sym}", sym)
-
-                    # Text area — value= comes from prompt_src; widget state tracked by ai_widget
-                    ai_query = st.text_area(
-                        "Your Query:",
-                        value=st.session_state[prompt_src],
-                        height=100,
-                        key=ai_widget,
-                    )
-
-                    if st.button("✨ Generate AI Analysis", use_container_width=True, key=f"gen_btn_{sym}"):
+                    
+                    ai_query = st.text_area("Your Query:", value=f"Based on the current data provided, give me a quick summary of the technical performance and trend for {sym}.", height=80)
+                    
+                    if st.button("✨ Generate AI Analysis", use_container_width=True):
                         with st.spinner(f"Analyzing {sym} data..."):
                             try:
                                 clean_row_context = {k: v for k, v in sel_row.items() if not str(k).startswith('_')}
+                                
                                 model = genai.GenerativeModel('gemini-2.5-flash')
-                                full_prompt = f"""
+                                prompt = f"""
                                 You are a professional stock market analyst evaluating Indian NSE stocks.
                                 The user is asking about the stock: {sym}.
-
+                                
                                 Here is the live data extracted directly from the user's dashboard for this stock:
                                 {clean_row_context}
-
+                                
                                 User Query: {ai_query}
-
+                                
                                 Please provide a clear, concise, and professional response.
                                 """
-                                response = model.generate_content(full_prompt)
+                                
+                                response = model.generate_content(prompt)
                                 st.info(response.text)
+                                
                             except Exception as e:
                                 st.error(f"There was an error communicating with the AI: {e}")
 
-                    # ── Suggested Prompts — compact numbered list ───────────────
+                    # ── 10 Suggested Prompts (plain text list) ──────────────────
                     st.markdown("---")
-
-                    # Quick-link row for the selected stock
-                    nse_url = f"https://charting.nseindia.com/?symbol={sym}-EQ"
-                    scr_url = f"https://www.screener.in/company/{sym}/consolidated/"
-                    tv_url  = f"https://www.tradingview.com/symbols/{sym}/"
-                    ms_url  = f"https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp"
-                    st.markdown(
-                        f"**📌 Quick Links:** "
-                        f"<a href='{nse_url}' target='_blank' style='color:#1a73e8;font-weight:bold;text-decoration:none;'>🔗 {sym} NSE Chart</a>"
-                        f"&nbsp;|&nbsp;<a href='{scr_url}' target='_blank' style='color:#1a73e8;text-decoration:none;'>📋 Screener</a>"
-                        f"&nbsp;|&nbsp;<a href='{tv_url}' target='_blank' style='color:#1a73e8;text-decoration:none;'>📈 TradingView</a>"
-                        f"&nbsp;|&nbsp;<a href='{ms_url}' target='_blank' style='color:#1a73e8;text-decoration:none;'>🏆 MarketSmith</a>",
-                        unsafe_allow_html=True,
+                    st.markdown("**💡 Suggested Prompts** — copy any prompt below and paste it into the query box above:")
+                    prompt_lines = "\n".join(
+                        [f"{i+1}. {p.replace('{sym}', sym)}" for i, p in enumerate(SUGGESTED_AI_PROMPTS)]
                     )
-
-                    st.markdown("**💡 Suggested Prompts** — *click a number to load it into the query box:*")
-
-                    # ── 2-column compact numbered grid (NOT full-width) ─────────
-                    left_col, right_col = st.columns(2)
-                    for i, tmpl in enumerate(SUGGESTED_AI_PROMPTS):
-                        filled = tmpl.replace("{sym}", sym)
-                        # Short label: index + first ~55 chars
-                        snippet = filled[:58] + "…" if len(filled) > 60 else filled
-                        btn_label = f"{i + 1}. {snippet}"
-                        target_col = left_col if i % 2 == 0 else right_col
-                        with target_col:
-                            if st.button(btn_label, key=f"prompt_btn_{sym}_{i}"):
-                                # ✅ Safe: write to prompt_src (not the widget key)
-                                st.session_state[prompt_src] = filled
-                                # ✅ Delete widget key so next render uses value= again
-                                if ai_widget in st.session_state:
-                                    del st.session_state[ai_widget]
-                                st.rerun()
+                    st.text(prompt_lines)
 
             # ==========================================
             # 💻 AI PINE SCRIPT BUILDER
