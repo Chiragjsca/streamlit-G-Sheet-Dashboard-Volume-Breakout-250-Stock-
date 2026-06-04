@@ -106,7 +106,7 @@ if not st.session_state.logged_in:
 # ==========================================
 # 🌍 GLOBAL MARKET TICKER (TRADINGVIEW)
 # ==========================================
-st.markdown("<p style='font-size:0.85rem; font-weight:bold; margin:0; padding:0;'>📊 Top 250 NSE Stock-Volume Breakout Dashboard</p>", unsafe_allow_html=True)
+st.title("📊 Top 250 NSE Stock-Volume Breakout Dashboard")
 st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 components.html("""
@@ -447,7 +447,7 @@ sheet_names = ["Top 250 Stocks", "Final List", "Final List 2", "Diff @ 200 DMA",
 selected_sheet = st.sidebar.selectbox("Choose sheet", sheet_names, key="filter_sheet")
 
 # ---------- Main Execution ----------
-st.markdown(f"<p style='font-size:0.85rem; font-weight:bold; margin:0; padding:0;'>📄 {selected_sheet}</p>", unsafe_allow_html=True)
+st.header(f"📄 {selected_sheet}")
 
 with st.spinner("Downloading data from Google API..."):
     raw_df = load_sheet_data_with_colors(selected_sheet)
@@ -618,35 +618,7 @@ if not raw_df.empty:
         safe_sheet_name = selected_sheet[:31].replace(":", "").replace("/", "")
         export_df.to_excel(writer, index=False, sheet_name=safe_sheet_name)
 
-    # Build 2nd download: table data + BF analysis merged
-    bf_detail_rows = []
-    for idx, row in filtered_df.iterrows():
-        clean_r = {k: v for k, v in row.items() if not str(k).startswith('_')}
-        bf_s, bf_g, bf_rsns = compute_bottom_fishing_score(clean_r, actual_cols)
-        clean_r["BF Score"] = bf_s
-        clean_r["BF Grade"] = bf_g.replace("🟢 ", "").replace("🟡 ", "").replace("🟠 ", "").replace("🔴 ", "")
-        clean_r["BF Key Reasons"] = " | ".join(bf_rsns)
-        # scoring criteria columns
-        clean_r["52W Low Proximity (Max 30)"] = "CMP is 8-15% above 52W Low (ideal entry zone)"
-        clean_r["Uptrend 200 DMA (Max 15)"] = "CMP above 200 DMA = confirmed uptrend"
-        clean_r["Volume Activity (Max 10)"] = "High trading volume = institutional interest"
-        clean_r["Low/Zero Debt (Max 10)"] = "D/E ratio <= 0.1 is ideal (no loan burden)"
-        clean_r["Net Profitability (Max 10)"] = "Positive net profit confirms fundamental health"
-        clean_r["RONW % (Max 10)"] = "Return on Net Worth >= 15% = strong business"
-        clean_r["Promoter Holding (Max 8)"] = ">= 50% shows management confidence"
-        clean_r["Zero Pledge (Max 7)"] = "No pledged shares = no financial stress"
-        bf_detail_rows.append(clean_r)
-    bf_merged_df = pd.DataFrame(bf_detail_rows)
-    # strip html tags
-    for col in bf_merged_df.select_dtypes(include=['object']).columns:
-        bf_merged_df[col] = bf_merged_df[col].apply(lambda x: re.sub(r'<[^>]*>', '', str(x)) if pd.notnull(x) else x)
-    bf2_buffer = io.BytesIO()
-    with pd.ExcelWriter(bf2_buffer, engine='openpyxl') as writer2:
-        safe_sheet_name2 = (selected_sheet[:20] + "_BF")[:31].replace(":", "").replace("/", "")
-        export_df.to_excel(writer2, index=False, sheet_name=safe_sheet_name)
-        bf_merged_df.to_excel(writer2, index=False, sheet_name="BF Analysis Detail")
-
-    top_col1, top_col2, top_col3 = st.columns([4, 1, 1])
+    top_col1, top_col2 = st.columns([4, 1])
 
     with top_col1:
         sizing_mode = st.radio(
@@ -664,17 +636,6 @@ if not raw_df.empty:
             file_name=f"{selected_sheet}_Export_{datetime.now().strftime('%Y%m%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=False
-        )
-
-    with top_col3:
-        st.markdown("<div style='margin-top: 28px;'></div>", unsafe_allow_html=True)
-        st.download_button(
-            label="📥 Download with BF Detail",
-            data=bf2_buffer.getvalue(),
-            file_name=f"{selected_sheet}_WithBFDetail_{datetime.now().strftime('%Y%m%d')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=False,
-            key="dl_bf_detail_top250"
         )
 
     bot_col1, bot_col2 = st.columns([1, 4])
@@ -970,37 +931,6 @@ if not raw_df.empty:
 """
                 st.markdown(criteria_md)
 
-                # ── Individual BF Detail Download Button ──────────────────
-                indiv_bf_data = {
-                    "Symbol": [sym],
-                    "BF Score": [bf_score],
-                    "BF Grade": [bf_grade.replace("🟢 ", "").replace("🟡 ", "").replace("🟠 ", "").replace("🔴 ", "")],
-                    "BF Key Reasons": [" | ".join(bf_reasons)],
-                    "52W Low Proximity (Max 30)": ["CMP is 8-15% above 52W Low (ideal entry zone)"],
-                    "Uptrend 200 DMA (Max 15)": ["CMP above 200 DMA = confirmed uptrend"],
-                    "Volume Activity (Max 10)": ["High trading volume = institutional interest"],
-                    "Low/Zero Debt (Max 10)": ["D/E ratio <= 0.1 is ideal (no loan burden)"],
-                    "Net Profitability (Max 10)": ["Positive net profit confirms fundamental health"],
-                    "RONW % (Max 10)": ["Return on Net Worth >= 15% = strong business"],
-                    "Promoter Holding (Max 8)": [">= 50% shows management confidence"],
-                    "Zero Pledge (Max 7)": ["No pledged shares = no financial stress"],
-                }
-                for k, v in clean_sel.items():
-                    if k not in indiv_bf_data:
-                        indiv_bf_data[k] = [v]
-                indiv_bf_df = pd.DataFrame(indiv_bf_data)
-                indiv_buf = io.BytesIO()
-                with pd.ExcelWriter(indiv_buf, engine='openpyxl') as w:
-                    indiv_bf_df.to_excel(w, index=False, sheet_name=f"{sym[:28]}_BF")
-                st.download_button(
-                    label=f"📥 Download {sym} BF Analysis as Excel",
-                    data=indiv_buf.getvalue(),
-                    file_name=f"{sym}_BFAnalysis_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    use_container_width=True,
-                    key="dl_indiv_bf_detail"
-                )
-
                 st.info("💡 **Buy Strategy:** Look for scores ≥ 55 (Watchlist) or ≥ 75 (Strong Buy). "
                         "The sweet zone is CMP at 8–15% above 52W Low with uptrend confirmed (CMP > 200 DMA), "
                         "backed by positive profits, low debt, and high promoter holding. "
@@ -1290,24 +1220,6 @@ Be specific, data-driven, and actionable for a retail investor.
 
         AgGrid(display_perf_df, gridOptions=perf_grid_ops, theme="streamlit", allow_unsafe_jscode=True, fit_columns_on_grid_load=False, height=450, width='100%', key="horizon_perf_grid")
 
-        # 2nd Download button for Multi-Horizon Performance Summary Matrix
-        mhp_export_df = display_perf_df.copy()
-        for col in mhp_export_df.select_dtypes(include=['object']).columns:
-            mhp_export_df[col] = mhp_export_df[col].apply(lambda x: re.sub(r'<[^>]*>', '', str(x)) if pd.notnull(x) else x)
-        mhp_buf = io.BytesIO()
-        with pd.ExcelWriter(mhp_buf, engine='openpyxl') as w:
-            mhp_export_df.to_excel(w, index=False, sheet_name="Multi-Horizon Performance")
-        mhp_dl_col1, mhp_dl_col2 = st.columns([3, 1])
-        with mhp_dl_col2:
-            st.download_button(
-                label="📥 Download Matrix as Excel",
-                data=mhp_buf.getvalue(),
-                file_name=f"MultiHorizonMatrix_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
-                key="dl_multi_horizon_matrix"
-            )
-
     # ==========================================
     # 🔬 STANDALONE BOTTOM FISHING SCANNER
     # ==========================================
@@ -1362,42 +1274,13 @@ Be specific, data-driven, and actionable for a retail investor.
 
         AgGrid(bf_scan_df, gridOptions=bf_grid_ops, theme="streamlit", allow_unsafe_jscode=True, fit_columns_on_grid_load=False, height=400, width='100%', key="bf_scanner_grid")
 
-        # Export BF Scanner results — two download buttons side by side
+        # Export BF Scanner results
         bf_buffer = io.BytesIO()
         with pd.ExcelWriter(bf_buffer, engine='openpyxl') as writer:
             bf_scan_df.to_excel(writer, index=False, sheet_name="Bottom Fishing")
-
-        # 2nd download: BF scanner merged with full table details
-        bf_full_rows = []
-        for r in bf_results:
-            sym_r = r["Symbol"]
-            match_rows = filtered_df[filtered_df['_raw_symbol_'] == sym_r]
-            if not match_rows.empty:
-                full_row = match_rows.iloc[0]
-                merged = {k: v for k, v in full_row.items() if not str(k).startswith('_')}
-                merged.update(r)
-                bf_full_rows.append(merged)
-            else:
-                bf_full_rows.append(r)
-        bf_full_df = pd.DataFrame(bf_full_rows)
-        for col in bf_full_df.select_dtypes(include=['object']).columns:
-            bf_full_df[col] = bf_full_df[col].apply(lambda x: re.sub(r'<[^>]*>', '', str(x)) if pd.notnull(x) else x)
-        bf_full_buf = io.BytesIO()
-        with pd.ExcelWriter(bf_full_buf, engine='openpyxl') as writer2:
-            bf_scan_df.to_excel(writer2, index=False, sheet_name="BF Scanner Summary")
-            bf_full_df.to_excel(writer2, index=False, sheet_name="BF Full Detail")
-
-        bf_dl_c1, bf_dl_c2 = st.columns(2)
-        with bf_dl_c1:
-            st.download_button("📥 Download BF Scanner Results", data=bf_buffer.getvalue(),
-                file_name=f"BottomFishing_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True, key="dl_bf_scanner_basic")
-        with bf_dl_c2:
-            st.download_button("📥 Download BF + Full Table Detail", data=bf_full_buf.getvalue(),
-                file_name=f"BottomFishing_FullDetail_{datetime.now().strftime('%Y%m%d')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True, key="dl_bf_scanner_full")
+        st.download_button("📥 Download BF Scanner Results", data=bf_buffer.getvalue(),
+            file_name=f"BottomFishing_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     else:
         st.info(f"No stocks found with BF Score ≥ {min_bf_score}. Try lowering the minimum score.")
 
