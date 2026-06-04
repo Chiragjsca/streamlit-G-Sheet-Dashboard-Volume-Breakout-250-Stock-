@@ -34,7 +34,7 @@ else:
 # Add, remove, or reorder prompts here anytime.
 # ==========================================
 SUGGESTED_AI_PROMPTS = [
-    "Based on the current data provided, give me a quick summary of the technical performance and trend for {sym}. Also give me all other details and calculate all if this company is profitable or not.",
+    "Based on the current data provided, give me a quick summary of the technical performance and trend for {sym}. Also give me all other details and calculate if this company is profitable or not.",
     "Analyze the 52-week high and low data for {sym}. Is the stock closer to its peak or bottom? What does this imply for entry or exit timing? Identify the ideal buy zone.",
     "Examine the 50 DMA, 100 DMA, and 200 DMA data for {sym}. Is the stock in a bullish crossover, bearish zone, or consolidation phase? Explain the trend strength and momentum.",
     "Using the volume data for {sym}, identify if there is unusual volume activity. Does the current volume indicate institutional buying, selling, or accumulation? What does it signal?",
@@ -662,23 +662,27 @@ if not raw_df.empty:
                 else:
                     st.write("Using the live data pulled from your dashboard, the AI can analyze technicals, ranges, and context.")
 
-                    # --------------------------------------------------
-                    # Session-state key for this stock's query text
-                    # --------------------------------------------------
-                    ai_key = f"ai_query_{sym}"
-                    default_prompt = SUGGESTED_AI_PROMPTS[0].replace("{sym}", sym)
-                    if ai_key not in st.session_state:
-                        st.session_state[ai_key] = default_prompt
+                    # ── Two-key pattern to avoid StreamlitAPIException ──────────
+                    # prompt_src holds the text VALUE (safe to write anytime)
+                    # ai_widget is the text_area widget key (NEVER written to directly)
+                    prompt_src  = f"prompt_src_{sym}"
+                    ai_widget   = f"ai_widget_{sym}"
 
-                    # Text area bound to session state (updates when a prompt button is clicked)
-                    st.text_area("Your Query:", key=ai_key, height=100)
-                    ai_query = st.session_state[ai_key]
+                    if prompt_src not in st.session_state:
+                        st.session_state[prompt_src] = SUGGESTED_AI_PROMPTS[0].replace("{sym}", sym)
+
+                    # Text area — value= comes from prompt_src; widget state tracked by ai_widget
+                    ai_query = st.text_area(
+                        "Your Query:",
+                        value=st.session_state[prompt_src],
+                        height=100,
+                        key=ai_widget,
+                    )
 
                     if st.button("✨ Generate AI Analysis", use_container_width=True, key=f"gen_btn_{sym}"):
                         with st.spinner(f"Analyzing {sym} data..."):
                             try:
                                 clean_row_context = {k: v for k, v in sel_row.items() if not str(k).startswith('_')}
-
                                 model = genai.GenerativeModel('gemini-2.5-flash')
                                 full_prompt = f"""
                                 You are a professional stock market analyst evaluating Indian NSE stocks.
@@ -691,41 +695,46 @@ if not raw_df.empty:
 
                                 Please provide a clear, concise, and professional response.
                                 """
-
                                 response = model.generate_content(full_prompt)
                                 st.info(response.text)
-
                             except Exception as e:
                                 st.error(f"There was an error communicating with the AI: {e}")
 
-                    # --------------------------------------------------
-                    # 💡 SUGGESTED PROMPT BUTTONS (from SUGGESTED_AI_PROMPTS list)
-                    # --------------------------------------------------
+                    # ── Suggested Prompts — compact numbered list ───────────────
                     st.markdown("---")
 
-                    # Clickable stock hyperlinks row
-                    nse_url  = f"https://charting.nseindia.com/?symbol={sym}-EQ"
-                    scr_url  = f"https://www.screener.in/company/{sym}/consolidated/"
-                    tv_url   = f"https://www.tradingview.com/symbols/{sym}/"
-                    ms_url   = f"https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp"
+                    # Quick-link row for the selected stock
+                    nse_url = f"https://charting.nseindia.com/?symbol={sym}-EQ"
+                    scr_url = f"https://www.screener.in/company/{sym}/consolidated/"
+                    tv_url  = f"https://www.tradingview.com/symbols/{sym}/"
+                    ms_url  = f"https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp"
                     st.markdown(
-                        f"**📌 Quick Links for** "
-                        f"<a href='{nse_url}' target='_blank' style='color:#1a73e8;font-weight:bold;text-decoration:none;'>🔗 {sym} NSE Chart</a> &nbsp;|&nbsp; "
-                        f"<a href='{scr_url}' target='_blank' style='color:#1a73e8;text-decoration:none;'>📋 Screener</a> &nbsp;|&nbsp; "
-                        f"<a href='{tv_url}' target='_blank' style='color:#1a73e8;text-decoration:none;'>📈 TradingView</a> &nbsp;|&nbsp; "
-                        f"<a href='{ms_url}' target='_blank' style='color:#1a73e8;text-decoration:none;'>🏆 MarketSmith</a>",
-                        unsafe_allow_html=True
+                        f"**📌 Quick Links:** "
+                        f"<a href='{nse_url}' target='_blank' style='color:#1a73e8;font-weight:bold;text-decoration:none;'>🔗 {sym} NSE Chart</a>"
+                        f"&nbsp;|&nbsp;<a href='{scr_url}' target='_blank' style='color:#1a73e8;text-decoration:none;'>📋 Screener</a>"
+                        f"&nbsp;|&nbsp;<a href='{tv_url}' target='_blank' style='color:#1a73e8;text-decoration:none;'>📈 TradingView</a>"
+                        f"&nbsp;|&nbsp;<a href='{ms_url}' target='_blank' style='color:#1a73e8;text-decoration:none;'>🏆 MarketSmith</a>",
+                        unsafe_allow_html=True,
                     )
 
-                    st.markdown("**💡 Suggested Prompts** — *click any to load into the query box:*")
+                    st.markdown("**💡 Suggested Prompts** — *click a number to load it into the query box:*")
 
+                    # ── 2-column compact numbered grid (NOT full-width) ─────────
+                    left_col, right_col = st.columns(2)
                     for i, tmpl in enumerate(SUGGESTED_AI_PROMPTS):
                         filled = tmpl.replace("{sym}", sym)
-                        # Show a short label for the button, full text goes into the text area
-                        short_label = filled[:90] + " ..." if len(filled) > 93 else filled
-                        if st.button(f"📌 {short_label}", key=f"prompt_btn_{sym}_{i}", use_container_width=True):
-                            st.session_state[ai_key] = filled
-                            st.rerun()
+                        # Short label: index + first ~55 chars
+                        snippet = filled[:58] + "…" if len(filled) > 60 else filled
+                        btn_label = f"{i + 1}. {snippet}"
+                        target_col = left_col if i % 2 == 0 else right_col
+                        with target_col:
+                            if st.button(btn_label, key=f"prompt_btn_{sym}_{i}"):
+                                # ✅ Safe: write to prompt_src (not the widget key)
+                                st.session_state[prompt_src] = filled
+                                # ✅ Delete widget key so next render uses value= again
+                                if ai_widget in st.session_state:
+                                    del st.session_state[ai_widget]
+                                st.rerun()
 
             # ==========================================
             # 💻 AI PINE SCRIPT BUILDER
