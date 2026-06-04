@@ -32,7 +32,7 @@ else:
 # 💡 AI PROMPT LIBRARY — edit freely, use {sym} for stock name
 # ==========================================
 SUGGESTED_AI_PROMPTS = [
-    "Based on the current data provided, give me a quick summary of the technical performance and trend for {sym}. Also give me all other details and calculate if this company is profitable or not.",
+    "Based on the current data provided, give me a quick summary of the technical performance and trend for {sym}. Also give me all other details and calculate everything if this company is profitable or not.",
     "Analyze the 52-week high and low data for {sym}. Is the stock closer to its peak or bottom? What does this imply for entry or exit timing? Identify the ideal buy zone.",
     "Examine the 50 DMA, 100 DMA, and 200 DMA data for {sym}. Is the stock in a bullish crossover, bearish zone, or consolidation phase? Explain the trend strength and momentum.",
     "Using the volume data for {sym}, identify if there is unusual volume activity. Does the current volume indicate institutional buying, selling, or accumulation? What does it signal?",
