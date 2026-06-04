@@ -106,7 +106,7 @@ if not st.session_state.logged_in:
 # ==========================================
 # 🌍 GLOBAL MARKET TICKER (TRADINGVIEW)
 # ==========================================
-st.title("📊 Top 250 NSE Stock-Volume Breakout Dashboard")
+st.markdown("<p style='font-size:0.85rem; font-weight:bold; margin:0; padding:0;'>📊 Top 250 NSE Stock-Volume Breakout Dashboard</p>", unsafe_allow_html=True)
 st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 components.html("""
@@ -447,7 +447,7 @@ sheet_names = ["Top 250 Stocks", "Final List", "Final List 2", "Diff @ 200 DMA",
 selected_sheet = st.sidebar.selectbox("Choose sheet", sheet_names, key="filter_sheet")
 
 # ---------- Main Execution ----------
-st.header(f"📄 {selected_sheet}")
+st.markdown(f"<p style='font-size:0.85rem; font-weight:bold; margin:0; padding:0;'>📄 {selected_sheet}</p>", unsafe_allow_html=True)
 
 with st.spinner("Downloading data from Google API..."):
     raw_df = load_sheet_data_with_colors(selected_sheet)
