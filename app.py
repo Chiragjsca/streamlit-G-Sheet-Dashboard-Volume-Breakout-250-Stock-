@@ -363,88 +363,6 @@ def clean_for_export(df):
     return export_df
 
 # ==========================================
-# 🏢 TOP 250 STOCKS TICKER (SHEET DATA GRID)
-# ==========================================
-@st.cache_data(ttl=300)
-def get_sheet_stocks_data():
-    # Fetching strictly from the requested tab
-    df = load_sheet_data_with_colors("Top 250 Stocks")
-    data_grid = {}
-    
-    if df.empty:
-        return data_grid
-        
-    actual_cols = [c for c in df.columns if not c.startswith("_bg_") and not c.startswith("_txt_")]
-    
-    # Dynamically find the symbol, cmp, and % change columns
-    sym_col = next((c for c in actual_cols if c.lower() in ["nse code", "symbol", "ticker", "stock symbol", "id", "stock"]), None)
-    cmp_col = next((c for c in actual_cols if "cmp" in c.lower()), None)
-    pct_col = next((c for c in actual_cols if "price %" in c.lower() or "change" in c.lower()), None)
-    
-    if not sym_col or not cmp_col:
-        return data_grid
-        
-    for _, row in df.iterrows():
-        sym = str(row.get(sym_col, "")).strip()
-        if not sym or sym == "nan":
-            continue
-            
-        raw_cmp = str(row.get(cmp_col, "")).replace(",", "").strip()
-        raw_pct = str(row.get(pct_col, "0")).replace("%", "").replace(",", "").strip() if pct_col else "0"
-        
-        # Validate Price
-        try:
-            price_val = float(raw_cmp)
-            price_str = f"{price_val:,.2f}"
-        except ValueError:
-            price_str = "No Data"
-            
-        # Validate % Change
-        try:
-            pct_val = float(raw_pct)
-        except ValueError:
-            pct_val = 0.0
-            
-        data_grid[sym] = {"price": price_str, "change": pct_val}
-        
-    return data_grid
-
-sheet_live_data = get_sheet_stocks_data()
-
-sheet_cards_html = "<div style='display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; font-family: system-ui, -apple-system, sans-serif;'>"
-
-# Keep track of valid cards
-sheet_valid_cards_count = 0 
-
-for name, info in sheet_live_data.items():
-    
-    # 👇 LOGIC: Hide HTML box entirely if the price is bad
-    if info["price"] in ["No Data", "Loading...", "Error"]:
-        continue
-        
-    sheet_valid_cards_count += 1
-    bg_color = "#66bb6a" if info["change"] >= 0 else "#ef5350"
-    change_sign = "+" if info["change"] >= 0 else ""
-    
-    sheet_cards_html += f"<div style='background-color: {bg_color}; color: white; padding: 12px 16px; border-radius: 8px; flex: 1 1 calc(16.66% - 10px); min-width: 140px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'>"
-    sheet_cards_html += f"<div style='font-size: 11px; font-weight: 700; letter-spacing: 0.5px; opacity: 0.95; margin-bottom: 6px; text-transform: uppercase;'>{name}</div>"
-    sheet_cards_html += f"<div style='display: flex; justify-content: space-between; align-items: baseline;'>"
-    sheet_cards_html += f"<span style='font-size: 15px; font-weight: 700;'>{info['price']}</span>"
-    sheet_cards_html += f"<span style='font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px;'>{change_sign}{info['change']:.2f}%</span>"
-    sheet_cards_html += f"</div></div>"
-
-sheet_cards_html += "</div>"
-
-with st.expander("📈 Click to view Top 250 Stocks Matrix", expanded=False):
-    # Failsafe if the sheet is completely empty or all rows returned "No Data"
-    if sheet_valid_cards_count == 0:
-        st.info("Stock matrix data is currently unavailable. Please check the 'Top 250 Stocks' sheet.")
-    else:
-        st.markdown(sheet_cards_html, unsafe_allow_html=True)
-
-st.write("---")
-
-# ==========================================
 # 🏆 TOP 250 STOCKS RANKING DASHBOARDS
 # ==========================================
 @st.cache_data(ttl=300)
@@ -460,6 +378,9 @@ def get_ranked_sheet_data():
     pct_col = next((c for c in actual_cols if "price %" in c.lower() or "change" in c.lower()), None)
     vol_col = next((c for c in actual_cols if "volume" in c.lower()), None)
     
+    # Look for a specific Turnover column
+    turnover_col = next((c for c in actual_cols if "turnover" in c.lower()), None)
+    
     if not sym_col:
         return pd.DataFrame()
         
@@ -467,23 +388,15 @@ def get_ranked_sheet_data():
     rank_df = pd.DataFrame()
     rank_df['Symbol'] = df[sym_col].astype(str).str.strip()
     
-    if cmp_col:
-        rank_df['CMP'] = pd.to_numeric(df[cmp_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
-    else:
-        rank_df['CMP'] = 0.0
-        
-    if pct_col:
-        rank_df['Pct_Change'] = pd.to_numeric(df[pct_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
-    else:
-        rank_df['Pct_Change'] = 0.0
-        
-    if vol_col:
-        rank_df['Volume'] = pd.to_numeric(df[vol_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
-    else:
-        rank_df['Volume'] = 0.0
+    rank_df['CMP'] = pd.to_numeric(df[cmp_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce') if cmp_col else 0.0
+    rank_df['Pct_Change'] = pd.to_numeric(df[pct_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce') if pct_col else 0.0
+    rank_df['Volume'] = pd.to_numeric(df[vol_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce') if vol_col else 0.0
 
-    # Create 'Traded Value' proxy (Price * Volume) for the Most Active category
-    rank_df['Value'] = rank_df['CMP'] * rank_df['Volume']
+    # Handle Turnover (Use exact column if it exists, otherwise calculate CMP * Volume)
+    if turnover_col:
+        rank_df['Turnover'] = pd.to_numeric(df[turnover_col].astype(str).str.replace(r'[a-zA-Z%, ]', '', regex=True), errors='coerce')
+    else:
+        rank_df['Turnover'] = rank_df['CMP'] * rank_df['Volume']
     
     # Drop rows that don't have valid symbols or prices
     rank_df = rank_df.dropna(subset=['Symbol', 'CMP']).reset_index(drop=True)
@@ -501,17 +414,18 @@ def build_ranking_cards_html(dataframe, metric_label="change"):
         sym = row['Symbol']
         price = row['CMP']
         pct = row['Pct_Change']
-        vol = row['Volume']
-        val = row['Value']
         
         bg_color = "#66bb6a" if pct >= 0 else "#ef5350"
         change_sign = "+" if pct >= 0 else ""
         
         # Decide what the pill displays based on the metric_label
         if metric_label == "volume":
+            vol = row.get('Volume', 0)
             pill_text = f"Vol: {vol/1000000:.1f}M" if vol >= 1000000 else f"Vol: {vol:,.0f}"
-        elif metric_label == "value":
-            pill_text = f"Val: ₹{val/10000000:,.1f}Cr" # Approximate in Crores
+        elif metric_label == "turnover":
+            to = row.get('Turnover', 0)
+            # Formats large numbers into Crores (Cr) for a clean UI
+            pill_text = f"T.O: ₹{to/10000000:,.1f}Cr" if to >= 10000000 else f"T.O: ₹{to:,.0f}"
         else:
             pill_text = f"{change_sign}{pct:.2f}%"
 
@@ -539,10 +453,10 @@ with st.expander("🏆 Click to view Advanced Ranking Dashboards (Top 250 Stocks
         df_vol_gainers = rank_data.nlargest(20, 'Volume')
         df_vol_losers = rank_data[rank_data['Volume'] > 0].nsmallest(20, 'Volume') # Filter 0s for a true "lowest"
         
-        df_most_active = rank_data.nlargest(20, 'Value')
+        df_turnover = rank_data.nlargest(20, 'Turnover')
         
         # Create Tabs for a clean UI
-        rank_tab1, rank_tab2, rank_tab3 = st.tabs(["📈 Top 20 Gainers / Losers", "📊 Top 20 Volume", "🔥 Most Active by Value"])
+        rank_tab1, rank_tab2, rank_tab3 = st.tabs(["📈 Top Gainers / Losers", "📊 Top by Volume", "💰 Top by Turnover"])
         
         with rank_tab1:
             st.markdown("<p style='font-size:14px; font-weight:bold; margin-top:10px;'>🚀 Top 20 Gainers</p>", unsafe_allow_html=True)
@@ -559,8 +473,8 @@ with st.expander("🏆 Click to view Advanced Ranking Dashboards (Top 250 Stocks
             st.markdown(build_ranking_cards_html(df_vol_losers, "volume"), unsafe_allow_html=True)
             
         with rank_tab3:
-            st.markdown("<p style='font-size:14px; font-weight:bold; margin-top:10px;'>💰 Most Active (Highest Traded Value)</p>", unsafe_allow_html=True)
-            st.markdown(build_ranking_cards_html(df_most_active, "value"), unsafe_allow_html=True)
+            st.markdown("<p style='font-size:14px; font-weight:bold; margin-top:10px;'>💰 Highest Turnover (Most Active by Value)</p>", unsafe_allow_html=True)
+            st.markdown(build_ranking_cards_html(df_turnover, "turnover"), unsafe_allow_html=True)
 
 st.write("---")
 
