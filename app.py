@@ -106,7 +106,7 @@ if not st.session_state.logged_in:
                     st.error("❌ Incorrect Password. Please try again.")
     
     # Your dynamic bottom hint
-    st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     st.stop()
 
 # ==========================================
