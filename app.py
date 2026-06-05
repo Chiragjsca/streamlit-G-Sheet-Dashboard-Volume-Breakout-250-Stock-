@@ -362,6 +362,93 @@ def clean_for_export(df):
         export_df[col] = export_df[col].apply(lambda x: re.sub(r'<[^>]*>', '', str(x)) if pd.notnull(x) else x)
     return export_df
 
+import streamlit.components.v1 as components
+
+# ==========================================
+# 🌍 NATIONAL EXCHANGE SCANNER (ALL NSE/BSE)
+# ==========================================
+st.markdown("### 🌍 National Exchange Scanner (All NSE/BSE Stocks)")
+st.caption("Live market data covering 2,000+ equities. Powered by TradingView.")
+
+with st.expander("🏆 Click to view Full-Market India Rankings", expanded=False):
+    
+    # Create the tabs based on your requested list
+    nse_tab1, nse_tab2, nse_tab3, nse_tab4, nse_tab5 = st.tabs([
+        "🚀 Gainers & Losers", 
+        "📦 Volume & Active", 
+        "⭐ 52W High / Low", 
+        "🔄 52W Reversals",
+        "📊 Top 100 Traded"
+    ])
+
+    # Helper function to generate clean TradingView iframes dynamically
+    def render_tv_widget(screen_type):
+        return f"""
+        <div class="tradingview-widget-container">
+          <div class="tradingview-widget-container__widget"></div>
+          <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-screener.js" async>
+          {{
+          "width": "100%",
+          "height": "500",
+          "defaultColumn": "overview",
+          "defaultScreen": "{screen_type}",
+          "market": "india",
+          "showToolbar": true,
+          "colorTheme": "light",
+          "locale": "en"
+        }}
+          </script>
+        </div>
+        """
+
+    # 1st Tab: Gainers / Losers
+    with nse_tab1:
+        colA, colB = st.columns(2)
+        with colA:
+            st.markdown("<p style='font-size:14px; font-weight:bold;'>🚀 Top Gainers</p>", unsafe_allow_html=True)
+            components.html(render_tv_widget("top_gainers"), height=520)
+        with colB:
+            st.markdown("<p style='font-size:14px; font-weight:bold;'>🔻 Top Losers</p>", unsafe_allow_html=True)
+            components.html(render_tv_widget("top_losers"), height=520)
+            
+    # 2nd & 3rd Tabs Combined: Volume Leaders & Most Active (Turnover/Value)
+    with nse_tab2:
+        colA, colB = st.columns(2)
+        with colA:
+            st.markdown("<p style='font-size:14px; font-weight:bold;'>📦 Volume Leaders</p>", unsafe_allow_html=True)
+            components.html(render_tv_widget("volume_leaders"), height=520)
+        with colB:
+            st.markdown("<p style='font-size:14px; font-weight:bold;'>🔥 Most Active (Volume & Value)</p>", unsafe_allow_html=True)
+            components.html(render_tv_widget("most_active"), height=520)
+            
+    # 7th Tab: 52 Week High / Low
+    with nse_tab3:
+        colA, colB = st.columns(2)
+        with colA:
+            st.markdown("<p style='font-size:14px; font-weight:bold;'>⭐ New 52-Week Highs</p>", unsafe_allow_html=True)
+            components.html(render_tv_widget("new_52wk_high"), height=520)
+        with colB:
+            st.markdown("<p style='font-size:14px; font-weight:bold;'>⭐ New 52-Week Lows</p>", unsafe_allow_html=True)
+            components.html(render_tv_widget("new_52wk_low"), height=520)
+            
+    # 8th Tab: Reversals from 52W High/Low
+    with nse_tab4:
+        colA, colB = st.columns(2)
+        with colA:
+            st.markdown("<p style='font-size:14px; font-weight:bold;'>📈 Outperforming 52W High (Reversal Up)</p>", unsafe_allow_html=True)
+            components.html(render_tv_widget("outperforming_52wk_high"), height=520)
+        with colB:
+            st.markdown("<p style='font-size:14px; font-weight:bold;'>📉 Underperforming 52W Low (Reversal Down)</p>", unsafe_allow_html=True)
+            components.html(render_tv_widget("underperforming_52wk_low"), height=520)
+            
+    # 9th Tab: Top 100 Traded (Full Screener)
+    with nse_tab5:
+        st.markdown("<p style='font-size:14px; font-weight:bold;'>📊 Top 100+ Stocks Traded (Full India Screener)</p>", unsafe_allow_html=True)
+        # Using the general screen so users can sort by turnover, volume, or rating manually
+        components.html(render_tv_widget("general"), height=520)
+
+st.write("---")
+
 # ==========================================
 # 🏆 TOP 250 STOCKS RANKING DASHBOARDS
 # ==========================================
