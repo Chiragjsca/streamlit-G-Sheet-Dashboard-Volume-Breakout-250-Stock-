@@ -378,7 +378,8 @@ def get_ranked_sheet_data():
     pct_col = next((c for c in actual_cols if "price %" in c.lower() or "change" in c.lower()), None)
     vol_col = next((c for c in actual_cols if "volume" in c.lower()), None)
     
-    # Look for a specific Turnover column
+    # Look for specific Value and Turnover columns
+    value_col = next((c for c in actual_cols if "value" in c.lower() and "face" not in c.lower() and "enterprise" not in c.lower()), None)
     turnover_col = next((c for c in actual_cols if "turnover" in c.lower()), None)
     
     if not sym_col:
@@ -392,11 +393,18 @@ def get_ranked_sheet_data():
     rank_df['Pct_Change'] = pd.to_numeric(df[pct_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce') if pct_col else 0.0
     rank_df['Volume'] = pd.to_numeric(df[vol_col].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce') if vol_col else 0.0
 
-    # Handle Turnover (Use exact column if it exists, otherwise calculate CMP * Volume)
+    # Handle Value and Turnover (Use exact columns if they exist, otherwise calculate CMP * Volume)
+    fallback_calc = rank_df['CMP'] * rank_df['Volume']
+    
+    if value_col:
+        rank_df['Value'] = pd.to_numeric(df[value_col].astype(str).str.replace(r'[a-zA-Z%, ]', '', regex=True), errors='coerce')
+    else:
+        rank_df['Value'] = fallback_calc
+        
     if turnover_col:
         rank_df['Turnover'] = pd.to_numeric(df[turnover_col].astype(str).str.replace(r'[a-zA-Z%, ]', '', regex=True), errors='coerce')
     else:
-        rank_df['Turnover'] = rank_df['CMP'] * rank_df['Volume']
+        rank_df['Turnover'] = fallback_calc
     
     # Drop rows that don't have valid symbols or prices
     rank_df = rank_df.dropna(subset=['Symbol', 'CMP']).reset_index(drop=True)
@@ -422,10 +430,23 @@ def build_ranking_cards_html(dataframe, metric_label="change"):
         if metric_label == "volume":
             vol = row.get('Volume', 0)
             pill_text = f"Vol: {vol/1000000:.1f}M" if vol >= 1000000 else f"Vol: {vol:,.0f}"
+            
+        elif metric_label == "value":
+            val = row.get('Value', 0)
+            pill_text = f"Val: ₹{val/10000000:,.1f}Cr" if val >= 10000000 else f"Val: ₹{val:,.0f}"
+            
         elif metric_label == "turnover":
             to = row.get('Turnover', 0)
-            # Formats large numbers into Crores (Cr) for a clean UI
             pill_text = f"T.O: ₹{to/10000000:,.1f}Cr" if to >= 10000000 else f"T.O: ₹{to:,.0f}"
+            
+        elif metric_label == "vol_val":
+            # Custom dual-metric pill for "Most Active by Volume & Value"
+            vol = row.get('Volume', 0)
+            val = row.get('Value', 0)
+            v_str = f"{vol/1000000:.1f}M" if vol >= 1000000 else f"{vol/1000:.1f}k"
+            val_str = f"₹{val/10000000:,.1f}Cr" if val >= 10000000 else f"₹{val:,.0f}"
+            pill_text = f"📦 {v_str} | 💰 {val_str}"
+            
         else:
             pill_text = f"{change_sign}{pct:.2f}%"
 
@@ -433,7 +454,7 @@ def build_ranking_cards_html(dataframe, metric_label="change"):
         cards_html += f"<div style='font-size: 11px; font-weight: 700; letter-spacing: 0.5px; opacity: 0.95; margin-bottom: 6px; text-transform: uppercase;'>{sym}</div>"
         cards_html += f"<div style='display: flex; justify-content: space-between; align-items: baseline;'>"
         cards_html += f"<span style='font-size: 15px; font-weight: 700;'>{price:,.2f}</span>"
-        cards_html += f"<span style='font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px;'>{pill_text}</span>"
+        cards_html += f"<span style='font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px; white-space: nowrap;'>{pill_text}</span>"
         cards_html += f"</div></div>"
         
     cards_html += "</div>"
@@ -446,17 +467,31 @@ with st.expander("🏆 Click to view Advanced Ranking Dashboards (Top 250 Stocks
     if rank_data.empty:
         st.info("Ranking data is currently unavailable. Please check the 'Top 250 Stocks' sheet.")
     else:
-        # Create DataFrames for each category
+        # 1. Top 20 Gainers/Losers
         df_gainers = rank_data.nlargest(20, 'Pct_Change')
         df_losers = rank_data.nsmallest(20, 'Pct_Change')
         
+        # 2. Top 20 Volume Gainers/Losers
         df_vol_gainers = rank_data.nlargest(20, 'Volume')
-        df_vol_losers = rank_data[rank_data['Volume'] > 0].nsmallest(20, 'Volume') # Filter 0s for a true "lowest"
+        df_vol_losers = rank_data[rank_data['Volume'] > 0].nsmallest(20, 'Volume')
         
-        df_turnover = rank_data.nlargest(20, 'Turnover')
+        # 3. Most Active by Volume & Value (Sorted by Volume, displaying both)
+        df_active_vol_val = rank_data.nlargest(20, 'Volume') 
         
-        # Create Tabs for a clean UI
-        rank_tab1, rank_tab2, rank_tab3 = st.tabs(["📈 Top Gainers / Losers", "📊 Top by Volume", "💰 Top by Turnover"])
+        # 4. Most Active by Value
+        df_top_value = rank_data.nlargest(20, 'Value')
+        
+        # 5. Top by Turnover
+        df_top_turnover = rank_data.nlargest(20, 'Turnover')
+        
+        # Create Tabs for the 5 requested categories
+        rank_tab1, rank_tab2, rank_tab3, rank_tab4, rank_tab5 = st.tabs([
+            "📈 Gainers/Losers", 
+            "📦 Volume Leaders", 
+            "🔥 Active (Vol & Val)", 
+            "💰 Top by Value", 
+            "💎 Top by Turnover"
+        ])
         
         with rank_tab1:
             st.markdown("<p style='font-size:14px; font-weight:bold; margin-top:10px;'>🚀 Top 20 Gainers</p>", unsafe_allow_html=True)
@@ -473,8 +508,16 @@ with st.expander("🏆 Click to view Advanced Ranking Dashboards (Top 250 Stocks
             st.markdown(build_ranking_cards_html(df_vol_losers, "volume"), unsafe_allow_html=True)
             
         with rank_tab3:
-            st.markdown("<p style='font-size:14px; font-weight:bold; margin-top:10px;'>💰 Highest Turnover (Most Active by Value)</p>", unsafe_allow_html=True)
-            st.markdown(build_ranking_cards_html(df_turnover, "turnover"), unsafe_allow_html=True)
+            st.markdown("<p style='font-size:14px; font-weight:bold; margin-top:10px;'>🔥 Most Active Stocks (Volume & Traded Value)</p>", unsafe_allow_html=True)
+            st.markdown(build_ranking_cards_html(df_active_vol_val, "vol_val"), unsafe_allow_html=True)
+            
+        with rank_tab4:
+            st.markdown("<p style='font-size:14px; font-weight:bold; margin-top:10px;'>💰 Most Active by Traded Value</p>", unsafe_allow_html=True)
+            st.markdown(build_ranking_cards_html(df_top_value, "value"), unsafe_allow_html=True)
+            
+        with rank_tab5:
+            st.markdown("<p style='font-size:14px; font-weight:bold; margin-top:10px;'>💎 Highest Market Turnover</p>", unsafe_allow_html=True)
+            st.markdown(build_ranking_cards_html(df_top_turnover, "turnover"), unsafe_allow_html=True)
 
 st.write("---")
 
