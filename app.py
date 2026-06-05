@@ -193,7 +193,10 @@ for name, info in live_data.items():
 
 cards_html += "</div>"
 
-st.markdown(cards_html, unsafe_allow_html=True)
+# 👇 CHANGED HERE: Wrapped the grid inside a hideable expander
+with st.expander("📈 Click to view Live Market Indices", expanded=False):
+    st.markdown(cards_html, unsafe_allow_html=True)
+
 st.write("---")
 
 # ==========================================
