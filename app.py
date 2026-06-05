@@ -89,10 +89,8 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    # 1. Added hint above Admin Login
+    # Top hint
     st.markdown("<p style='text-align: center; margin-top: 100px; color: gray; font-size: 18px;'>250-Volume Breakout Dashboard</p>", unsafe_allow_html=True)
-    
-    # Kept the original title but adjusted margin-top to 0px so it sits nicely under the hint
     st.markdown("<h1 style='text-align: center; margin-top: 0px;'>🔐 Admin Login</h1>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 1, 1])
@@ -107,8 +105,8 @@ if not st.session_state.logged_in:
                 else:
                     st.error("❌ Incorrect Password. Please try again.")
     
-    # 2. Added hint at the bottom
-    st.markdown("<p style='text-align: center; color: gray; font-size: 14px; margin-top: 20px;'>Last updated at 04 Jun, 09:00 am IST (Refeshed everyday)</p>", unsafe_allow_html=True)
+    # Your dynamic bottom hint
+    st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     st.stop()
 
 # ==========================================
