@@ -126,7 +126,8 @@ st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 components.html("""
 <div class="tradingview-widget-container">
   <div class="tradingview-widget-container__widget"></div>
-  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+  
+  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-tickers.js" async>
   {
   "symbols": [
     {"proName": "NSE:NIFTY", "title": "Nifty 50"},
@@ -143,7 +144,7 @@ components.html("""
 }
   </script>
 </div>
-""", height=70)
+""", height=100)
 
 # ==========================================
 # 🛠️ HELPER FUNCTIONS
