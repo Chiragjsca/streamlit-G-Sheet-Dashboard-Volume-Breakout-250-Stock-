@@ -129,16 +129,38 @@ st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 @st.cache_data(ttl=60)
 def get_live_index_data():
+    # Full list of indices from your screenshot mapped to Yahoo Tickers
+    # Note: Tickers with "UNSUPPORTED" will automatically show N/A safely.
     symbols = {
-        "Nifty 50": "^NSEI",
-        "Bank Nifty": "^NSEBANK",
-        "Sensex": "^BSESN",
-        "Nifty IT": "^CNXIT",
-        "Nifty Auto": "^CNXAUTO"
+        "NIFTY 50": "^NSEI",
+        "NIFTY NEXT 50": "^NN50",
+        "NIFTY MIDCAP 50": "^NSEMDCP50",
+        "NIFTY MIDCAP 100": "^CRSLMID",
+        "NIFTY MIDCAP 150": "UNSUPPORTED", 
+        "NIFTY SMLCAP 50": "UNSUPPORTED",
+        "NIFTY SMLCAP 100": "UNSUPPORTED",
+        "NIFTY SMLCAP 250": "UNSUPPORTED",
+        "NIFTY MIDSML 400": "UNSUPPORTED",
+        "NIFTY 100": "^CNX100",
+        "NIFTY 200": "^CNX200",
+        "NIFTY500 MULTI...": "UNSUPPORTED",
+        "NIFTY LARGEMID...": "UNSUPPORTED",
+        "NIFTY MID SELE...": "UNSUPPORTED",
+        "NIFTY TOTAL MK...": "UNSUPPORTED",
+        "NIFTY MICROCAP...": "UNSUPPORTED",
+        "NIFTY 500": "^CRSLDX",
+        "NIFTY FPI 150": "UNSUPPORTED",
+        "NIFTY500 LMS E...": "UNSUPPORTED",
+        "NIFTY MIDSMALL...": "UNSUPPORTED",
+        "NIFTY SMALLCAP...": "UNSUPPORTED"
     }
     
     data_grid = {}
     for name, ticker_code in symbols.items():
+        if ticker_code == "UNSUPPORTED":
+            data_grid[name] = {"price": "N/A", "change": 0.0}
+            continue
+            
         try:
             ticker = yf.Ticker(ticker_code)
             hist = ticker.history(period="2d")
@@ -155,24 +177,22 @@ def get_live_index_data():
 
 live_data = get_live_index_data()
 
-# We start the container
 cards_html = "<div style='display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; font-family: system-ui, -apple-system, sans-serif;'>"
 
-# We append the HTML WITHOUT using multi-line indentation to prevent Streamlit from creating a code block
 for name, info in live_data.items():
     bg_color = "#66bb6a" if info["change"] >= 0 else "#ef5350"
     change_sign = "+" if info["change"] >= 0 else ""
     
-    cards_html += f"<div style='background-color: {bg_color}; color: white; padding: 12px 16px; border-radius: 8px; flex: 1 1 calc(20% - 10px); min-width: 150px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'>"
+    # Using calc(16.66% - 10px) to fit ~6 items per row to closely match your screenshot
+    cards_html += f"<div style='background-color: {bg_color}; color: white; padding: 12px 16px; border-radius: 8px; flex: 1 1 calc(16.66% - 10px); min-width: 140px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'>"
     cards_html += f"<div style='font-size: 11px; font-weight: 700; letter-spacing: 0.5px; opacity: 0.95; margin-bottom: 6px; text-transform: uppercase;'>{name}</div>"
     cards_html += f"<div style='display: flex; justify-content: space-between; align-items: baseline;'>"
-    cards_html += f"<span style='font-size: 16px; font-weight: 700;'>{info['price']}</span>"
+    cards_html += f"<span style='font-size: 15px; font-weight: 700;'>{info['price']}</span>"
     cards_html += f"<span style='font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px;'>{change_sign}{info['change']:.2f}%</span>"
     cards_html += f"</div></div>"
 
 cards_html += "</div>"
 
-# Render the final HTML string safely
 st.markdown(cards_html, unsafe_allow_html=True)
 st.write("---")
 
