@@ -80,6 +80,12 @@ hide_streamlit_ui = """
 """
 st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
 
+import streamlit as st
+from datetime import datetime
+
+import streamlit as st
+from datetime import datetime
+
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
 # ==========================================
@@ -103,7 +109,7 @@ if not st.session_state.logged_in:
                     st.session_state.logged_in = True
                     st.rerun()
                 else:
-                    st.error("Password 😂 . भाई, सॉरी। तुमसे सब कुछ हो पाएगा ! कैसे मिली 🤪 यह वेबसाइट , इसको छोड़ दो")
+                    st.error("Password इल्ले 😂 इल्ले, खम्मा घणी भाईसा, सॉरी। तुमसे सब कुछ हो पाएगा ! कैसे मिली 🤪 इस वेबसाइट छोड़ दो")
     
     # Your dynamic bottom hint
     dynamic_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -115,6 +121,8 @@ if not st.session_state.logged_in:
 # 🌍 GLOBAL MARKET TICKER (LIVE DATA GRID)
 # ==========================================
 import yfinance as yf
+import streamlit as st
+from datetime import datetime
 
 st.markdown("<p style='font-size:0.85rem; font-weight:bold; margin:0; padding:0;'>📊 Top 250 NSE Stock-Volume Breakout Dashboard</p>", unsafe_allow_html=True)
 st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -176,7 +184,7 @@ valid_cards_count = 0
 
 for name, info in live_data.items():
     
-    # 👇 LOGIC: If the data is bad, skip this block completely!
+    # 👇 NEW LOGIC: If the data is bad, skip this block completely!
     if info["price"] in ["No Data", "Loading...", "Error"]:
         continue
         
@@ -514,9 +522,7 @@ search_query = st.sidebar.text_input("Search by Symbol, Name, etc...", key="sear
 
 st.sidebar.markdown("---")
 st.sidebar.header("📑 Select a Tab")
-
-# 👇 CHANGE 1: Updated the sheet list to ONLY contain Top 250 Stocks
-sheet_names = ["Top 250 Stocks"]
+sheet_names = ["Top 250 Stocks", "Final List", "Final List 2", "Diff @ 200 DMA", "+%", "-%"]
 selected_sheet = st.sidebar.selectbox("Choose sheet", sheet_names, key="filter_sheet")
 
 # ---------- Main Execution ----------
@@ -541,26 +547,6 @@ if not raw_df.empty:
 
     final_df = process_hyperlinks(raw_df, selected_symbol_col)
     filtered_df = final_df.copy()
-
-    # 👇 CHANGE 2: "If no data hide itself" - Automatically drops rows with missing Symbols or missing CMP
-    cmp_col_target = next((c for c in actual_cols if "cmp" in c.lower()), None)
-    
-    if selected_symbol_col:
-        filtered_df = filtered_df[
-            (filtered_df[selected_symbol_col].notna()) & 
-            (filtered_df[selected_symbol_col].astype(str).str.strip() != "") &
-            (filtered_df[selected_symbol_col].astype(str).str.lower().str.strip() != "nan")
-        ]
-        
-    if cmp_col_target:
-        filtered_df = filtered_df[
-            (filtered_df[cmp_col_target].notna()) & 
-            (filtered_df[cmp_col_target].astype(str).str.strip() != "") & 
-            (filtered_df[cmp_col_target].astype(str).str.strip() != "-") & 
-            (filtered_df[cmp_col_target].astype(str).str.strip() != "0") &
-            (filtered_df[cmp_col_target].astype(str).str.lower().str.strip() != "nan") &
-            (filtered_df[cmp_col_target].astype(str).str.lower().str.strip() != "none")
-        ]
 
     if search_query:
         mask = filtered_df[actual_cols].astype(str).apply(lambda x: x.str.contains(search_query, case=False, na=False)).any(axis=1)
