@@ -450,6 +450,88 @@ with st.expander("🏆 Click to view Full-Market India Rankings", expanded=False
 st.write("---")
 
 # ==========================================
+# 🏢 TOP 250 STOCKS TICKER (SHEET DATA GRID)
+# ==========================================
+@st.cache_data(ttl=300)
+def get_sheet_stocks_data():
+    # Fetching strictly from the requested tab
+    df = load_sheet_data_with_colors("Top 250 Stocks")
+    data_grid = {}
+    
+    if df.empty:
+        return data_grid
+        
+    actual_cols = [c for c in df.columns if not c.startswith("_bg_") and not c.startswith("_txt_")]
+    
+    # Dynamically find the symbol, cmp, and % change columns
+    sym_col = next((c for c in actual_cols if c.lower() in ["nse code", "symbol", "ticker", "stock symbol", "id", "stock"]), None)
+    cmp_col = next((c for c in actual_cols if "cmp" in c.lower()), None)
+    pct_col = next((c for c in actual_cols if "price %" in c.lower() or "change" in c.lower()), None)
+    
+    if not sym_col or not cmp_col:
+        return data_grid
+        
+    for _, row in df.iterrows():
+        sym = str(row.get(sym_col, "")).strip()
+        if not sym or sym == "nan":
+            continue
+            
+        raw_cmp = str(row.get(cmp_col, "")).replace(",", "").strip()
+        raw_pct = str(row.get(pct_col, "0")).replace("%", "").replace(",", "").strip() if pct_col else "0"
+        
+        # Validate Price
+        try:
+            price_val = float(raw_cmp)
+            price_str = f"{price_val:,.2f}"
+        except ValueError:
+            price_str = "No Data"
+            
+        # Validate % Change
+        try:
+            pct_val = float(raw_pct)
+        except ValueError:
+            pct_val = 0.0
+            
+        data_grid[sym] = {"price": price_str, "change": pct_val}
+        
+    return data_grid
+
+sheet_live_data = get_sheet_stocks_data()
+
+sheet_cards_html = "<div style='display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; font-family: system-ui, -apple-system, sans-serif;'>"
+
+# Keep track of valid cards
+sheet_valid_cards_count = 0 
+
+for name, info in sheet_live_data.items():
+    
+    # 👇 LOGIC: Hide HTML box entirely if the price is bad
+    if info["price"] in ["No Data", "Loading...", "Error"]:
+        continue
+        
+    sheet_valid_cards_count += 1
+    bg_color = "#66bb6a" if info["change"] >= 0 else "#ef5350"
+    change_sign = "+" if info["change"] >= 0 else ""
+    
+    sheet_cards_html += f"<div style='background-color: {bg_color}; color: white; padding: 12px 16px; border-radius: 8px; flex: 1 1 calc(16.66% - 10px); min-width: 140px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'>"
+    sheet_cards_html += f"<div style='font-size: 11px; font-weight: 700; letter-spacing: 0.5px; opacity: 0.95; margin-bottom: 6px; text-transform: uppercase;'>{name}</div>"
+    sheet_cards_html += f"<div style='display: flex; justify-content: space-between; align-items: baseline;'>"
+    sheet_cards_html += f"<span style='font-size: 15px; font-weight: 700;'>{info['price']}</span>"
+    sheet_cards_html += f"<span style='font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px;'>{change_sign}{info['change']:.2f}%</span>"
+    sheet_cards_html += f"</div></div>"
+
+sheet_cards_html += "</div>"
+
+with st.expander("📈 Click to view Top 250 Stocks Matrix", expanded=False):
+    # Failsafe if the sheet is completely empty or all rows returned "No Data"
+    if sheet_valid_cards_count == 0:
+        st.info("Stock matrix data is currently unavailable. Please check the 'Top 250 Stocks' sheet.")
+    else:
+        st.markdown(sheet_cards_html, unsafe_allow_html=True)
+
+st.write("---")
+
+# ==========================================
 # 🏆 TOP 250 STOCKS RANKING DASHBOARDS
 # ==========================================
 @st.cache_data(ttl=300)
