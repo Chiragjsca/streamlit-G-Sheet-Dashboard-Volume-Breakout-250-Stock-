@@ -95,51 +95,15 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    
-    # 🎨 FUN & CHILDISH CUSTOM CSS FOR THE LOGIN BUTTON
-    st.markdown("""
-    <style>
-    /* Target the form submit button */
-    div[data-testid="stFormSubmitButton"] > button {
-        background: linear-gradient(45deg, #fbc2eb 0%, #a6c1ee 100%) !important; /* Fun Candy Gradient */
-        border: 3px dashed #ff85a2 !important; /* Childish dashed hot-pink border */
-        border-radius: 30px !important; /* Bubble/Pill shape */
-        color: #ff3366 !important; /* Bright playful text color */
-        font-family: 'Comic Sans MS', 'Chalkboard SE', cursive, sans-serif !important; /* Playful font */
-        font-size: 20px !important;
-        font-weight: 900 !important;
-        box-shadow: 0px 5px 15px rgba(251, 194, 235, 0.5) !important; /* Soft colorful glow */
-        transition: all 0.3s ease !important; /* Smooth animation for hover */
-    }
-    
-    /* Bouncy effect when hovering over the button */
-    div[data-testid="stFormSubmitButton"] > button:hover {
-        transform: scale(1.05) !important; /* Bounces larger */
-        border: 3px solid #ff3366 !important; /* Changes border style */
-    }
-    
-    /* Ensure the text inside also inherits the fun font */
-    div[data-testid="stFormSubmitButton"] > button p {
-        font-family: 'Comic Sans MS', 'Chalkboard SE', cursive, sans-serif !important;
-        font-size: 22px !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
     # Top hint
     st.markdown("<p style='text-align: center; margin-top: 100px; color: Blue; font-size: 18px;'>250-Volume Breakout Dashboard</p>", unsafe_allow_html=True)
-    
-    # Reduced font size by 50% (using 20px)
-    st.markdown("<h1 style='text-align: center; margin-top: 0px; font-size: 20px;'>🔐 Admin Login</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; margin-top: 0px;'>🔐 Admin Login</h1>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
         with st.form("login_form"):
             pwd = st.text_input("Enter Password", type="password")
-            
-            # Button is now styled by the custom CSS block above
             submit = st.form_submit_button("Login", use_container_width=True)
-            
             if submit:
                 if pwd == ADMIN_PASSWORD:
                     st.session_state.logged_in = True
@@ -150,6 +114,7 @@ if not st.session_state.logged_in:
     # Your dynamic bottom hint
     dynamic_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     st.markdown(f"<p style='text-align: center; color: gray; font-size: 14px; margin-top: 20px;'>Data refreshed: {dynamic_time}</p>", unsafe_allow_html=True)
+
     st.stop()
 
 # ==========================================
