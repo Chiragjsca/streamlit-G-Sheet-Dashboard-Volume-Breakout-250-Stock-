@@ -91,13 +91,18 @@ if "logged_in" not in st.session_state:
 if not st.session_state.logged_in:
     # Top hint
     st.markdown("<p style='text-align: center; margin-top: 100px; color: Blue; font-size: 18px;'>250-Volume Breakout Dashboard</p>", unsafe_allow_html=True)
-    st.markdown("<h1 style='text-align: center; margin-top: 0px;'>🔐 Admin Login</h1>", unsafe_allow_html=True)
+    
+    # Reduced font size by 50% (using 20px)
+    st.markdown("<h1 style='text-align: center; margin-top: 0px; font-size: 20px;'>🔐 Admin Login</h1>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
         with st.form("login_form"):
             pwd = st.text_input("Enter Password", type="password")
-            submit = st.form_submit_button("Login", use_container_width=True)
+            
+            # Added type="primary" to apply color to the Login button
+            submit = st.form_submit_button("Login", type="primary", use_container_width=True)
+            
             if submit:
                 if pwd == ADMIN_PASSWORD:
                     st.session_state.logged_in = True
