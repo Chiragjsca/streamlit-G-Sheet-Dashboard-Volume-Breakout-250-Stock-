@@ -108,7 +108,8 @@ if not st.session_state.logged_in:
                     st.error("❌ Incorrect Password. Please try again.")
     
     # 2. Added hint at the bottom
-    st.markdown("<p style='text-align: center; color: gray; font-size: 14px; margin-top: 20px;'>Last updated at 04 Jun, 09:00 am IST (Refeshed everyday)</p>", unsafe_allow_html=False)
+    st.markdown("<p style='text-align: center; color: gray; font-size: 14px; margin-top: 20px;'>Last updated at 04 Jun, 09:00 am IST (Refeshed everyday)</p>", unsafe_allow_html=True)
+    st.stop()
 
 # ==========================================
 # 🌍 GLOBAL MARKET TICKER (TRADINGVIEW)
