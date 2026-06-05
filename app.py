@@ -121,14 +121,14 @@ if not st.session_state.logged_in:
 # 🌍 GLOBAL MARKET TICKER (LIVE DATA GRID)
 # ==========================================
 import yfinance as yf
+import streamlit as st
+from datetime import datetime
 
 st.markdown("<p style='font-size:0.85rem; font-weight:bold; margin:0; padding:0;'>📊 Top 250 NSE Stock-Volume Breakout Dashboard</p>", unsafe_allow_html=True)
 st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# Cache the data for 60 seconds so your app stays fast and doesn't spam requests
 @st.cache_data(ttl=60)
 def get_live_index_data():
-    # Mapping your symbols to Yahoo Finance tickers
     symbols = {
         "Nifty 50": "^NSEI",
         "Bank Nifty": "^NSEBANK",
@@ -141,7 +141,6 @@ def get_live_index_data():
     for name, ticker_code in symbols.items():
         try:
             ticker = yf.Ticker(ticker_code)
-            # Fetch last 2 days of data to compute live price change
             hist = ticker.history(period="2d")
             if not hist.empty and len(hist) >= 2:
                 live_price = hist['Close'].iloc[-1]
@@ -154,32 +153,28 @@ def get_live_index_data():
             data_grid[name] = {"price": "N/A", "change": 0.0}
     return data_grid
 
-# Fetch the live dictionary
 live_data = get_live_index_data()
 
-# Build a clean HTML grid matching the design from image_cf9b0c.png
+# We start the container
 cards_html = "<div style='display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; font-family: system-ui, -apple-system, sans-serif;'>"
 
+# We append the HTML WITHOUT using multi-line indentation to prevent Streamlit from creating a code block
 for name, info in live_data.items():
-    # Pick green or red background based on price change direction
     bg_color = "#66bb6a" if info["change"] >= 0 else "#ef5350"
     change_sign = "+" if info["change"] >= 0 else ""
     
-    cards_html += f"""
-    <div style='background-color: {bg_color}; color: white; padding: 12px 16px; border-radius: 8px; flex: 1 1 calc(20% - 10px); min-width: 150px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'>
-        <div style='font-size: 11px; font-weight: 700; letter-spacing: 0.5px; opacity: 0.95; margin-bottom: 6px; text-transform: uppercase;'>{name}</div>
-        <div style='display: flex; justify-content: space-between; align-items: baseline;'>
-            <span style='font-size: 16px; font-weight: 700;'>{info['price']}</span>
-            <span style='font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px;'>{change_sign}{info['change']:.2f}%</span>
-        </div>
-    </div>
-    """
+    cards_html += f"<div style='background-color: {bg_color}; color: white; padding: 12px 16px; border-radius: 8px; flex: 1 1 calc(20% - 10px); min-width: 150px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'>"
+    cards_html += f"<div style='font-size: 11px; font-weight: 700; letter-spacing: 0.5px; opacity: 0.95; margin-bottom: 6px; text-transform: uppercase;'>{name}</div>"
+    cards_html += f"<div style='display: flex; justify-content: space-between; align-items: baseline;'>"
+    cards_html += f"<span style='font-size: 16px; font-weight: 700;'>{info['price']}</span>"
+    cards_html += f"<span style='font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px;'>{change_sign}{info['change']:.2f}%</span>"
+    cards_html += f"</div></div>"
 
 cards_html += "</div>"
 
-# Render the beautifully fixed grid block onto the screen
+# Render the final HTML string safely
 st.markdown(cards_html, unsafe_allow_html=True)
-st.write("---") # Visual separator line below the indices grid
+st.write("---")
 
 # ==========================================
 # 🛠️ HELPER FUNCTIONS
