@@ -129,8 +129,6 @@ st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 @st.cache_data(ttl=60)
 def get_live_index_data():
-    # Full list of indices from your screenshot mapped to Yahoo Tickers
-    # Note: Tickers with "UNSUPPORTED" will automatically show N/A safely.
     symbols = {
         "NIFTY 50": "^NSEI",
         "NIFTY NEXT 50": "^NN50",
@@ -158,21 +156,26 @@ def get_live_index_data():
     data_grid = {}
     for name, ticker_code in symbols.items():
         if ticker_code == "UNSUPPORTED":
-            data_grid[name] = {"price": "N/A", "change": 0.0}
+            # Changes text so you know exactly why it's empty
+            data_grid[name] = {"price": "No Data", "change": 0.0}
             continue
             
         try:
             ticker = yf.Ticker(ticker_code)
-            hist = ticker.history(period="2d")
+            # FIX: Fetch 5 days of data instead of 2 to prevent market-open bugs
+            hist = ticker.history(period="5d")
+            
             if not hist.empty and len(hist) >= 2:
-                live_price = hist['Close'].iloc[-1]
-                prev_close = hist['Close'].iloc[-2]
+                live_price = float(hist['Close'].iloc[-1])
+                prev_close = float(hist['Close'].iloc[-2])
                 pct_change = ((live_price - prev_close) / prev_close) * 100
                 data_grid[name] = {"price": f"{live_price:,.2f}", "change": pct_change}
             else:
-                data_grid[name] = {"price": "N/A", "change": 0.0}
+                data_grid[name] = {"price": "Loading...", "change": 0.0}
         except Exception:
-            data_grid[name] = {"price": "N/A", "change": 0.0}
+            # If Yahoo blocks the request, it will show Error
+            data_grid[name] = {"price": "Error", "change": 0.0}
+            
     return data_grid
 
 live_data = get_live_index_data()
@@ -180,20 +183,28 @@ live_data = get_live_index_data()
 cards_html = "<div style='display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; font-family: system-ui, -apple-system, sans-serif;'>"
 
 for name, info in live_data.items():
+    # Default to green for positive, red for negative
     bg_color = "#66bb6a" if info["change"] >= 0 else "#ef5350"
+    
+    # FIX: Make the box Gray if it's unsupported or erroring so it doesn't look like a valid green trade!
+    if info["price"] in ["No Data", "Loading...", "Error"]:
+        bg_color = "#9e9e9e" 
+        
     change_sign = "+" if info["change"] >= 0 else ""
     
-    # Using calc(16.66% - 10px) to fit ~6 items per row to closely match your screenshot
     cards_html += f"<div style='background-color: {bg_color}; color: white; padding: 12px 16px; border-radius: 8px; flex: 1 1 calc(16.66% - 10px); min-width: 140px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);'>"
     cards_html += f"<div style='font-size: 11px; font-weight: 700; letter-spacing: 0.5px; opacity: 0.95; margin-bottom: 6px; text-transform: uppercase;'>{name}</div>"
     cards_html += f"<div style='display: flex; justify-content: space-between; align-items: baseline;'>"
     cards_html += f"<span style='font-size: 15px; font-weight: 700;'>{info['price']}</span>"
-    cards_html += f"<span style='font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px;'>{change_sign}{info['change']:.2f}%</span>"
+    
+    # Only show the percentage bubble if we actually have valid price data
+    if info["price"] not in ["No Data", "Loading...", "Error"]:
+        cards_html += f"<span style='font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px;'>{change_sign}{info['change']:.2f}%</span>"
+        
     cards_html += f"</div></div>"
 
 cards_html += "</div>"
 
-# 👇 CHANGED HERE: Wrapped the grid inside a hideable expander
 with st.expander("📈 Click to view Live Market Indices", expanded=False):
     st.markdown(cards_html, unsafe_allow_html=True)
 
