@@ -109,7 +109,7 @@ if not st.session_state.logged_in:
                     st.session_state.logged_in = True
                     st.rerun()
                 else:
-                    st.error("Password इल्ले 😂 इल्ले, खम्मा घणी भाईसा, सॉरी। तुमसे सब कुछ हो पाएगा ! कैसे मिली 🤪 इस वेबसाइट छोड़ दो")
+                    st.error("Password इल्ले! 😅 इल्ले!, खम्मा घणी भाईसा, सॉरी। तुमसे सब कुछ हो पाएगा! यहां बहुत 🤪 दिमाग मत लगाओ, इस वेबसाइट को नहीं, 😂 इस गलत पासवर्ड को छोड़ दो!")
     
     # Your dynamic bottom hint
     dynamic_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
