@@ -20,13 +20,49 @@ import google.generativeai as genai
 st.set_page_config(page_title="Top 250 NSE Stock-Volume Breakout Dashboard", layout="wide", page_icon="📊")
 
 # ==========================================
-# 🤖 CONFIGURE AI (GEMINI)
+# 🤖 CONFIGURE AI (GEMINI + GROQ)
 # ==========================================
+gemini_enabled = False
+groq_enabled   = False
+
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-    ai_enabled = True
-else:
-    ai_enabled = False
+    gemini_enabled = True
+
+if "GROQ_API_KEY" in st.secrets:
+    try:
+        from groq import Groq as GroqClient
+        _groq_client = GroqClient(api_key=st.secrets["GROQ_API_KEY"])
+        groq_enabled = True
+    except ImportError:
+        groq_enabled = False
+
+ai_enabled = gemini_enabled or groq_enabled
+
+# ── helper: unified AI call ────────────────────────────────────────────────
+def call_ai(prompt: str, model_choice: str) -> str:
+    """Call Gemini or Groq and return text response."""
+    if model_choice == "⚡ Groq (Fast)" and groq_enabled:
+        resp = _groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=2048,
+        )
+        return resp.choices[0].message.content
+    elif gemini_enabled:
+        mdl = genai.GenerativeModel("gemini-2.5-flash")
+        return mdl.generate_content(prompt).text
+    else:
+        raise RuntimeError("No AI model is configured. Add GEMINI_API_KEY or GROQ_API_KEY to secrets.")
+
+# ── AI model selector widget (shown inside AI tabs) ───────────────────────
+def ai_model_selector(key_suffix: str = "") -> str:
+    options, default = [], 0
+    if groq_enabled:   options.append("⚡ Groq (Fast)")
+    if gemini_enabled: options.append("🧠 Gemini")
+    if not options:    options = ["⚡ Groq (Fast)", "🧠 Gemini"]
+    return st.radio("🤖 AI Model:", options, index=0,
+                    horizontal=True, key=f"ai_model_sel_{key_suffix}")
 
 # ==========================================
 # 💡 AI PROMPT LIBRARY
@@ -93,6 +129,16 @@ ADMIN_PASSWORD = "dada"
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
+
+# ── Watchlist session state init ──────────────────────────────────────────
+if "watchlist" not in st.session_state:
+    # {symbol: {"note": str, "added": str, "cmp": str}}
+    st.session_state.watchlist = {}
+
+# ── AI result history for Excel export ───────────────────────────────────
+if "ai_history" not in st.session_state:
+    # list of dicts: {symbol, model, query, result, timestamp}
+    st.session_state.ai_history = []
 
 if not st.session_state.logged_in:
     # Top hint
@@ -859,6 +905,178 @@ def compute_bottom_fishing_score(row, actual_cols):
 
 
 # ==========================================
+# 📊 WATCHLIST MANAGER HELPERS
+# ==========================================
+WATCHLIST_SHEET_NAME = "Watchlist"
+
+def get_gspread_client():
+    """Return an authorised gspread client (uncached — for writes)."""
+    if "gcp_service_account" not in st.secrets:
+        return None
+    info = st.secrets["gcp_service_account"]
+    if isinstance(info, str):
+        info = json.loads(info)
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+    creds = Credentials.from_service_account_info(info, scopes=scope)
+    return gspread.authorize(creds)
+
+SPREADSHEET_ID = "1SFhuZbLLlwwFsNo1k2RRx_Zp6bAkRR20W0F_zTwgdwU"
+
+def ensure_watchlist_sheet(client):
+    """Create Watchlist sheet if it doesn't exist; return worksheet."""
+    try:
+        ss = client.open_by_key(SPREADSHEET_ID)
+        try:
+            return ss.worksheet(WATCHLIST_SHEET_NAME)
+        except gspread.WorksheetNotFound:
+            ws = ss.add_worksheet(title=WATCHLIST_SHEET_NAME, rows=500, cols=6)
+            ws.append_row(["Symbol", "CMP", "Note", "BF Score", "BF Grade", "Added On"])
+            return ws
+    except Exception:
+        return None
+
+def load_watchlist_from_sheet():
+    """Load watchlist dict from Google Sheet into session state."""
+    client = get_gspread_client()
+    if not client:
+        return
+    ws = ensure_watchlist_sheet(client)
+    if not ws:
+        return
+    try:
+        records = ws.get_all_records()
+        loaded = {}
+        for r in records:
+            sym = str(r.get("Symbol", "")).strip()
+            if sym:
+                loaded[sym] = {
+                    "note":  str(r.get("Note", "")),
+                    "cmp":   str(r.get("CMP", "")),
+                    "bf_score": str(r.get("BF Score", "")),
+                    "bf_grade": str(r.get("BF Grade", "")),
+                    "added": str(r.get("Added On", "")),
+                }
+        st.session_state.watchlist = loaded
+    except Exception:
+        pass
+
+def save_watchlist_to_sheet():
+    """Overwrite watchlist sheet with current session_state.watchlist."""
+    client = get_gspread_client()
+    if not client:
+        st.warning("⚠️ Google Sheet write failed — check secrets.")
+        return False
+    ws = ensure_watchlist_sheet(client)
+    if not ws:
+        return False
+    try:
+        ws.clear()
+        ws.append_row(["Symbol", "CMP", "Note", "BF Score", "BF Grade", "Added On"])
+        for sym, info in st.session_state.watchlist.items():
+            ws.append_row([
+                sym,
+                info.get("cmp", ""),
+                info.get("note", ""),
+                info.get("bf_score", ""),
+                info.get("bf_grade", ""),
+                info.get("added", ""),
+            ])
+        return True
+    except Exception as e:
+        st.warning(f"⚠️ Sheet write error: {e}")
+        return False
+
+def watchlist_add(sym, cmp="", note="", bf_score="", bf_grade=""):
+    st.session_state.watchlist[sym] = {
+        "cmp": cmp, "note": note,
+        "bf_score": bf_score, "bf_grade": bf_grade,
+        "added": datetime.now().strftime("%Y-%m-%d %H:%M"),
+    }
+
+def watchlist_remove(sym):
+    st.session_state.watchlist.pop(sym, None)
+
+# ── Load watchlist once per session ──────────────────────────────────────
+if "watchlist_loaded" not in st.session_state:
+    load_watchlist_from_sheet()
+    st.session_state.watchlist_loaded = True
+
+
+# ==========================================
+# 🎯 GTT ORDER CALCULATOR HELPER
+# ==========================================
+def compute_gtt(row_data: dict, cols: list) -> dict:
+    """
+    Auto-calculate Stop-Loss, Targets & ATR-based GTT levels from row data.
+    Returns a dict with all computed values.
+    """
+    def _num(keys):
+        for k in keys:
+            for c in cols:
+                if k in c.lower():
+                    try:
+                        v = str(row_data.get(c, "")).replace(",", "").replace("%", "").strip()
+                        return float(v)
+                    except (ValueError, TypeError):
+                        pass
+        return None
+
+    cmp   = _num(["cmp"])
+    high  = _num(["52w high", "52 week high", "52wk high"])
+    low   = _num(["52w low",  "52 week low",  "52wk low"])
+    dma50 = _num(["50 dma", "50dma"])
+    dma200= _num(["200 dma","200dma"])
+
+    result = {"cmp": cmp, "52w_high": high, "52w_low": low, "dma50": dma50, "dma200": dma200}
+
+    if cmp and high and low:
+        # Approximate ATR from 52W range (simplified)
+        atr_approx = (high - low) / 52          # weekly range → ~1 week ATR
+        result["atr_approx"] = round(atr_approx, 2)
+
+        # Stop-loss levels
+        result["sl_tight"]    = round(cmp - 1.0 * atr_approx, 2)   # 1× ATR
+        result["sl_standard"] = round(cmp - 1.5 * atr_approx, 2)   # 1.5× ATR
+        result["sl_wide"]     = round(cmp - 2.0 * atr_approx, 2)   # 2× ATR (swing)
+
+        # Target levels (2:1 RR default)
+        rr = 2.0
+        sl_gap = cmp - result["sl_standard"]
+        result["target_1r"]  = round(cmp + sl_gap * 1.0, 2)
+        result["target_2r"]  = round(cmp + sl_gap * rr,  2)
+        result["target_3r"]  = round(cmp + sl_gap * 3.0, 2)
+
+        # Trailing SL at 50 DMA
+        result["trail_sl_50dma"]  = round(dma50,  2) if dma50  else None
+        result["trail_sl_200dma"] = round(dma200, 2) if dma200 else None
+
+        # % risk
+        result["risk_pct"] = round((sl_gap / cmp) * 100, 2) if cmp else None
+
+    return result
+
+
+# ==========================================
+# 📊 AI RESULT → EXCEL EXPORT HELPER
+# ==========================================
+def ai_results_to_excel(history: list) -> bytes:
+    """Convert ai_history list → Excel bytes for download."""
+    if not history:
+        return b""
+    df = pd.DataFrame(history, columns=["Symbol", "Model", "Query", "AI Result", "Timestamp"])
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="AI Analysis")
+        ws = writer.sheets["AI Analysis"]
+        ws.column_dimensions["A"].width = 12
+        ws.column_dimensions["B"].width = 14
+        ws.column_dimensions["C"].width = 40
+        ws.column_dimensions["D"].width = 80
+        ws.column_dimensions["E"].width = 20
+    return buf.getvalue()
+
+
+# ==========================================
 # 📑 SIDEBAR CONTROLS
 # ==========================================
 if st.sidebar.button("🧹 Clear All Filters", use_container_width=True):
@@ -1003,6 +1221,66 @@ if not raw_df.empty:
     low_date_col = next((c for c in actual_cols if "52w low date" in c.lower()), None)
     if high_date_col: filtered_df = apply_date_filter(filtered_df, high_date_col, st.sidebar)
     if low_date_col: filtered_df = apply_date_filter(filtered_df, low_date_col, st.sidebar)
+
+    # ==========================================
+    # 📊 SIDEBAR — WATCHLIST MANAGER
+    # ==========================================
+    st.sidebar.markdown("---")
+    st.sidebar.header("📊 My Watchlist")
+
+    if st.session_state.watchlist:
+        wl_count = len(st.session_state.watchlist)
+        st.sidebar.caption(f"🔖 {wl_count} stock{'s' if wl_count > 1 else ''} saved")
+        for _ws, _wi in list(st.session_state.watchlist.items()):
+            _col1, _col2 = st.sidebar.columns([3, 1])
+            _col1.markdown(
+                f"**{_ws}** {'`' + _wi['cmp'] + '`' if _wi['cmp'] else ''}<br>"
+                f"<small style='color:gray'>{_wi.get('note','')[:35]}</small>",
+                unsafe_allow_html=True,
+            )
+            if _col2.button("❌", key=f"wl_rm_{_ws}", help=f"Remove {_ws}"):
+                watchlist_remove(_ws)
+                save_watchlist_to_sheet()
+                st.rerun()
+        st.sidebar.markdown("")
+        # Download watchlist as Excel
+        _wl_df = pd.DataFrame([
+            {"Symbol": s, "CMP": d["cmp"], "Note": d["note"],
+             "BF Score": d.get("bf_score",""), "BF Grade": d.get("bf_grade",""),
+             "Added On": d["added"]}
+            for s, d in st.session_state.watchlist.items()
+        ])
+        _wl_buf = io.BytesIO()
+        with pd.ExcelWriter(_wl_buf, engine="openpyxl") as _w:
+            _wl_df.to_excel(_w, index=False, sheet_name="Watchlist")
+        st.sidebar.download_button(
+            "📥 Download Watchlist Excel",
+            data=_wl_buf.getvalue(),
+            file_name=f"Watchlist_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+        )
+    else:
+        st.sidebar.info("No stocks in watchlist yet.\nAdd from the workspace panel below.")
+
+    # ==========================================
+    # 📤 SIDEBAR — AI ANALYSIS EXCEL EXPORT
+    # ==========================================
+    if st.session_state.ai_history:
+        st.sidebar.markdown("---")
+        st.sidebar.header("🤖 AI History Export")
+        st.sidebar.caption(f"{len(st.session_state.ai_history)} analyses saved this session")
+        _ai_xl = ai_results_to_excel(st.session_state.ai_history)
+        st.sidebar.download_button(
+            "📥 Download All AI Results (Excel)",
+            data=_ai_xl,
+            file_name=f"AI_Analysis_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+        )
+        if st.sidebar.button("🗑️ Clear AI History", use_container_width=True):
+            st.session_state.ai_history = []
+            st.rerun()
 
     # ==========================================
     # 🎨 DYNAMIC COLUMN REORDERING LOGIC
@@ -1202,7 +1480,8 @@ if not raw_df.empty:
                 "🎯 Bullish/Bearish Zone", "📁 Screener Documents",
                 "🪁 Zerodha Portal", "📊 MarketSmith India", "📉 TradingView Symbol Profile",
                 "🤖 AI Stock Analysis", "💻 AI Pine Script Builder",
-                "🔬 Bottom Fishing Score"
+                "🔬 Bottom Fishing Score",
+                "🎯 GTT Order Calculator", "📊 Watchlist Manager"
             ])
 
             with ws_tabs[0]:
@@ -1248,35 +1527,102 @@ if not raw_df.empty:
                 components.html(f'<iframe src="{_url6}" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
             with ws_tabs[7]:
-                st.markdown(f"### 🤖 Ask Gemini About **{sym}**")
+                st.markdown(f"### 🤖 Ask AI About **{sym}**")
 
                 if not ai_enabled:
-                    st.warning("⚠️ Google Gemini API is not configured. Please add `GEMINI_API_KEY` to your Streamlit secrets to enable this feature.")
+                    st.warning("⚠️ No AI configured. Add `GEMINI_API_KEY` or `GROQ_API_KEY` to Streamlit secrets.")
                 else:
+                    # ── Model selector ──────────────────────────────────────
+                    chosen_model = ai_model_selector("analysis")
+                    st.caption(
+                        "⚡ Groq = llama-3.3-70b (free, fast) &nbsp;|&nbsp; 🧠 Gemini = gemini-2.5-flash"
+                        if groq_enabled and gemini_enabled
+                        else ("⚡ Groq connected" if groq_enabled else "🧠 Gemini connected")
+                    )
                     st.write("Using the live data pulled from your dashboard, the AI can analyze technicals, ranges, and context.")
 
-                    ai_query = st.text_area("Your Query:", value=f"Based on the current data provided, give me a quick summary of the technical performance and trend for {sym}.", height=80)
+                    ai_query = st.text_area(
+                        "Your Query:",
+                        value=f"Based on the current data provided, give me a quick summary of the technical performance and trend for {sym}.",
+                        height=80,
+                        key="ai_query_analysis"
+                    )
 
-                    if st.button("✨ Generate AI Analysis", use_container_width=True):
-                        with st.spinner(f"Analyzing {sym} data..."):
+                    if st.button("✨ Generate AI Analysis", use_container_width=True, key="btn_ai_analysis"):
+                        with st.spinner(f"Analyzing {sym} with {chosen_model}..."):
                             try:
                                 clean_row_context = {k: v for k, v in sel_row.items() if not str(k).startswith('_')}
-                                model = genai.GenerativeModel('gemini-2.5-flash')
                                 prompt = f"""
-                                You are a professional stock market analyst evaluating Indian NSE stocks.
-                                The user is asking about the stock: {sym}.
+You are a professional stock market analyst evaluating Indian NSE stocks.
+The user is asking about the stock: {sym}.
 
-                                Here is the live data extracted directly from the user's dashboard for this stock:
-                                {clean_row_context}
+Here is the live data extracted directly from the user's dashboard for this stock:
+{clean_row_context}
 
-                                User Query: {ai_query}
+User Query: {ai_query}
 
-                                Please provide a clear, concise, and professional response.
-                                """
-                                response = model.generate_content(prompt)
-                                st.info(response.text)
+Please provide a clear, concise, and professional response.
+"""
+                                ai_result = call_ai(prompt, chosen_model)
+                                st.session_state["last_ai_result"] = {"sym": sym, "model": chosen_model, "query": ai_query, "result": ai_result}
+                                # Save to history
+                                st.session_state.ai_history.append([
+                                    sym, chosen_model, ai_query, ai_result,
+                                    datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                ])
+                                st.info(ai_result)
                             except Exception as e:
-                                st.error(f"There was an error communicating with the AI: {e}")
+                                st.error(f"AI error: {e}")
+
+                    # ── Show export & share buttons if result exists ────────
+                    if st.session_state.get("last_ai_result", {}).get("sym") == sym:
+                        _last = st.session_state["last_ai_result"]
+                        _res_text = _last["result"]
+
+                        st.markdown("---")
+                        _ec1, _ec2, _ec3 = st.columns(3)
+
+                        # Excel download (single result)
+                        with _ec1:
+                            _single_xl = ai_results_to_excel([[
+                                sym, _last["model"], _last["query"], _res_text,
+                                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            ]])
+                            st.download_button(
+                                "📥 Save as Excel",
+                                data=_single_xl,
+                                file_name=f"AI_{sym}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                use_container_width=True,
+                                key="dl_ai_excel_analysis"
+                            )
+
+                        # WhatsApp share
+                        with _ec2:
+                            _wa_text = urllib.parse.quote(
+                                f"📊 *{sym} AI Analysis* ({_last['model']})\n\n{_res_text[:800]}"
+                                + ("\n\n_(truncated)_" if len(_res_text) > 800 else "")
+                            )
+                            st.markdown(
+                                f"<a href='https://wa.me/?text={_wa_text}' target='_blank'>"
+                                f"<button style='width:100%;padding:8px;background:#25D366;color:white;"
+                                f"border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:bold;'>"
+                                f"📱 Share on WhatsApp</button></a>",
+                                unsafe_allow_html=True
+                            )
+
+                        # Telegram share
+                        with _ec3:
+                            _tg_text = urllib.parse.quote(
+                                f"📊 {sym} AI Analysis ({_last['model']})\n\n{_res_text[:800]}"
+                            )
+                            st.markdown(
+                                f"<a href='https://t.me/share/url?url=NSEDashboard&text={_tg_text}' target='_blank'>"
+                                f"<button style='width:100%;padding:8px;background:#229ED9;color:white;"
+                                f"border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:bold;'>"
+                                f"✈️ Share on Telegram</button></a>",
+                                unsafe_allow_html=True
+                            )
 
                     st.markdown("---")
                     st.markdown("**💡 Suggested Prompts** — copy any prompt below and paste it into the query box above:")
@@ -1289,8 +1635,9 @@ if not raw_df.empty:
                 st.markdown(f"### 💻 AI Pine Script Generator for **{sym}**")
 
                 if not ai_enabled:
-                    st.warning("⚠️ Google Gemini API is not configured. Please add `GEMINI_API_KEY` to your Streamlit secrets to enable this feature.")
+                    st.warning("⚠️ No AI configured. Add `GEMINI_API_KEY` or `GROQ_API_KEY` to Streamlit secrets.")
                 else:
+                    chosen_model_pine = ai_model_selector("pine")
                     st.write("Generate a custom TradingView Pine Script v5 strategy tailored to this stock's current metrics.")
 
                     strategy_focus = st.selectbox("Select Strategy Focus:", [
@@ -1298,37 +1645,52 @@ if not raw_df.empty:
                         "Moving Average Crossover (50/100/200 DMA)",
                         "Trend Following with Trailing Stop",
                         "Mean Reversion from 52W High/Low"
-                    ])
+                    ], key="pine_strategy_focus")
 
                     pine_query = st.text_area("Additional Custom Rules (Optional):", value=f"Include risk management parameters and plot signals on the chart.", height=60, key="pine_query")
 
-                    if st.button("⚙️ Generate TradingView Pine Script", use_container_width=True):
+                    if st.button("⚙️ Generate TradingView Pine Script", use_container_width=True, key="btn_pine"):
                         with st.spinner(f"Writing Pine Script v5 code for {sym}..."):
                             try:
                                 clean_row_context = {k: v for k, v in sel_row.items() if not str(k).startswith('_')}
-                                model = genai.GenerativeModel('gemini-2.5-flash')
                                 prompt = f"""
-                                You are an expert quantitative developer specializing in TradingView Pine Script v5.
+You are an expert quantitative developer specializing in TradingView Pine Script v5.
 
-                                Write a complete, ready-to-copy Pine Script v5 strategy for the stock: {sym}.
+Write a complete, ready-to-copy Pine Script v5 strategy for the stock: {sym}.
 
-                                Strategy Focus: {strategy_focus}
-                                Custom Rules: {pine_query}
+Strategy Focus: {strategy_focus}
+Custom Rules: {pine_query}
 
-                                Here is the live fundamental and technical data for {sym} to incorporate as baseline context or threshold values if relevant:
-                                {clean_row_context}
+Here is the live fundamental and technical data for {sym} to incorporate as baseline context or threshold values if relevant:
+{clean_row_context}
 
-                                Formatting Requirements:
-                                1. Start with `//@version=5` and `strategy("{sym} Custom Script", overlay=true)`
-                                2. Include clear comments explaining the logic.
-                                3. Provide ONLY the Pine Script code inside a markdown code block, no other conversational text.
-                                """
-                                response = model.generate_content(prompt)
+Formatting Requirements:
+1. Start with `//@version=5` and `strategy("{sym} Custom Script", overlay=true)`
+2. Include clear comments explaining the logic.
+3. Provide ONLY the Pine Script code inside a markdown code block, no other conversational text.
+"""
+                                pine_result = call_ai(prompt, chosen_model_pine)
+                                st.session_state["last_pine_result"] = {"sym": sym, "result": pine_result}
                                 st.markdown("### 📋 Your Custom Strategy Code:")
                                 st.write("Copy the code below and paste it into the TradingView Pine Editor.")
-                                st.markdown(response.text)
+                                st.markdown(pine_result)
                             except Exception as e:
-                                st.error(f"There was an error communicating with the AI: {e}")
+                                st.error(f"AI error: {e}")
+
+                    # Excel download for pine script
+                    if st.session_state.get("last_pine_result", {}).get("sym") == sym:
+                        _pine_res = st.session_state["last_pine_result"]["result"]
+                        _pine_xl = ai_results_to_excel([[
+                            sym, "Pine Script", strategy_focus, _pine_res,
+                            datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        ]])
+                        st.download_button(
+                            "📥 Save Pine Script as Excel",
+                            data=_pine_xl,
+                            file_name=f"PineScript_{sym}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            key="dl_pine_excel"
+                        )
 
                     st.markdown("---")
                     st.markdown("**📋 Custom Rules Reference** — copy any rule and paste it into the Additional Custom Rules box above:")
@@ -1382,10 +1744,10 @@ if not raw_df.empty:
                 # AI-enhanced bottom analysis
                 if ai_enabled:
                     st.markdown("---")
+                    chosen_model_bf = ai_model_selector("bf")
                     if st.button("🤖 Get AI Deep Analysis for Bottom Buy", use_container_width=True, key="bf_ai_btn"):
-                        with st.spinner(f"Running deep bottom-fishing analysis for {sym}..."):
+                        with st.spinner(f"Running deep bottom-fishing analysis for {sym} with {chosen_model_bf}..."):
                             try:
-                                model = genai.GenerativeModel('gemini-2.5-flash')
                                 prompt = f"""
 You are an expert Indian stock market analyst specializing in bottom-fishing and value investing.
 
@@ -1407,457 +1769,189 @@ Please provide a comprehensive bottom-fishing analysis covering:
 
 Be specific, data-driven, and actionable for a retail investor.
 """
-                                response = model.generate_content(prompt)
+                                bf_ai_result = call_ai(prompt, chosen_model_bf)
+                                st.session_state["last_bf_ai_result"] = {"sym": sym, "result": bf_ai_result}
+                                st.session_state.ai_history.append([
+                                    sym, chosen_model_bf, "Bottom Fishing Deep Analysis", bf_ai_result,
+                                    datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                ])
                                 st.success("✅ AI Analysis Complete")
-                                st.markdown(response.text)
+                                st.markdown(bf_ai_result)
                             except Exception as e:
                                 st.error(f"AI error: {e}")
 
-    # ==========================================
-    # 🌍 NATIONAL ANALYTICS PORTAL WORKSPACE
-    # ==========================================
-    st.markdown("---")
-    st.subheader("📊 National Live Market Analytics Portal Framework")
+                    # Share buttons for BF score
+                    st.markdown("---")
+                    st.markdown("#### 📤 Share BF Score Card")
+                    _bf_card_text = (
+                        f"🔬 *Bottom Fishing Score: {sym}*\n\n"
+                        f"📊 Score: *{bf_score}/100*\n"
+                        f"📈 Grade: {bf_grade}\n\n"
+                        + "\n".join(bf_reasons[:5])
+                        + f"\n\n🕒 {datetime.now().strftime('%d %b %Y %H:%M')}\n📌 NSE Stock Dashboard"
+                    )
+                    _bf_wa  = urllib.parse.quote(_bf_card_text)
+                    _bf_tg  = urllib.parse.quote(_bf_card_text)
+                    _sh1, _sh2 = st.columns(2)
+                    with _sh1:
+                        st.markdown(
+                            f"<a href='https://wa.me/?text={_bf_wa}' target='_blank'>"
+                            f"<button style='width:100%;padding:8px;background:#25D366;color:white;"
+                            f"border:none;border-radius:6px;cursor:pointer;font-weight:bold;'>"
+                            f"📱 Share on WhatsApp</button></a>",
+                            unsafe_allow_html=True
+                        )
+                    with _sh2:
+                        st.markdown(
+                            f"<a href='https://t.me/share/url?url=Dashboard&text={_bf_tg}' target='_blank'>"
+                            f"<button style='width:100%;padding:8px;background:#229ED9;color:white;"
+                            f"border:none;border-radius:6px;cursor:pointer;font-weight:bold;'>"
+                            f"✈️ Share on Telegram</button></a>",
+                            unsafe_allow_html=True
+                        )
 
-    st.markdown("""
-    <style>
-        div[data-baseweb="tab-list"] {
-            flex-wrap: wrap !important;
-            row-gap: 3px !important;
-            column-gap: 8px !important;
-        }
-        div[data-baseweb="tab-list"] button {
-            margin-top: 1px !important;
-            margin-bottom: 1px !important;
-            padding-top: 6px !important;
-            padding-bottom: 6px !important;
-            height: auto !important;
-        }
-        div[data-baseweb="tab-highlight"] {
-            display: none !important;
-        }
-        div[data-baseweb="tab"][aria-selected="true"] {
-            background-color: rgba(31, 119, 180, 0.1) !important;
-            border-radius: 5px !important;
-            border-bottom: 2px solid #1f77b4 !important;
-        }
-    </style>
-    """, unsafe_allow_html=True)
+            # ==========================================
+            # 🎯 GTT ORDER CALCULATOR TAB (NEW - ws_tabs[10])
+            # ==========================================
+            with ws_tabs[10]:
+                st.markdown(f"### 🎯 GTT Order Calculator: **{sym}**")
+                st.caption("Auto-suggest Stop-Loss, Targets & ATR-based GTT levels from your live sheet data.")
 
-    mkt_tabs = st.tabs([
-        "🔥 Most Active", "🚀 Volume Gainers", "🏆 Top Gainers/Losers", "⭐ 52W Boundaries", "📦 Stocks Traded", "⚖️ Advances/Declines",
-        "🕒 Pre-Open Market", "⚡ Price Band Hitters", "🗺️ Index Ticker Heatmap", "🎫 IPO Tracker", "⚠️ Volume Shockers",
-        "📂 Document Reports", "🖋️ TV Script Engine", "🔮 MunafaSutra Tickers", "🎯 Dhan Asset Registry", "💎 Weekly Activity Metrics",
-        "🔧 ScanX Core Screener", "🚦 ScanX Live Engine", "🎨 Screener Exploration", "📈 IPO Chittorgarh", "🏷️ IPO Watch Panel", "💓 NSE Pulse",
-        "📊 Chartink Screeners", "📋 Chartink Dashboard", "🗾 Chartink Atlas", "📚 Mahesh Kaushik", "💰 EFTI Wealth"
-    ])
+                clean_sel_gtt = {k: v for k, v in sel_row.items() if not str(k).startswith('_')}
+                gtt = compute_gtt(clean_sel_gtt, actual_cols)
 
-    # Reusable helper to render a styled "Open in Browser" button above each portal iframe
-    def _portal_btn(url, label="Open in Browser"):
-        return (
-            f"<div style='margin-bottom:8px;'>"
-            f"<a href='{url}' target='_blank' style='"
-            f"display:inline-block; background:#1976d2; color:#fff; font-size:14px; font-weight:600;"
-            f"padding:8px 18px; border-radius:6px; text-decoration:none;'>"
-            f"🌐 {label}</a>"
-            f"<span style='font-size:12px; color:#888; margin-left:12px;'>📱 Mobile: tap button if frame is blank</span>"
-            f"</div>"
-        )
-
-    with mkt_tabs[0]:
-        _u = "https://www.nseindia.com/market-data/most-active-equities"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none;"></iframe>', height=520)
-    with mkt_tabs[1]:
-        _u = "https://www.nseindia.com/market-data/volume-gainers-spurts"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none;"></iframe>', height=520)
-    with mkt_tabs[2]:
-        _u = "https://www.nseindia.com/market-data/top-gainers-losers"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none;"></iframe>', height=520)
-    with mkt_tabs[3]:
-        _u = "https://www.nseindia.com/market-data/52-week-high-equity-market"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none;"></iframe>', height=520)
-    with mkt_tabs[4]:
-        _u = "https://www.nseindia.com/market-data/stocks-traded"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none;"></iframe>', height=520)
-    with mkt_tabs[5]:
-        _u = "https://www.nseindia.com/market-data/advance"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none;"></iframe>', height=520)
-    with mkt_tabs[6]:
-        _u = "https://www.nseindia.com/market-data/pre-open-market-cm-and-emerge-market"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none;"></iframe>', height=520)
-    with mkt_tabs[7]:
-        _u = "https://www.nseindia.com/market-data/upper-band-hitters"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none;"></iframe>', height=520)
-    with mkt_tabs[8]:
-        _u = "https://www.nseindia.com/index-tracker/NIFTY%2050"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none;"></iframe>', height=520)
-    with mkt_tabs[9]:
-        _u = "https://www.nseindia.com/market-data/all-upcoming-issues-ipo"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none;"></iframe>', height=520)
-    with mkt_tabs[10]:
-        _u = "https://www.moneycontrol.com/stocks/market-stats/volume-shockers-nse/"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
-    with mkt_tabs[11]:
-        _u = "https://www.nseindia.com/all-reports/"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none;"></iframe>', height=520)
-    with mkt_tabs[12]:
-        _u = "https://www.tradingview.com/scripts/"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none;"></iframe>', height=520)
-    with mkt_tabs[13]:
-        _u = "https://munafasutra.com/nse/"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
-    with mkt_tabs[14]:
-        _u = "https://dhan.co/all-stocks-list/"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
-    with mkt_tabs[15]:
-        _u = "https://dhan.co/stocks/market/most-active-stocks-this-week/"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
-    with mkt_tabs[16]:
-        _u = "https://scanx.trade/create-custom-screener"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
-    with mkt_tabs[17]:
-        _u = "https://scanx.trade/stock-screener/live-market-screener"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
-    with mkt_tabs[18]:
-        _u = "https://www.screener.in/explore/"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
-    with mkt_tabs[19]:
-        _u = "https://www.chittorgarh.com/"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
-    with mkt_tabs[20]:
-        _u = "https://ipowatch.in/"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
-    with mkt_tabs[21]:
-        _u = "https://nsepulse.streamlit.app/"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
-    with mkt_tabs[22]:
-        _u = "https://chartink.com/screeners"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
-    with mkt_tabs[23]:
-        _u = "https://chartink.com/scan_dashboard"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
-    with mkt_tabs[24]:
-        _u = "https://chartink.com/atlas"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
-    with mkt_tabs[25]:
-        _u = "https://www.maheshkaushik.com/"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
-    with mkt_tabs[26]:
-        _u = "https://eftiwealth.com/"
-        st.markdown(_portal_btn(_u), unsafe_allow_html=True)
-        components.html(f'<iframe src="{_u}" width="100%" height="500" style="border:none; background-color:white;"></iframe>', height=520)
-
-    # ==========================================
-    # 🏆 MULTI-HORIZON PERFORMANCE SUMMARY MATRIX
-    # ==========================================
-    st.markdown("---")
-    st.markdown("### 📈 Multi-Horizon Performance Summary Matrix")
-
-    perf_width_col1, perf_width_col2 = st.columns([4, 1])
-    with perf_width_col1:
-        perf_sizing_mode = st.radio(
-            "📏 Column Width Adjustment:",
-            ["Default", "✅ Fit to Row 1", "✅✅ Fit to Row 2"],
-            horizontal=True,
-            help="Automatically adjust column widths based on text length of the selected row.",
-            key="perf_matrix_sizing_mode"
-        )
-
-    horizons = [
-        "1 Day", "2 Day", "3 Day", "5 Day", "7 Day", "10 Day", "12 Day", "15 Days", "20 Days", "25 Days", "30 Days",
-        "2 Months", "3 Months", "4 Months", "5 Months", "6 Months", "7 Months", "8 Months", "9 Months", "10 Months", "11 Months",
-        "1 Year", "18 Months", "1.5 Years", "2 Years", "2.5 Years", "3 Years", "Volume"
-    ]
-
-    col_tools1, col_tools2, col_tools3 = st.columns([2, 2, 3])
-    with col_tools1:
-        sort_basis = st.selectbox("🎯 Base Horizon for Performance Ranking:", horizons, index=0)
-    with col_tools2:
-        sort_direction = st.radio("排序 Sorting Order Type:", ["Best -> Worst", "Worst -> Best"], index=0, horizontal=True)
-    with col_tools3:
-        summary_search = st.text_input("🔍 Filter stocks inside this matrix...", placeholder="Type symbol name...", key="perf_matrix_search")
-
-    detected_metric_map = {}
-
-    for h in horizons:
-        if h == "Volume":
-            if vol_target: detected_metric_map[h] = vol_target
-            continue
-        keywords = [h.lower(), h.lower().replace(" ", ""), h.lower().replace("s", "")]
-        if h == "1 Day": keywords.append("price %")
-        for c in actual_cols:
-            if any(k in c.lower() for k in keywords) and "%" in c.lower():
-                detected_metric_map[h] = c
-                break
-
-    if detected_metric_map:
-        reporting_data = []
-        for idx, row in filtered_df.iterrows():
-            clean_ticker = str(row.get('_raw_symbol_', '')).strip()
-            price_val = row.get(cmp_target, "") if cmp_target else ""
-
-            url = f"https://charting.nseindia.com/?symbol={clean_ticker}-EQ"
-            hyperlinked_name = f'<a href="{url}" target="_blank" style="text-decoration:none; color:#000000; font-weight:bold;">{clean_ticker}</a>'
-
-            entry = {
-                "STOCK NAME": hyperlinked_name,
-                "CURRENT PRICE": price_val
-            }
-
-            for h, actual_col in detected_metric_map.items():
-                raw_val = str(row.get(actual_col, "0")).replace("%", "").replace(",", "").strip()
-                try:
-                    entry[h] = float(raw_val) if raw_val not in ["", "nan", "None"] else 0.0
-                except ValueError:
-                    entry[h] = 0.0
-
-            # ── NEW: Bottom Fishing Score column ──────────────────
-            clean_r = {k: v for k, v in row.items() if not str(k).startswith('_')}
-            bf_s, bf_g, _ = compute_bottom_fishing_score(clean_r, actual_cols)
-            entry["🔬 BF Score"] = bf_s
-            entry["📊 BF Grade"] = bf_g
-
-            reporting_data.append(entry)
-
-        perf_df = pd.DataFrame(reporting_data)
-
-        if summary_search:
-            perf_df = perf_df[perf_df["STOCK NAME"].str.replace(r'<[^>]*>', '', regex=True).str.contains(summary_search, case=False, na=False)]
-
-        target_sort_col = sort_basis if sort_basis in perf_df.columns else perf_df.columns[2]
-        ascending_flag = (sort_direction == "Worst -> Best")
-        perf_df = perf_df.sort_values(by=target_sort_col, ascending=ascending_flag).reset_index(drop=True)
-        perf_df.insert(0, "RANK", perf_df.index + 1)
-
-        display_perf_df = perf_df.copy()
-        for h in detected_metric_map.keys():
-            if h in display_perf_df.columns:
-                if h == "Volume":
-                    display_perf_df[h] = display_perf_df[h].apply(lambda x: f"{int(x):,}" if pd.notnull(x) else "-")
+                if not gtt.get("cmp"):
+                    st.warning("⚠️ CMP column not found in sheet data. Cannot compute GTT levels.")
                 else:
-                    display_perf_df[h] = display_perf_df[h].apply(lambda x: f"+{x:.2f}%" if x > 0 else (f"{x:.2f}%" if x < 0 else "0.00%"))
+                    cmp_v = gtt["cmp"]
 
-        perf_gb = GridOptionsBuilder.from_dataframe(display_perf_df)
-        perf_gb.configure_column("RANK", width=70, pinned="left")
-        perf_gb.configure_column("STOCK NAME", width=140, pinned="left", cellRenderer=html_renderer)
+                    # ── Summary cards row ──────────────────────────────────
+                    gc1, gc2, gc3, gc4 = st.columns(4)
+                    gc1.metric("📍 CMP", f"₹{cmp_v:,.2f}")
+                    if gtt.get("52w_high"): gc2.metric("⬆️ 52W High", f"₹{gtt['52w_high']:,.2f}")
+                    if gtt.get("52w_low"):  gc3.metric("⬇️ 52W Low",  f"₹{gtt['52w_low']:,.2f}")
+                    if gtt.get("atr_approx"): gc4.metric("📊 ATR (approx)", f"₹{gtt['atr_approx']:,.2f}")
 
-        color_code_js = JsCode("""
-        function(params) {
-            if (params.value === undefined || params.value === null || params.colDef.field === "Volume") return null;
-            let val = parseFloat(String(params.value).replace(/[+%,]/g, ''));
-            if (val > 0) return { 'color': '#000000', 'backgroundColor': '#e6f4ea', 'fontWeight': 'bold' };
-            if (val < 0) return { 'color': '#000000', 'backgroundColor': '#fce8e6', 'fontWeight': 'bold' };
-            return null;
-        }
-        """)
+                    st.markdown("---")
 
-        bf_score_js = JsCode("""
-        function(params) {
-            let val = parseFloat(params.value);
-            if (val >= 75) return { 'backgroundColor': '#16e37f33', 'color': '#000', 'fontWeight': 'bold' };
-            if (val >= 55) return { 'backgroundColor': '#f4b40033', 'color': '#000', 'fontWeight': 'bold' };
-            if (val >= 35) return { 'backgroundColor': '#ff990033', 'color': '#000' };
-            return { 'backgroundColor': '#ea433533', 'color': '#000' };
-        }
-        """)
+                    # ── Manual ATR override ───────────────────────────────
+                    st.markdown("#### ⚙️ Customize ATR Multiplier")
+                    col_atr1, col_atr2 = st.columns(2)
+                    manual_atr = col_atr1.number_input(
+                        "Manual ATR Override (₹) — leave 0 to use auto",
+                        min_value=0.0, value=0.0, step=0.5, key="gtt_manual_atr"
+                    )
+                    rr_ratio = col_atr2.selectbox(
+                        "Risk-Reward Ratio:", ["1:1", "1:1.5", "1:2", "1:2.5", "1:3"],
+                        index=2, key="gtt_rr_ratio"
+                    )
+                    rr_val = float(rr_ratio.split(":")[1])
 
-        bf_grade_js = JsCode("""
-        function(params) {
-            let v = String(params.value);
-            if (v.includes('STRONG BUY')) return { 'backgroundColor': '#16e37f44', 'fontWeight': 'bold' };
-            if (v.includes('WATCHLIST')) return { 'backgroundColor': '#f4b40044', 'fontWeight': 'bold' };
-            if (v.includes('CAUTION')) return { 'backgroundColor': '#ff990044' };
-            return { 'backgroundColor': '#ea433544' };
-        }
-        """)
+                    # Recalculate with manual inputs if provided
+                    effective_atr = manual_atr if manual_atr > 0 else gtt.get("atr_approx", 0)
+                    if effective_atr and effective_atr > 0:
+                        sl_tight    = round(cmp_v - 1.0 * effective_atr, 2)
+                        sl_standard = round(cmp_v - 1.5 * effective_atr, 2)
+                        sl_wide     = round(cmp_v - 2.0 * effective_atr, 2)
+                        sl_gap      = cmp_v - sl_standard
+                        t1 = round(cmp_v + sl_gap * 1.0,   2)
+                        t2 = round(cmp_v + sl_gap * rr_val, 2)
+                        t3 = round(cmp_v + sl_gap * 3.0,   2)
+                        risk_pct = round((sl_gap / cmp_v) * 100, 2)
 
-        for col in display_perf_df.columns:
-            if col in ("RANK",):
-                continue  # already configured above
-            if perf_sizing_mode == "✅ Fit to Row 1" and len(display_perf_df) > 0:
-                char_count = get_clean_text_length(display_perf_df.iloc[0][col])
-                header_count = len(str(col))
-                dyn_width = int(max(char_count, header_count) * 7 + 22)
-            elif perf_sizing_mode == "✅✅ Fit to Row 2" and len(display_perf_df) > 1:
-                char_count = get_clean_text_length(display_perf_df.iloc[1][col])
-                header_count = len(str(col))
-                dyn_width = int(max(char_count, header_count) * 7 + 22)
-            else:
-                # Default fixed widths
-                default_widths = {"STOCK NAME": 140, "CURRENT PRICE": 130, "🔬 BF Score": 110, "📊 BF Grade": 160}
-                dyn_width = default_widths.get(col, 130)
+                        # ── Stop-Loss table ───────────────────────────────
+                        st.markdown("#### 🛡️ Stop-Loss Levels")
+                        sl_df = pd.DataFrame([
+                            {"Type": "Tight SL (1× ATR)",    "Price (₹)": sl_tight,    "% Risk": round((cmp_v-sl_tight)/cmp_v*100,2),    "Use Case": "Intraday / Scalp"},
+                            {"Type": "Standard SL (1.5× ATR)","Price (₹)": sl_standard,"% Risk": round((cmp_v-sl_standard)/cmp_v*100,2),"Use Case": "Swing / BTST"},
+                            {"Type": "Wide SL (2× ATR)",     "Price (₹)": sl_wide,     "% Risk": round((cmp_v-sl_wide)/cmp_v*100,2),     "Use Case": "Positional"},
+                        ])
+                        if gtt.get("trail_sl_50dma"):
+                            sl_df = pd.concat([sl_df, pd.DataFrame([{
+                                "Type": "Trail SL @ 50 DMA", "Price (₹)": gtt["trail_sl_50dma"],
+                                "% Risk": round((cmp_v-gtt["trail_sl_50dma"])/cmp_v*100,2) if gtt["trail_sl_50dma"] < cmp_v else 0,
+                                "Use Case": "Trailing Stop"
+                            }])], ignore_index=True)
+                        st.dataframe(sl_df, use_container_width=True, hide_index=True)
 
-            if col == "STOCK NAME":
-                perf_gb.configure_column(col, width=dyn_width, pinned="left", cellRenderer=html_renderer)
-            elif col == "CURRENT PRICE":
-                perf_gb.configure_column(col, width=dyn_width)
-            elif col == "🔬 BF Score":
-                perf_gb.configure_column(col, width=dyn_width, cellStyle=bf_score_js)
-            elif col == "📊 BF Grade":
-                perf_gb.configure_column(col, width=dyn_width, cellStyle=bf_grade_js)
-            elif col in detected_metric_map:
-                perf_gb.configure_column(col, width=dyn_width, cellStyle=color_code_js)
-            else:
-                perf_gb.configure_column(col, width=dyn_width)
+                        # ── Target levels ─────────────────────────────────
+                        st.markdown(f"#### 🎯 Target Levels (based on {rr_ratio} R:R)")
+                        tgt_df = pd.DataFrame([
+                            {"Target": "T1 (1R)",            "Price (₹)": t1, "% Gain": round((t1-cmp_v)/cmp_v*100,2), "Strategy": "Book 30–40%"},
+                            {"Target": f"T2 ({rr_ratio} R:R)","Price (₹)": t2, "% Gain": round((t2-cmp_v)/cmp_v*100,2), "Strategy": "Book 40–50%"},
+                            {"Target": "T3 (3R — runner)",   "Price (₹)": t3, "% Gain": round((t3-cmp_v)/cmp_v*100,2), "Strategy": "Hold remainder"},
+                        ])
+                        st.dataframe(tgt_df, use_container_width=True, hide_index=True)
 
-        perf_gb.configure_grid_options(domLayout="normal", rowHeight=38, headerHeight=45, enableCellTextSelection=True)
-        perf_grid_ops = perf_gb.build()
+                        # ── Position sizing helper ────────────────────────
+                        st.markdown("#### 💰 Position Sizing Helper")
+                        ps_col1, ps_col2 = st.columns(2)
+                        capital = ps_col1.number_input("Capital (₹):", min_value=1000, value=100000, step=5000, key="gtt_capital")
+                        risk_pct_inp = ps_col2.number_input("Max Risk % of Capital:", min_value=0.5, max_value=10.0, value=2.0, step=0.5, key="gtt_risk_pct")
+                        max_loss_rs = capital * risk_pct_inp / 100
+                        qty = int(max_loss_rs / (cmp_v - sl_standard)) if (cmp_v - sl_standard) > 0 else 0
+                        invest_val = qty * cmp_v
+                        st.success(
+                            f"📦 Suggested Qty: **{qty} shares** &nbsp;|&nbsp; "
+                            f"Investment: **₹{invest_val:,.0f}** &nbsp;|&nbsp; "
+                            f"Max Loss: **₹{max_loss_rs:,.0f}** ({risk_pct_inp}%)"
+                        )
 
-        AgGrid(display_perf_df, gridOptions=perf_grid_ops, theme="streamlit", allow_unsafe_jscode=True, fit_columns_on_grid_load=False, height=450, width='100%', key="horizon_perf_grid")
+                        # ── GTT Order summary card ────────────────────────
+                        st.markdown("---")
+                        st.markdown("#### 📋 GTT Order Summary (Copy-Ready)")
+                        gtt_summary = (
+                            f"🎯 *GTT Order: {sym}*\n\n"
+                            f"📍 Entry CMP: ₹{cmp_v:,.2f}\n"
+                            f"🛡️ Stop-Loss: ₹{sl_standard:,.2f} ({risk_pct:.1f}% risk)\n"
+                            f"🎯 Target 1:  ₹{t1:,.2f} (+{round((t1-cmp_v)/cmp_v*100,1)}%)\n"
+                            f"🎯 Target 2:  ₹{t2:,.2f} (+{round((t2-cmp_v)/cmp_v*100,1)}%)\n"
+                            f"🎯 Target 3:  ₹{t3:,.2f} (+{round((t3-cmp_v)/cmp_v*100,1)}%)\n"
+                            f"📦 Qty: {qty} shares | ₹{invest_val:,.0f}\n"
+                            f"📊 ATR: ₹{effective_atr:.2f} | R:R {rr_ratio}\n"
+                            f"🕒 {datetime.now().strftime('%d %b %Y %H:%M')}"
+                        )
+                        st.code(gtt_summary, language="")
 
-    # ==========================================
-    # 🔬 STANDALONE BOTTOM FISHING SCANNER
-    # ==========================================
-    st.markdown("---")
-    st.markdown("### 🔬 Bottom Fishing Scanner — Buy from Bottom Candidates")
-    st.caption("Stocks that are 8–15% above 52W Low, in uptrend, with high volume + strong fundamentals")
+                        # Share GTT summary
+                        _gtt_wa = urllib.parse.quote(gtt_summary)
+                        _gtt_tg = urllib.parse.quote(gtt_summary)
+                        _gc1, _gc2 = st.columns(2)
+                        with _gc1:
+                            st.markdown(
+                                f"<a href='https://wa.me/?text={_gtt_wa}' target='_blank'>"
+                                f"<button style='width:100%;padding:8px;background:#25D366;color:white;"
+                                f"border:none;border-radius:6px;cursor:pointer;font-weight:bold;'>"
+                                f"📱 Share GTT on WhatsApp</button></a>",
+                                unsafe_allow_html=True
+                            )
+                        with _gc2:
+                            st.markdown(
+                                f"<a href='https://t.me/share/url?url=Dashboard&text={_gtt_tg}' target='_blank'>"
+                                f"<button style='width:100%;padding:8px;background:#229ED9;color:white;"
+                                f"border:none;border-radius:6px;cursor:pointer;font-weight:bold;'>"
+                                f"✈️ Share GTT on Telegram</button></a>",
+                                unsafe_allow_html=True
+                            )
 
-    bf_width_col1, bf_width_col2 = st.columns([4, 1])
-    with bf_width_col1:
-        bf_sizing_mode = st.radio(
-            "📏 Column Width Adjustment:",
-            ["Default", "✅ Fit to Row 1", "✅✅ Fit to Row 2"],
-            horizontal=True,
-            help="Automatically adjust column widths based on text length of the selected row.",
-            key="bf_scanner_sizing_mode"
-        )
+                    else:
+                        st.warning("⚠️ Could not compute ATR — 52W High/Low columns not found in sheet. Please enter ATR manually above.")
 
-    bf_col1, bf_col2, bf_col3 = st.columns([2, 2, 2])
-    with bf_col1:
-        min_bf_score = st.slider("Minimum BF Score:", min_value=0, max_value=100, value=55, step=5, key="bf_min_score")
-    with bf_col2:
-        bf_sort = st.radio("Sort by:", ["Score (High→Low)", "Score (Low→High)"], horizontal=True, key="bf_sort")
-    with bf_col3:
-        bf_search = st.text_input("Search symbol:", placeholder="e.g. WIPRO", key="bf_search")
+            # ==========================================
+            # 📊 WATCHLIST MANAGER TAB (NEW - ws_tabs[11])
+            # ==========================================
+            with ws_tabs[11]:
+                st.markdown(f"### 📊 Watchlist Manager")
+                clean_sel_wl = {k: v for k, v in sel_row.items() if not str(k).startswith('_')}
+                bf_score_wl, bf_grade_wl, _ = compute_bottom_fishing_score(clean_sel_wl, actual_cols)
+                cmp_wl = str(clean_sel_wl.get(cmp_target, "")) if cmp_target else ""
 
-    bf_results = []
-    for idx, row in filtered_df.iterrows():
-        clean_r = {k: v for k, v in row.items() if not str(k).startswith('_')}
-        bf_s, bf_g, bf_rsns = compute_bottom_fishing_score(clean_r, actual_cols)
-        if bf_s >= min_bf_score:
-            ticker = str(row.get('_raw_symbol_', '')).strip()
-            cmp_v = clean_r.get(cmp_target, "") if cmp_target else ""
-            sector_col = next((c for c in actual_cols if "sector" in c.lower()), None)
-            sector_v = clean_r.get(sector_col, "") if sector_col else ""
-            bf_results.append({
-                "Symbol": ticker,
-                "Score": bf_s,
-                "Grade": bf_g,
-                "CMP": cmp_v,
-                "Sector": str(sector_v)[:30],
-                "Key Reasons": " | ".join(bf_rsns[:3])
-            })
-
-    if bf_search:
-        bf_results = [r for r in bf_results if bf_search.upper() in r["Symbol"].upper()]
-
-    bf_results.sort(key=lambda x: x["Score"], reverse=(bf_sort == "Score (High→Low)"))
-
-    if bf_results:
-        st.success(f"✅ Found **{len(bf_results)}** stocks matching your bottom-fishing criteria (score ≥ {min_bf_score})")
-        bf_scan_df = pd.DataFrame(bf_results)
-
-        bf_gb = GridOptionsBuilder.from_dataframe(bf_scan_df)
-
-        bf_score_style = JsCode("""
-        function(params) {
-            let val = parseFloat(params.value);
-            if (val >= 75) return { 'backgroundColor': '#16e37f33', 'color': '#000', 'fontWeight': 'bold' };
-            if (val >= 55) return { 'backgroundColor': '#f4b40033', 'color': '#000', 'fontWeight': 'bold' };
-            if (val >= 35) return { 'backgroundColor': '#ff990033', 'color': '#000' };
-            return { 'backgroundColor': '#ea433533', 'color': '#000' };
-        }
-        """)
-
-        bf_default_widths = {"Symbol": 120, "Score": 90, "Grade": 160, "CMP": 100, "Sector": 200, "Key Reasons": 400}
-        for col in bf_scan_df.columns:
-            if bf_sizing_mode == "✅ Fit to Row 1" and len(bf_scan_df) > 0:
-                char_count = get_clean_text_length(bf_scan_df.iloc[0][col])
-                header_count = len(str(col))
-                dyn_w = int(max(char_count, header_count) * 7 + 22)
-            elif bf_sizing_mode == "✅✅ Fit to Row 2" and len(bf_scan_df) > 1:
-                char_count = get_clean_text_length(bf_scan_df.iloc[1][col])
-                header_count = len(str(col))
-                dyn_w = int(max(char_count, header_count) * 7 + 22)
-            else:
-                dyn_w = bf_default_widths.get(col, 120)
-
-            pinned = "left" if col == "Symbol" else None
-            if col == "Score":
-                bf_gb.configure_column(col, width=dyn_w, pinned=pinned, cellStyle=bf_score_style)
-            else:
-                bf_gb.configure_column(col, width=dyn_w, pinned=pinned)
-
-        bf_gb.configure_grid_options(domLayout="normal", rowHeight=40, headerHeight=45)
-        bf_grid_ops = bf_gb.build()
-
-        AgGrid(bf_scan_df, gridOptions=bf_grid_ops, theme="streamlit", allow_unsafe_jscode=True, fit_columns_on_grid_load=False, height=400, width='100%', key="bf_scanner_grid")
-
-        # Export BF Scanner results
-        bf_buffer = io.BytesIO()
-        with pd.ExcelWriter(bf_buffer, engine='openpyxl') as writer:
-            bf_scan_df.to_excel(writer, index=False, sheet_name="Bottom Fishing")
-        st.download_button("📥 Download BF Scanner Results", data=bf_buffer.getvalue(),
-            file_name=f"BottomFishing_{datetime.now().strftime('%Y%m%d')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    else:
-        st.info(f"No stocks found with BF Score ≥ {min_bf_score}. Try lowering the minimum score.")
-
-    # ==========================================
-    # 🏆 DAILY DIRECT BADGES LEADERBOARD
-    # ==========================================
-    if pct_target:
-        st.markdown("---")
-        st.markdown("### 🏆 Top 10 & Bottom 10 Performers (Daily badges)")
-        temp_df = filtered_df.copy()
-        temp_df[pct_target] = pd.to_numeric(temp_df[pct_target].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
-        temp_df = temp_df.dropna(subset=[pct_target])
-        top_10 = temp_df.nlargest(10, pct_target)
-        bottom_10 = temp_df.nsmallest(10, pct_target)
-
-        colA, colB = st.columns(2)
-
-        with colA:
-            st.markdown("#### ⬆️ Top 10 (Daily)")
-            for _, row in top_10.iterrows():
-                clean_s = str(row.get('_raw_symbol_', '')).strip()
-                v = row[pct_target]
-                url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
-                st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#16e37f; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: +{v}%</div></a>", unsafe_allow_html=True)
-
-        with colB:
-            st.markdown("#### ⬇️ Bottom 10 (Daily)")
-            for _, row in bottom_10.iterrows():
-                clean_s = str(row.get('_raw_symbol_', '')).strip()
-                v = row[pct_target]
-                url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
-                st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
-
-else:
-    st.warning("No data loaded. Check sheet sharing and secrets.")
+                # ── Add current stock ──────────────────────────────────────
+                already_in = sym in st.session_state.watchlist
+                st.markdown(f"**Current Stock: {sym}** {'✅ Already in Watchlist' if already_in else ''}")
+                wl_note = st.text_input(
+                    "📝 Note (optional):",
+                    value=st.session_state.watchlist.get(sym, {}).get("note", ""),
+                    placeholder="e.g. Near 52W low, watching for breakout",
+                    key=f"wl_note_{sym}"
+                )
