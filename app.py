@@ -89,7 +89,7 @@ from datetime import datetime
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
 # ==========================================
-ADMIN_PASSWORD = "dada krishna"
+ADMIN_PASSWORD = "dadakrishna"
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
