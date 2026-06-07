@@ -1700,7 +1700,7 @@ Formatting Requirements:
             # 🔬 BOTTOM FISHING SCORE TAB (NEW!)
             # ==========================================
             with ws_tabs[9]:
-                st.markdown(f"### 🔬 Bottom Fishing Analysis: **{sym}**")
+                st.markdown("<p style='font-size:0.85rem; font-weight:bold; margin:0; padding:0;'>(f"### 🔬 Bottom Fishing Analysis: **{sym}**")</p>", unsafe_allow_html=True)
                 st.caption("Scores this stock on 8 key criteria for buying from the bottom. Based entirely on your live sheet data.")
 
                 clean_sel = {k: v for k, v in sel_row.items() if not str(k).startswith('_')}
@@ -2042,7 +2042,7 @@ Be specific, data-driven, and actionable for a retail investor.
     # 🌍 NATIONAL ANALYTICS PORTAL WORKSPACE
     # ==========================================
     st.markdown("---")
-    st.subheader("📊 National Live Market Analytics Portal Framework")
+    st.subheader("<p style='font-size:0.85rem; font-weight:bold; margin:0; padding:0;'>("📊 National Live Market Analytics Portal Framework")</p>", unsafe_allow_html=True)
 
     st.markdown("""
     <style>
@@ -2202,7 +2202,7 @@ Be specific, data-driven, and actionable for a retail investor.
     # 🏆 MULTI-HORIZON PERFORMANCE SUMMARY MATRIX
     # ==========================================
     st.markdown("---")
-    st.markdown("### 📈 Multi-Horizon Performance Summary Matrix")
+    st.markdown("<p style='font-size:0.85rem; font-weight:bold; margin:0; padding:0;'>("### 📈 Multi-Horizon Performance Summary Matrix")</p>", unsafe_allow_html=True)
 
     perf_width_col1, perf_width_col2 = st.columns([4, 1])
     with perf_width_col1:
