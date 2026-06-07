@@ -1700,7 +1700,7 @@ Formatting Requirements:
             # 🔬 BOTTOM FISHING SCORE TAB (NEW!)
             # ==========================================
             with ws_tabs[9]:
-                st.markdown("<p style='font-size:0.85rem; font-weight:bold; margin:0; padding:0;'>(f"### 🔬 Bottom Fishing Analysis: **{sym}**")</p>", unsafe_allow_html=True)
+                st.markdown(f"### 🔬 Bottom Fishing Analysis: **{sym}**")
                 st.caption("Scores this stock on 8 key criteria for buying from the bottom. Based entirely on your live sheet data.")
 
                 clean_sel = {k: v for k, v in sel_row.items() if not str(k).startswith('_')}
