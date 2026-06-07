@@ -2042,7 +2042,7 @@ Be specific, data-driven, and actionable for a retail investor.
     # 🌍 NATIONAL ANALYTICS PORTAL WORKSPACE
     # ==========================================
     st.markdown("---")
-    st.subheader("<p style='font-size:0.85rem; font-weight:bold; margin:0; padding:0;'>("📊 National Live Market Analytics Portal Framework")</p>", unsafe_allow_html=True)
+    st.subheader("📊 National Live Market Analytics Portal Framework")
 
     st.markdown("""
     <style>
