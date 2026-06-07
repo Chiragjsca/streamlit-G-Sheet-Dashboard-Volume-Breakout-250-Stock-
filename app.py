@@ -2202,7 +2202,7 @@ Be specific, data-driven, and actionable for a retail investor.
     # 🏆 MULTI-HORIZON PERFORMANCE SUMMARY MATRIX
     # ==========================================
     st.markdown("---")
-    st.markdown("<p style='font-size:0.85rem; font-weight:bold; margin:0; padding:0;'>("### 📈 Multi-Horizon Performance Summary Matrix")</p>", unsafe_allow_html=True)
+    st.markdown("### 📈 Multi-Horizon Performance Summary Matrix")
 
     perf_width_col1, perf_width_col2 = st.columns([4, 1])
     with perf_width_col1:
