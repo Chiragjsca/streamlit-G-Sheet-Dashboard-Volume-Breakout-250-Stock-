@@ -19,6 +19,279 @@ import google.generativeai as genai
 # ==========================================
 st.set_page_config(page_title="Top 250 NSE Stock-Volume Breakout Dashboard", layout="wide", page_icon="📊")
 
+# ==========================================
+# 📱 ADD MOBILE SIDEBAR WITH HIDE/OPEN BUTTON
+# ==========================================
+def add_mobile_sidebar():
+    """Add collapsible left sidebar with toggle button for mobile screens"""
+    
+    components.html("""
+    <style>
+        /* Floating Toggle Button - Bottom Left */
+        .floating-toggle-btn {
+            position: fixed;
+            left: 16px;
+            bottom: 24px;
+            z-index: 99999;
+            background: #0f172a;
+            border: none;
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            color: #facc15;
+            font-size: 1.8rem;
+            backdrop-filter: blur(8px);
+            background: rgba(15, 23, 42, 0.95);
+            border: 2px solid rgba(250, 204, 21, 0.7);
+            transition: all 0.2s ease;
+        }
+        
+        .floating-toggle-btn:hover {
+            transform: scale(1.08);
+            background: #1e293b;
+        }
+        
+        /* Sidebar Panel */
+        .mobile-sidebar-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100vh;
+            background: linear-gradient(165deg, #0f172a 0%, #0a0f1c 100%);
+            z-index: 99998;
+            transform: translateX(-100%);
+            transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            box-shadow: 4px 0 30px rgba(0, 0, 0, 0.5);
+            padding: 20px 0 20px 0;
+            color: #e2e8f0;
+            overflow-y: auto;
+            border-right: 1px solid rgba(250, 204, 21, 0.2);
+        }
+        
+        .mobile-sidebar-panel.open {
+            transform: translateX(0);
+        }
+        
+        .sidebar-header {
+            padding: 20px 20px 15px 20px;
+            border-bottom: 1px solid rgba(250, 204, 21, 0.3);
+            margin-bottom: 20px;
+        }
+        
+        .sidebar-header h3 {
+            color: #facc15;
+            font-size: 1.3rem;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .sidebar-header p {
+            font-size: 0.7rem;
+            color: #94a3b8;
+            margin-top: 8px;
+        }
+        
+        .filter-section {
+            padding: 0 16px;
+            margin-bottom: 25px;
+        }
+        
+        .clear-filters-btn {
+            width: 100%;
+            padding: 10px 12px;
+            background: rgba(250, 204, 21, 0.12);
+            border: 1px solid #facc15;
+            color: #facc15;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .clear-filters-btn:hover {
+            background: rgba(250, 204, 21, 0.25);
+            transform: translateY(-1px);
+        }
+        
+        .sidebar-menu-item {
+            padding: 12px 20px;
+            margin: 4px 12px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #cbd5e1;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .sidebar-menu-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            transform: translateX(4px);
+        }
+        
+        .sidebar-menu-item i {
+            width: 24px;
+            font-size: 1.2rem;
+        }
+        
+        .sidebar-footer {
+            margin-top: 40px;
+            padding: 20px;
+            font-size: 0.65rem;
+            color: #475569;
+            text-align: center;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        /* Overlay */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 99997;
+            display: none;
+        }
+        
+        .sidebar-overlay.active {
+            display: block;
+        }
+        
+        @media (min-width: 1024px) {
+            .floating-toggle-btn {
+                left: 20px;
+                bottom: 30px;
+            }
+        }
+    </style>
+    
+    <button class="floating-toggle-btn" id="toggleSidebarBtn">
+        ☰
+    </button>
+    
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
+    <div class="mobile-sidebar-panel" id="mobileSidebar">
+        <div class="sidebar-header">
+            <h3>
+                📊 Market Navigator
+            </h3>
+            <p>Quick access & filters</p>
+        </div>
+        
+        <div class="filter-section">
+            <button class="clear-filters-btn" id="clearAllFiltersBtn">
+                🧹 Clear All Filters
+            </button>
+        </div>
+        
+        <div class="sidebar-menu-item" data-section="top250">
+            📈 Top 250 NSE Stocks
+        </div>
+        <div class="sidebar-menu-item" data-section="volume">
+            📊 Volume Breakout
+        </div>
+        <div class="sidebar-menu-item" data-section="scanner">
+            🔍 NSE/BSE Scanner
+        </div>
+        <div class="sidebar-menu-item" data-section="rankings">
+            🏆 India Rankings
+        </div>
+        <div class="sidebar-menu-item" data-section="matrix">
+            📑 Stocks Matrix
+        </div>
+        
+        <div class="sidebar-footer">
+            <i class="fas fa-chart-line"></i> Live data · NSE/BSE<br>
+            Powered by TradingView
+        </div>
+    </div>
+    
+    <script>
+        const toggleBtn = document.getElementById('toggleSidebarBtn');
+        const sidebar = document.getElementById('mobileSidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        
+        function openSidebar() {
+            sidebar.classList.add('open');
+            overlay.classList.add('active');
+            toggleBtn.innerHTML = '✕';
+        }
+        
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+            toggleBtn.innerHTML = '☰';
+        }
+        
+        function toggleSidebar() {
+            if (sidebar.classList.contains('open')) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        }
+        
+        toggleBtn.addEventListener('click', toggleSidebar);
+        overlay.addEventListener('click', closeSidebar);
+        
+        // Menu click handlers
+        document.querySelectorAll('.sidebar-menu-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const section = this.getAttribute('data-section');
+                // Scroll to section
+                const element = document.getElementById(section);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+                closeSidebar();
+            });
+        });
+        
+        // Clear filters button
+        document.getElementById('clearAllFiltersBtn')?.addEventListener('click', function() {
+            // Send message to Streamlit to clear filters
+            if (window.parent && window.parent.postMessage) {
+                window.parent.postMessage({ type: 'streamlit:clearFilters' }, '*');
+            }
+            closeSidebar();
+            alert('Filters cleared! Page will refresh.');
+        });
+        
+        // Close on ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+                closeSidebar();
+            }
+        });
+    </script>
+    """, height=0)
+
+# Call the sidebar function
+add_mobile_sidebar()
+
+# ==========================================
+# 🎨 CUSTOM CSS (Your existing styles with padding fix)
+# ==========================================
 st.markdown("""
 <style>
     /* Reduce ALL headings to 90% smaller size */
@@ -28,8 +301,34 @@ st.markdown("""
         margin-top: 0.5rem !important;
         margin-bottom: 0.5rem !important;
     }
+    
+    /* Add bottom padding for mobile to accommodate floating button */
+    @media (max-width: 768px) {
+        .main .block-container {
+            padding-bottom: 80px !important;
+        }
+    }
+    
+    /* Section anchor styling */
+    .section-anchor {
+        scroll-margin-top: 80px;
+    }
 </style>
 """, unsafe_allow_html=True)
+
+# Helper function to add section anchors
+def section_anchor(section_id):
+    """Add an anchor point for sidebar navigation"""
+    st.markdown(f'<div id="{section_id}" class="section-anchor"></div>', unsafe_allow_html=True)
+
+# ==========================================
+# 📍 ADD THIS HELPER TO ADD SECTION ANCHORS
+# ==========================================
+# Use section_anchor("top250") before your Top 250 section
+# Use section_anchor("volume") before Volume Breakout section
+# Use section_anchor("scanner") before Scanner section
+# Use section_anchor("rankings") before Rankings section
+# Use section_anchor("matrix") before Matrix section
 
 # ==========================================
 # 🤖 CONFIGURE AI (GEMINI + GROQ)
