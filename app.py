@@ -18,6 +18,7 @@ import google.generativeai as genai
 # ⚙️ PAGE CONFIGURATION
 # ==========================================
 st.set_page_config(page_title="Top 250 NSE Stock-Volume Breakout Dashboard", layout="wide", page_icon="📊")
+
 st.markdown("""
 <style>
     /* Reduce ALL headings to 90% smaller size */
