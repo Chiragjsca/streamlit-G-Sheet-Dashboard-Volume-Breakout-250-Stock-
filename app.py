@@ -129,7 +129,7 @@ hide_streamlit_ui = """
     footer {visibility: hidden;}
 </style>
 """
-st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
+st.markdown(hide_streamlit_ui, unsafe_allow_html=false)
 
 import streamlit as st
 from datetime import datetime
