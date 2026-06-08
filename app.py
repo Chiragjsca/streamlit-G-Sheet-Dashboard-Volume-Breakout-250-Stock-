@@ -120,7 +120,7 @@ import streamlit as st
 from datetime import datetime
 
 # ==========================================
-# 🛡️ Add custom CSS to hide the GitHub icon
+# 🛡️ HIDE THE GITHUB ICON
 # ==========================================
 hide_github_icon = """
 #GithubIcon {
@@ -129,7 +129,8 @@ hide_github_icon = """
 """
 st.markdown(hide_github_icon, unsafe_allow_html=True)
 
-st.title("My Clean Streamlit App")
+import streamlit as st
+from datetime import datetime
 
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
