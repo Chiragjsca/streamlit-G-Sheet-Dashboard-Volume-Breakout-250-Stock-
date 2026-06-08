@@ -123,7 +123,9 @@ from datetime import datetime
 # 🛡️ HIDE THE GITHUB ICON
 # ==========================================
 hide_github_icon = """
+<style>
     #GithubIcon {visibility: hidden;}
+<style>
 """
 st.markdown(hide_github_icon, unsafe_allow_html=True)
 
