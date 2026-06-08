@@ -108,16 +108,13 @@ Strategy 4 — Mean Reversion from 52W High/Low
 # ==========================================
 hide_streamlit_ui = """
 <style>
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-    [data-testid="stToolbar"] {visibility: hidden;}
-    footer {visibility: hidden;}
+    #MainMenu {visibility: show;}
+    header {visibility: show;}
+    [data-testid="stToolbar"] {visibility: show;}
+    footer {visibility: show;}
 </style>
 """
 st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
-
-import streamlit as st
-from datetime import datetime
 
 import streamlit as st
 from datetime import datetime
@@ -170,6 +167,21 @@ if not st.session_state.logged_in:
     st.markdown(f"<p style='text-align: center; color: gray; font-size: 14px; margin-top: 20px;'>Data refreshed: {dynamic_time}</p>", unsafe_allow_html=True)
 
     st.stop()
+
+# ==========================================
+# YOUR EXISTING CSS (keep this)
+# ==========================================
+st.markdown("""
+<style>
+    /* Reduce ALL headings to 90% smaller size */
+    h1, h2, h3, h4, h5, h6, .stSubheader, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+        font-size: 0.85rem !important;
+        font-weight: bold !important;
+        margin-top: 0.5rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # ==========================================
 # 🌍 GLOBAL MARKET TICKER (LIVE DATA GRID)
@@ -423,7 +435,7 @@ import streamlit.components.v1 as components
 # ==========================================
 # 🌍 NATIONAL EXCHANGE SCANNER (ALL NSE/BSE)
 # ==========================================
-st.markdown("### 🌍 National Exchange Scanner (All NSE/BSE Stocks)")
+st.markdown("<p style='font-size:0.85rem; font-weight:bold; margin:0; padding:0;'>🌍 National Exchange Scanner (All NSE/BSE Stocks)</p>", unsafe_allow_html=True)
 st.caption("Live market data covering 2,000+ equities. Powered by TradingView.")
 
 with st.expander("🏆 Click to view Full-Market India Rankings", expanded=False):
