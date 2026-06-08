@@ -106,29 +106,17 @@ Strategy 4 — Mean Reversion from 52W High/Low
 import streamlit as st
 
 # ==========================================
-# 🛡️ HIDE STREAMLIT UI ELEMENTS
+# 🛡️ HIDE STREAMLIT MENU & GITHUB ICON
 # ==========================================
 hide_streamlit_ui = """
 <style>
     #MainMenu {visibility: show;}
     header {visibility: show;}
+    [data-testid="stToolbar"] {visibility: hidden;}
     footer {visibility: show;}
-    [data-testid="stToolbar"] {visibility: show;}
 </style>
 """
 st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
-
-import streamlit as st
-
-# ==========================================
-# 🛡️ HIDE THE GITHUB ICON
-# ==========================================
-hide_github_icon = """
-<style>
-    #GithubIcon {visibility: hidden;}
-</style>
-"""
-st.markdown(hide_github_icon, unsafe_allow_html=True)
 
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
