@@ -126,14 +126,15 @@ Strategy 4 — Mean Reversion from 52W High/Low
 # ==========================================
 # 🛡️ HIDE STREAMLIT MENU & GITHUB ICON
 # ==========================================
+# ── CSS only (st.markdown strips <script> tags, so JS is separate below) ──
 hide_streamlit_ui = """
 <style>
-    /* ── Hide Streamlit branding, menu & footer ──────────────────────── */
+    /* Hide Streamlit branding, menu & footer */
     #MainMenu                 { visibility: hidden; }
     [data-testid="stToolbar"] { visibility: hidden; }
     footer                    { visibility: hidden; }
 
-    /* ── Shrink the header bar to zero (hides Deploy btn, logo, etc.) ── */
+    /* Shrink header to zero — hides Deploy btn, logo, etc. */
     header[data-testid="stHeader"] {
         height     : 0           !important;
         min-height : 0           !important;
@@ -142,76 +143,75 @@ hide_streamlit_ui = """
         background : transparent !important;
     }
 
-    /* ── Keep the sidebar CLOSE button (« ) always visible ──────────── */
+    /* Keep the sidebar CLOSE button « always visible */
     [data-testid="stSidebarCollapseButton"],
     [data-testid="stSidebarCollapseButton"] button {
         visibility : visible !important;
         display    : flex    !important;
     }
 
-    /* ── Custom floating OPEN button (injected by JS into <body>) ────── */
+    /* Floating OPEN button — created by JS below, styled here */
     #_sb_open_btn {
-        position      : fixed                          !important;
-        left          : 0                              !important;
-        top           : 50%                            !important;
-        transform     : translateY(-50%)               !important;
-        z-index       : 999999                         !important;
-        background    : #f0f2f6                        !important;
-        border        : 1.5px solid #c8cacc            !important;
-        border-left   : none                           !important;
-        border-radius : 0 10px 10px 0                  !important;
-        padding       : 14px 9px                       !important;
-        box-shadow    : 3px 3px 12px rgba(0,0,0,0.13) !important;
-        cursor        : pointer                        !important;
-        font-size     : 20px                           !important;
-        font-weight   : bold                           !important;
-        font-family   : system-ui, sans-serif          !important;
-        color         : #31333F                        !important;
-        line-height   : 1                              !important;
-        display       : none;          /* JS controls visibility */
-        align-items   : center         !important;
-        justify-content: center        !important;
+        position       : fixed                           !important;
+        left           : 0                               !important;
+        top            : 50%                             !important;
+        transform      : translateY(-50%)                !important;
+        z-index        : 2147483647                      !important;
+        background     : #f0f2f6                         !important;
+        border         : 1.5px solid #c8cacc             !important;
+        border-left    : none                            !important;
+        border-radius  : 0 10px 10px 0                   !important;
+        padding        : 14px 9px                        !important;
+        box-shadow     : 3px 3px 12px rgba(0,0,0,0.15)  !important;
+        cursor         : pointer                         !important;
+        font-size      : 22px                            !important;
+        font-weight    : bold                            !important;
+        font-family    : system-ui, sans-serif           !important;
+        color          : #31333F                         !important;
+        line-height    : 1                               !important;
+        display        : none;
+        align-items    : center                          !important;
+        justify-content: center                          !important;
+        min-width      : 32px                            !important;
     }
     #_sb_open_btn:hover { background: #dde0e5 !important; }
-
     @media (max-width: 768px) {
-        #_sb_open_btn { padding: 18px 11px !important; }
+        #_sb_open_btn { padding: 20px 12px !important; font-size: 24px !important; }
     }
 </style>
+"""
+st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
 
+# ── JS injected via components.html — runs inside an iframe so it bypasses ──
+# ── Streamlit's HTML sanitizer; uses window.parent to reach the real page  ──
+components.html("""
 <script>
-/* ── Sidebar open-button injector ──────────────────────────────────────
-   Runs once per page load (guarded by window.__sbReady).
-   Appends a fixed "›" button to <body> — outside Streamlit's managed
-   DOM so it survives re-renders.  Polls sidebar width to show / hide.
-   On click it programmatically clicks Streamlit's internal toggle.
-──────────────────────────────────────────────────────────────────────── */
 (function () {
-    if (window.__sbReady) return;
-    window.__sbReady = true;
+    /* Guard: run only once even when Streamlit re-renders */
+    var w   = window.parent;
+    var doc = w.document;
+    if (w.__sbBtnDone) return;
+    w.__sbBtnDone = true;
 
-    /* 1. Create the button and attach it to <body> */
-    var btn = document.createElement('button');
-    btn.id    = '_sb_open_btn';
-    btn.title = 'Open Sidebar';
-    btn.innerHTML = '\u203a'; /* › */
-    document.body.appendChild(btn);
+    /* ── 1. Inject the button into <body> (outside Streamlit DOM) ──── */
+    var btn = doc.createElement('button');
+    btn.id        = '_sb_open_btn';
+    btn.title     = 'Open Sidebar';
+    btn.innerHTML = '\u203a';   /* › */
+    doc.body.appendChild(btn);
 
-    /* 2. Detect whether sidebar is collapsed (width < 80 px) */
+    /* ── 2. Detect sidebar state by measuring its pixel width ─────── */
     function isCollapsed() {
-        var sb = document.querySelector('[data-testid="stSidebar"]');
+        var sb = doc.querySelector('[data-testid="stSidebar"]');
         return !sb || sb.getBoundingClientRect().width < 80;
     }
-
-    /* 3. Show / hide our button to match sidebar state */
     function sync() {
         btn.style.display = isCollapsed() ? 'flex' : 'none';
     }
 
-    /* 4. Click handler — programmatically trigger Streamlit's toggle */
+    /* ── 3. Click → find & trigger Streamlit's hidden internal btn ── */
     btn.addEventListener('click', function () {
-        /* Try every known selector for Streamlit's internal toggle */
-        var targets = [
+        var sel = [
             '[data-testid="collapsedControl"] button',
             '[data-testid="stSidebarCollapsedControl"] button',
             'button[aria-label*="sidebar"]',
@@ -219,42 +219,40 @@ hide_streamlit_ui = """
             'button[aria-label*="open"]',
             'button[aria-label*="Open"]'
         ];
-        var found = false;
-        for (var i = 0; i < targets.length; i++) {
-            var t = document.querySelector(targets[i]);
-            if (t) { t.click(); found = true; break; }
+        var clicked = false;
+        for (var i = 0; i < sel.length; i++) {
+            var t = doc.querySelector(sel[i]);
+            if (t) { t.click(); clicked = true; break; }
         }
-        /* fallback: look for any button near the top-left of the page */
-        if (!found) {
-            var all = document.querySelectorAll('button');
+        /* last-resort: look for any hidden button near the top-left */
+        if (!clicked) {
+            var all = doc.querySelectorAll('button');
             for (var j = 0; j < all.length; j++) {
                 var r = all[j].getBoundingClientRect();
-                if (r.left < 60 && r.top < 200 && r.width > 0) {
-                    all[j].click(); break;
-                }
+                if (r.left < 80 && r.top < 300) { all[j].click(); break; }
             }
         }
-        setTimeout(sync, 200);
-        setTimeout(sync, 700);
+        w.setTimeout(sync, 250);
+        w.setTimeout(sync, 800);
     });
 
-    /* 5. Poll every 500 ms + observe attribute changes */
-    setInterval(sync, 500);
+    /* ── 4. Keep in sync: poll + MutationObserver ─────────────────── */
+    w.setInterval(sync, 500);        /* use window.parent so interval   */
+                                     /* survives iframe re-creation     */
     try {
-        new MutationObserver(sync).observe(document.body, {
+        new w.MutationObserver(sync).observe(doc.body, {
             subtree: true, attributes: true,
             attributeFilter: ['style', 'class', 'aria-expanded']
         });
     } catch(e) {}
 
-    /* 6. Initial sync — run a few times to catch late renders */
-    setTimeout(sync, 400);
-    setTimeout(sync, 1200);
-    setTimeout(sync, 2500);
+    /* ── 5. Initial calls (page loads slowly on mobile) ──────────── */
+    w.setTimeout(sync,  500);
+    w.setTimeout(sync, 1500);
+    w.setTimeout(sync, 3000);
 })();
 </script>
-"""
-st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
+""", height=0)
 
 import streamlit as st
 from datetime import datetime
