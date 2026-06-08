@@ -110,7 +110,7 @@ hide_streamlit_ui = """
 <style>
     #MainMenu {visibility: show;}
     header {visibility: show;}
-    [data-testid="stToolbar"] {visibility: show;}
+    [data-testid="stToolbar"] {visibility: hidden;}
     footer {visibility: show;}
 </style>
 """
