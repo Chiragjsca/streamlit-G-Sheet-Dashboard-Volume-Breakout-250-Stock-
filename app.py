@@ -128,64 +128,131 @@ Strategy 4 — Mean Reversion from 52W High/Low
 # ==========================================
 hide_streamlit_ui = """
 <style>
-    /* ── Hide Streamlit branding & menus ─────────────────────────────── */
-    #MainMenu            { visibility: hidden; }
+    /* ── Hide Streamlit branding, menu & footer ──────────────────────── */
+    #MainMenu                 { visibility: hidden; }
     [data-testid="stToolbar"] { visibility: hidden; }
-    footer               { visibility: hidden; }
+    footer                    { visibility: hidden; }
 
-    /* ── Collapse header height WITHOUT removing its children ────────── */
-    /* (the old  "header { visibility: hidden }"  also hid the sidebar   */
-    /*  toggle buttons — this version keeps them alive)                  */
+    /* ── Shrink the header bar to zero (hides Deploy btn, logo, etc.) ── */
     header[data-testid="stHeader"] {
-        height      : 0        !important;
-        min-height  : 0        !important;
-        padding     : 0        !important;
-        overflow    : visible  !important;   /* children can escape the 0-height box */
-        background  : transparent !important;
+        height     : 0           !important;
+        min-height : 0           !important;
+        padding    : 0           !important;
+        overflow   : hidden      !important;
+        background : transparent !important;
     }
 
-    /* ── OPEN button  (>> arrow — shown when sidebar is COLLAPSED) ───── */
-    [data-testid="collapsedControl"] {
-        visibility      : visible              !important;
-        display         : flex                 !important;
-        align-items     : center               !important;
-        justify-content : center               !important;
-        position        : fixed                !important;
-        left            : 0                    !important;
-        top             : 50%                  !important;
-        transform       : translateY(-50%)     !important;
-        z-index         : 999999               !important;
-        background      : #f0f2f6             !important;
-        border          : 1.5px solid #c8cacc !important;
-        border-left     : none                 !important;
-        border-radius   : 0 10px 10px 0        !important;
-        padding         : 14px 8px             !important;
-        box-shadow      : 3px 3px 12px rgba(0,0,0,0.13) !important;
-        cursor          : pointer              !important;
-    }
-
-    /* Make sure every child inside the button is also visible */
-    [data-testid="collapsedControl"] *,
-    [data-testid="collapsedControl"] svg,
-    [data-testid="collapsedControl"] button {
-        visibility : visible !important;
-        display    : block   !important;
-    }
-
-    /* ── CLOSE button  (<< arrow — shown INSIDE the sidebar) ─────────── */
+    /* ── Keep the sidebar CLOSE button (« ) always visible ──────────── */
     [data-testid="stSidebarCollapseButton"],
     [data-testid="stSidebarCollapseButton"] button {
         visibility : visible !important;
         display    : flex    !important;
     }
 
-    /* ── Mobile tweaks — bigger tap target ───────────────────────────── */
+    /* ── Custom floating OPEN button (injected by JS into <body>) ────── */
+    #_sb_open_btn {
+        position      : fixed                          !important;
+        left          : 0                              !important;
+        top           : 50%                            !important;
+        transform     : translateY(-50%)               !important;
+        z-index       : 999999                         !important;
+        background    : #f0f2f6                        !important;
+        border        : 1.5px solid #c8cacc            !important;
+        border-left   : none                           !important;
+        border-radius : 0 10px 10px 0                  !important;
+        padding       : 14px 9px                       !important;
+        box-shadow    : 3px 3px 12px rgba(0,0,0,0.13) !important;
+        cursor        : pointer                        !important;
+        font-size     : 20px                           !important;
+        font-weight   : bold                           !important;
+        font-family   : system-ui, sans-serif          !important;
+        color         : #31333F                        !important;
+        line-height   : 1                              !important;
+        display       : none;          /* JS controls visibility */
+        align-items   : center         !important;
+        justify-content: center        !important;
+    }
+    #_sb_open_btn:hover { background: #dde0e5 !important; }
+
     @media (max-width: 768px) {
-        [data-testid="collapsedControl"] {
-            padding : 18px 11px !important;
-        }
+        #_sb_open_btn { padding: 18px 11px !important; }
     }
 </style>
+
+<script>
+/* ── Sidebar open-button injector ──────────────────────────────────────
+   Runs once per page load (guarded by window.__sbReady).
+   Appends a fixed "›" button to <body> — outside Streamlit's managed
+   DOM so it survives re-renders.  Polls sidebar width to show / hide.
+   On click it programmatically clicks Streamlit's internal toggle.
+──────────────────────────────────────────────────────────────────────── */
+(function () {
+    if (window.__sbReady) return;
+    window.__sbReady = true;
+
+    /* 1. Create the button and attach it to <body> */
+    var btn = document.createElement('button');
+    btn.id    = '_sb_open_btn';
+    btn.title = 'Open Sidebar';
+    btn.innerHTML = '\u203a'; /* › */
+    document.body.appendChild(btn);
+
+    /* 2. Detect whether sidebar is collapsed (width < 80 px) */
+    function isCollapsed() {
+        var sb = document.querySelector('[data-testid="stSidebar"]');
+        return !sb || sb.getBoundingClientRect().width < 80;
+    }
+
+    /* 3. Show / hide our button to match sidebar state */
+    function sync() {
+        btn.style.display = isCollapsed() ? 'flex' : 'none';
+    }
+
+    /* 4. Click handler — programmatically trigger Streamlit's toggle */
+    btn.addEventListener('click', function () {
+        /* Try every known selector for Streamlit's internal toggle */
+        var targets = [
+            '[data-testid="collapsedControl"] button',
+            '[data-testid="stSidebarCollapsedControl"] button',
+            'button[aria-label*="sidebar"]',
+            'button[aria-label*="Sidebar"]',
+            'button[aria-label*="open"]',
+            'button[aria-label*="Open"]'
+        ];
+        var found = false;
+        for (var i = 0; i < targets.length; i++) {
+            var t = document.querySelector(targets[i]);
+            if (t) { t.click(); found = true; break; }
+        }
+        /* fallback: look for any button near the top-left of the page */
+        if (!found) {
+            var all = document.querySelectorAll('button');
+            for (var j = 0; j < all.length; j++) {
+                var r = all[j].getBoundingClientRect();
+                if (r.left < 60 && r.top < 200 && r.width > 0) {
+                    all[j].click(); break;
+                }
+            }
+        }
+        setTimeout(sync, 200);
+        setTimeout(sync, 700);
+    });
+
+    /* 5. Poll every 500 ms + observe attribute changes */
+    setInterval(sync, 500);
+    try {
+        new MutationObserver(sync).observe(document.body, {
+            subtree: true, attributes: true,
+            attributeFilter: ['style', 'class', 'aria-expanded']
+        });
+    } catch(e) {}
+
+    /* 6. Initial sync — run a few times to catch late renders */
+    setTimeout(sync, 400);
+    setTimeout(sync, 1200);
+    setTimeout(sync, 2500);
+})();
+</script>
 """
 st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
 
