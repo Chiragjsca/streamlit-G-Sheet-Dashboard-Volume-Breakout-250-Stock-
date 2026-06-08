@@ -20,40 +20,41 @@ import google.generativeai as genai
 st.set_page_config(page_title="Top 250 NSE Stock-Volume Breakout Dashboard", layout="wide", page_icon="📊")
 
 # ==========================================
-# 📱 MOBILE LEFT SIDEBAR WITH HIDE/OPEN BUTTON - PURE CSS/JS SOLUTION
+# 📱 MOBILE LEFT SIDEBAR WITH HIDE/OPEN BUTTON - WORKING SOLUTION
 # ==========================================
 
-# Inject custom CSS and JavaScript directly into the page
+# Inject JavaScript and CSS directly
 st.markdown("""
 <style>
-    /* Floating Toggle Button - Bottom Left */
-    .floating-menu-btn {
+    /* Floating Button - Fixed Bottom Left */
+    .mobile-nav-btn {
         position: fixed !important;
         left: 16px !important;
         bottom: 80px !important;
-        width: 56px !important;
-        height: 56px !important;
+        width: 48px !important;
+        height: 48px !important;
         border-radius: 50% !important;
         background: #facc15 !important;
-        border: none !important;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important;
+        border: 2px solid #ffffff !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
         cursor: pointer !important;
         z-index: 999999 !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
         transition: all 0.3s ease !important;
-        font-size: 28px !important;
-        color: #0f172a !important;
+        font-size: 24px !important;
         font-weight: bold !important;
+        color: #0f172a !important;
+        font-family: Arial, sans-serif !important;
     }
     
-    .floating-menu-btn:hover {
+    .mobile-nav-btn:hover {
         transform: scale(1.05) !important;
         background: #eab308 !important;
     }
     
-    /* Mobile Sidebar Panel */
+    /* Sidebar Panel */
     .mobile-nav-sidebar {
         position: fixed !important;
         top: 0 !important;
@@ -69,7 +70,7 @@ st.markdown("""
         border-right: 2px solid #facc15 !important;
     }
     
-    .mobile-nav-sidebar.open {
+    .mobile-nav-sidebar.show-sidebar {
         transform: translateX(0) !important;
     }
     
@@ -105,6 +106,7 @@ st.markdown("""
         color: #94a3b8 !important;
         font-size: 0.7rem !important;
         margin-top: 8px !important;
+        margin-bottom: 0 !important;
     }
     
     .mobile-nav-filter {
@@ -174,37 +176,29 @@ st.markdown("""
         display: none !important;
     }
     
-    .mobile-nav-overlay.active {
+    .mobile-nav-overlay.show-overlay {
         display: block !important;
     }
     
-    /* Bottom padding for mobile */
+    /* Mobile bottom padding */
     @media (max-width: 768px) {
         .main .block-container {
             padding-bottom: 100px !important;
         }
     }
     
-    /* Section anchor styling */
+    /* Section anchor */
     .nav-section-anchor {
         scroll-margin-top: 80px;
     }
 </style>
 
-<!-- Floating Button -->
-<button class="floating-menu-btn" id="floatingMenuBtn">
-    ☰
-</button>
-
-<!-- Overlay -->
+<!-- Sidebar HTML -->
 <div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
 
-<!-- Sidebar Panel -->
 <div class="mobile-nav-sidebar" id="mobileNavSidebar">
     <div class="mobile-nav-header">
-        <h3>
-            📊 Market Navigator
-        </h3>
+        <h3>📊 Market Navigator</h3>
         <p>Quick access & filters</p>
     </div>
     
@@ -214,22 +208,22 @@ st.markdown("""
         </button>
     </div>
     
-    <div class="mobile-nav-item" data-nav-section="top250">
+    <div class="mobile-nav-item" data-section="top250">
         📈 Top 250 NSE Stocks
     </div>
-    <div class="mobile-nav-item" data-nav-section="volume">
+    <div class="mobile-nav-item" data-section="volume">
         📊 Volume Breakout
     </div>
-    <div class="mobile-nav-item" data-nav-section="scanner">
+    <div class="mobile-nav-item" data-section="scanner">
         🔍 NSE/BSE Scanner
     </div>
-    <div class="mobile-nav-item" data-nav-section="rankings">
+    <div class="mobile-nav-item" data-section="rankings">
         🏆 India Rankings
     </div>
-    <div class="mobile-nav-item" data-nav-section="matrix">
+    <div class="mobile-nav-item" data-section="matrix">
         📑 Stocks Matrix
     </div>
-    <div class="mobile-nav-item" data-nav-section="watchlist">
+    <div class="mobile-nav-item" data-section="watchlist">
         ⭐ My Watchlist
     </div>
     
@@ -239,79 +233,100 @@ st.markdown("""
     </div>
 </div>
 
+<button class="mobile-nav-btn" id="mobileNavBtn">☰</button>
+
 <script>
     (function() {
-        const toggleBtn = document.getElementById('floatingMenuBtn');
-        const sidebar = document.getElementById('mobileNavSidebar');
-        const overlay = document.getElementById('mobileNavOverlay');
-        let isOpen = false;
-        
-        if (!toggleBtn || !sidebar || !overlay) {
-            console.error('Elements not found');
-            return;
-        }
-        
-        function openNavSidebar() {
-            sidebar.classList.add('open');
-            overlay.classList.add('active');
-            toggleBtn.innerHTML = '✕';
-            isOpen = true;
-        }
-        
-        function closeNavSidebar() {
-            sidebar.classList.remove('open');
-            overlay.classList.remove('active');
-            toggleBtn.innerHTML = '☰';
-            isOpen = false;
-        }
-        
-        function toggleNavSidebar() {
-            if (isOpen) {
-                closeNavSidebar();
-            } else {
-                openNavSidebar();
+        // Wait for DOM to be fully loaded
+        function initMobileNav() {
+            const btn = document.getElementById('mobileNavBtn');
+            const sidebar = document.getElementById('mobileNavSidebar');
+            const overlay = document.getElementById('mobileNavOverlay');
+            
+            if (!btn || !sidebar || !overlay) {
+                console.log('Elements not found, retrying...');
+                setTimeout(initMobileNav, 100);
+                return;
             }
-        }
-        
-        toggleBtn.addEventListener('click', toggleNavSidebar);
-        overlay.addEventListener('click', closeNavSidebar);
-        
-        // Handle menu clicks
-        document.querySelectorAll('.mobile-nav-item').forEach(item => {
-            item.addEventListener('click', function() {
-                const section = this.getAttribute('data-nav-section');
-                if (section) {
-                    const element = document.getElementById(section);
-                    if (element) {
-                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            let isOpen = false;
+            
+            function openSidebar() {
+                sidebar.classList.add('show-sidebar');
+                overlay.classList.add('show-overlay');
+                btn.innerHTML = '✕';
+                isOpen = true;
+            }
+            
+            function closeSidebar() {
+                sidebar.classList.remove('show-sidebar');
+                overlay.classList.remove('show-overlay');
+                btn.innerHTML = '☰';
+                isOpen = false;
+            }
+            
+            function toggleSidebar() {
+                if (isOpen) {
+                    closeSidebar();
+                } else {
+                    openSidebar();
+                }
+            }
+            
+            // Button click
+            btn.onclick = toggleSidebar;
+            
+            // Overlay click
+            overlay.onclick = closeSidebar;
+            
+            // Menu items click
+            const menuItems = document.querySelectorAll('.mobile-nav-item');
+            menuItems.forEach(function(item) {
+                item.onclick = function() {
+                    const section = this.getAttribute('data-section');
+                    if (section) {
+                        const element = document.getElementById(section);
+                        if (element) {
+                            element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
                     }
-                }
-                closeNavSidebar();
+                    closeSidebar();
+                };
             });
-        });
-        
-        // Clear filters button
-        const clearBtn = document.getElementById('mobileClearBtn');
-        if (clearBtn) {
-            clearBtn.addEventListener('click', function() {
-                // Find and click Streamlit's clear filters button if exists
-                const streamlitClearBtn = document.querySelector('button[kind="secondary"]');
-                if (streamlitClearBtn && streamlitClearBtn.innerText.includes('Clear')) {
-                    streamlitClearBtn.click();
+            
+            // Clear filters button
+            const clearBtn = document.getElementById('mobileClearBtn');
+            if (clearBtn) {
+                clearBtn.onclick = function() {
+                    // Try to find and click Streamlit's clear filters button
+                    const buttons = document.querySelectorAll('button');
+                    for (let i = 0; i < buttons.length; i++) {
+                        if (buttons[i].innerText.includes('Clear All Filters')) {
+                            buttons[i].click();
+                            break;
+                        }
+                    }
+                    closeSidebar();
+                    setTimeout(function() {
+                        alert('🧹 Filters cleared!');
+                    }, 200);
+                };
+            }
+            
+            // Close on ESC
+            document.onkeydown = function(e) {
+                if (e.key === 'Escape' && isOpen) {
+                    closeSidebar();
                 }
-                closeNavSidebar();
-                setTimeout(() => {
-                    alert('🧹 Filters cleared!');
-                }, 200);
-            });
+            };
         }
         
-        // Close on ESC
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && isOpen) {
-                closeNavSidebar();
-            }
-        });
+        // Start when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initMobileNav);
+        } else {
+            initMobileNav();
+        }
     })();
 </script>
 """, unsafe_allow_html=True)
