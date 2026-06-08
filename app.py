@@ -137,12 +137,6 @@ page = st.sidebar.radio(
     key="nav_radio"
 )
 st.session_state.nav_page = page
-
-# Sidebar User Input (example)
-st.sidebar.subheader("👤 User Input")
-name = st.sidebar.text_input("Enter your name", key="user_name")
-age = st.sidebar.number_input("Enter your age", min_value=0, max_value=120, step=1, key="user_age")
-
 st.sidebar.markdown("---")  # separator before existing filters
 
 # ==========================================
