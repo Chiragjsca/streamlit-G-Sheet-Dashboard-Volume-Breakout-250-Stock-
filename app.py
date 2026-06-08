@@ -113,6 +113,10 @@ hide_streamlit_ui = """
     [data-testid="stToolbar"] {visibility: show;}
     footer {visibility: show;}
     st.sidebar {visibility: show;}
+    /* Hide GitHub links/icons */
+    a[href*="github"] { display: none !important; }
+    stApp a[href*="github.com"] { display: none !important; }
+    a:has(svg[aria-label="GitHub"]) { display: none !important; }
 </style>
 """
 st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
