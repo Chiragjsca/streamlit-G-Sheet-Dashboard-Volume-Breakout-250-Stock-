@@ -110,10 +110,10 @@ import streamlit as st
 # ==========================================
 hide_streamlit_ui = """
 <style>
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
-    [data-testid="stToolbar"] {visibility: hidden;}
+    #MainMenu {visibility: show;}
+    header {visibility: show;}
+    footer {visibility: show;}
+    [data-testid="stToolbar"] {visibility: show;}
 </style>
 """
 st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
