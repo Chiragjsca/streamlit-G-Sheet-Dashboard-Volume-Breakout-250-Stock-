@@ -120,11 +120,8 @@ import streamlit as st
 from datetime import datetime
 
 # ==========================================
-# 🛡️ HIDE GITHUB ICON
+# 🛡️ Add custom CSS to hide the GitHub icon
 # ==========================================
-import streamlit as st
-
-# Add custom CSS to hide the GitHub icon
 hide_github_icon = """
 #GithubIcon {
   visibility: hidden;
