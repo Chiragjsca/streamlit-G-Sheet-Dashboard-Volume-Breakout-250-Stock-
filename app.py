@@ -20,306 +20,219 @@ import google.generativeai as genai
 st.set_page_config(page_title="Top 250 NSE Stock-Volume Breakout Dashboard", layout="wide", page_icon="📊")
 
 # ==========================================
-# 📱 MOBILE LEFT SIDEBAR WITH HIDE/OPEN BUTTON - PURE CSS/JS SOLUTION
+# 📱 FIXED SIDEBAR BUTTON (TOP-LEFT, SMALL, WORKING)
 # ==========================================
+import streamlit.components.v1 as components
 
-# Inject custom CSS and JavaScript directly into the page
-st.markdown("""
-<style>
-    /* Floating Toggle Button - Bottom Left */
-    .floating-menu-btn {
-        position: fixed !important;
-        left: 16px !important;
-        bottom: 80px !important;
-        width: 56px !important;
-        height: 56px !important;
-        border-radius: 50% !important;
-        background: #facc15 !important;
-        border: none !important;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important;
-        cursor: pointer !important;
-        z-index: 999999 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        transition: all 0.3s ease !important;
-        font-size: 28px !important;
-        color: #0f172a !important;
-        font-weight: bold !important;
-    }
-    
-    .floating-menu-btn:hover {
-        transform: scale(1.05) !important;
-        background: #eab308 !important;
-    }
-    
-    /* Mobile Sidebar Panel */
-    .mobile-nav-sidebar {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 280px !important;
-        height: 100% !important;
-        background: linear-gradient(180deg, #0f172a 0%, #0a0f1c 100%) !important;
-        z-index: 999998 !important;
-        transform: translateX(-100%) !important;
-        transition: transform 0.3s ease-in-out !important;
-        box-shadow: 2px 0 20px rgba(0,0,0,0.5) !important;
-        overflow-y: auto !important;
-        border-right: 2px solid #facc15 !important;
-    }
-    
-    .mobile-nav-sidebar.open {
-        transform: translateX(0) !important;
-    }
-    
-    .mobile-nav-sidebar::-webkit-scrollbar {
-        width: 4px;
-    }
-    
-    .mobile-nav-sidebar::-webkit-scrollbar-track {
-        background: #1e293b;
-    }
-    
-    .mobile-nav-sidebar::-webkit-scrollbar-thumb {
-        background: #facc15;
-        border-radius: 4px;
-    }
-    
-    .mobile-nav-header {
-        padding: 24px 20px !important;
-        border-bottom: 1px solid rgba(250, 204, 21, 0.3) !important;
-        margin-bottom: 20px !important;
-    }
-    
-    .mobile-nav-header h3 {
-        color: #facc15 !important;
-        font-size: 1.3rem !important;
-        margin: 0 !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 10px !important;
-    }
-    
-    .mobile-nav-header p {
-        color: #94a3b8 !important;
-        font-size: 0.7rem !important;
-        margin-top: 8px !important;
-    }
-    
-    .mobile-nav-filter {
-        padding: 0 16px !important;
-        margin-bottom: 25px !important;
-    }
-    
-    .mobile-clear-btn {
-        width: 100% !important;
-        padding: 12px !important;
-        background: rgba(250, 204, 21, 0.1) !important;
-        border: 1px solid #facc15 !important;
-        color: #facc15 !important;
-        border-radius: 40px !important;
-        cursor: pointer !important;
-        font-weight: 600 !important;
-        font-size: 0.85rem !important;
-        transition: all 0.2s !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        gap: 8px !important;
-    }
-    
-    .mobile-clear-btn:hover {
-        background: rgba(250, 204, 21, 0.2) !important;
-    }
-    
-    .mobile-nav-item {
-        padding: 12px 20px !important;
-        margin: 4px 12px !important;
-        border-radius: 12px !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 14px !important;
-        font-size: 0.9rem !important;
-        font-weight: 500 !important;
-        color: #cbd5e1 !important;
-        cursor: pointer !important;
-        transition: all 0.2s !important;
-    }
-    
-    .mobile-nav-item:hover {
-        background: rgba(255, 255, 255, 0.1) !important;
-        color: #facc15 !important;
-        transform: translateX(4px) !important;
-    }
-    
-    .mobile-nav-footer {
-        margin-top: 50px !important;
-        padding: 20px !important;
-        text-align: center !important;
-        border-top: 1px solid rgba(255,255,255,0.1) !important;
-        font-size: 0.7rem !important;
-        color: #64748b !important;
-    }
-    
-    /* Overlay */
-    .mobile-nav-overlay {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        background: rgba(0,0,0,0.6) !important;
-        z-index: 999997 !important;
-        display: none !important;
-    }
-    
-    .mobile-nav-overlay.active {
-        display: block !important;
-    }
-    
-    /* Bottom padding for mobile */
-    @media (max-width: 768px) {
-        .main .block-container {
-            padding-bottom: 100px !important;
+components.html("""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* Small button at top-left corner */
+        .fixed-menu-btn {
+            position: fixed !important;
+            top: 12px !important;
+            left: 12px !important;
+            width: 40px !important;
+            height: 40px !important;
+            border-radius: 50% !important;
+            background: #facc15 !important;
+            border: none !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+            cursor: pointer !important;
+            z-index: 999999 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-size: 20px !important;
+            font-weight: bold !important;
+            color: #0f172a !important;
+            transition: all 0.2s ease !important;
         }
-    }
-    
-    /* Section anchor styling */
-    .nav-section-anchor {
-        scroll-margin-top: 80px;
-    }
-</style>
-
-<!-- Floating Button -->
-<button class="floating-menu-btn" id="floatingMenuBtn">
-    ☰
-</button>
-
-<!-- Overlay -->
-<div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
-
-<!-- Sidebar Panel -->
-<div class="mobile-nav-sidebar" id="mobileNavSidebar">
-    <div class="mobile-nav-header">
-        <h3>
-            📊 Market Navigator
-        </h3>
-        <p>Quick access & filters</p>
-    </div>
-    
-    <div class="mobile-nav-filter">
-        <button class="mobile-clear-btn" id="mobileClearBtn">
-            🧹 Clear All Filters
-        </button>
-    </div>
-    
-    <div class="mobile-nav-item" data-nav-section="top250">
-        📈 Top 250 NSE Stocks
-    </div>
-    <div class="mobile-nav-item" data-nav-section="volume">
-        📊 Volume Breakout
-    </div>
-    <div class="mobile-nav-item" data-nav-section="scanner">
-        🔍 NSE/BSE Scanner
-    </div>
-    <div class="mobile-nav-item" data-nav-section="rankings">
-        🏆 India Rankings
-    </div>
-    <div class="mobile-nav-item" data-nav-section="matrix">
-        📑 Stocks Matrix
-    </div>
-    <div class="mobile-nav-item" data-nav-section="watchlist">
-        ⭐ My Watchlist
-    </div>
-    
-    <div class="mobile-nav-footer">
-        📈 Live market data<br>
-        Powered by TradingView
-    </div>
-</div>
-
-<script>
-    (function() {
-        const toggleBtn = document.getElementById('floatingMenuBtn');
-        const sidebar = document.getElementById('mobileNavSidebar');
-        const overlay = document.getElementById('mobileNavOverlay');
-        let isOpen = false;
-        
-        if (!toggleBtn || !sidebar || !overlay) {
-            console.error('Elements not found');
-            return;
+        .fixed-menu-btn:hover {
+            transform: scale(1.05);
+            background: #eab308;
         }
         
-        function openNavSidebar() {
-            sidebar.classList.add('open');
-            overlay.classList.add('active');
-            toggleBtn.innerHTML = '✕';
-            isOpen = true;
+        /* Sidebar panel */
+        .fixed-sidebar {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 260px !important;
+            height: 100% !important;
+            background: linear-gradient(180deg, #0f172a 0%, #0a0f1c 100%) !important;
+            z-index: 999998 !important;
+            transform: translateX(-100%) !important;
+            transition: transform 0.3s ease-in-out !important;
+            box-shadow: 2px 0 20px rgba(0,0,0,0.4) !important;
+            overflow-y: auto !important;
+            border-right: 2px solid #facc15 !important;
+        }
+        .fixed-sidebar.open {
+            transform: translateX(0) !important;
         }
         
-        function closeNavSidebar() {
-            sidebar.classList.remove('open');
-            overlay.classList.remove('active');
-            toggleBtn.innerHTML = '☰';
-            isOpen = false;
+        .sidebar-header {
+            padding: 20px 16px !important;
+            border-bottom: 1px solid rgba(250,204,21,0.3);
+            margin-bottom: 20px;
         }
-        
-        function toggleNavSidebar() {
-            if (isOpen) {
-                closeNavSidebar();
-            } else {
-                openNavSidebar();
+        .sidebar-header h3 {
+            color: #facc15;
+            font-size: 1.2rem;
+            margin: 0;
+        }
+        .sidebar-header p {
+            color: #94a3b8;
+            font-size: 0.7rem;
+            margin-top: 5px;
+        }
+        .filter-area {
+            padding: 0 12px;
+            margin-bottom: 20px;
+        }
+        .clear-filters {
+            width: 100%;
+            padding: 8px;
+            background: rgba(250,204,21,0.1);
+            border: 1px solid #facc15;
+            color: #facc15;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .menu-item {
+            padding: 10px 16px;
+            margin: 4px 12px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #cbd5e1;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: #facc15;
+        }
+        .sidebar-footer {
+            margin-top: 40px;
+            padding: 16px;
+            text-align: center;
+            font-size: 0.65rem;
+            color: #64748b;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999997;
+            display: none;
+        }
+        .overlay.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <button class="fixed-menu-btn" id="menuBtn">☰</button>
+    <div class="overlay" id="overlay"></div>
+    <div class="fixed-sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h3>📊 Market Navigator</h3>
+            <p>Quick access & filters</p>
+        </div>
+        <div class="filter-area">
+            <button class="clear-filters" id="clearBtn">🧹 Clear All Filters</button>
+        </div>
+        <div class="menu-item" data-section="top250">📈 Top 250 NSE Stocks</div>
+        <div class="menu-item" data-section="volume">📊 Volume Breakout</div>
+        <div class="menu-item" data-section="scanner">🔍 NSE/BSE Scanner</div>
+        <div class="menu-item" data-section="rankings">🏆 India Rankings</div>
+        <div class="menu-item" data-section="matrix">📑 Stocks Matrix</div>
+        <div class="menu-item" data-section="watchlist">⭐ My Watchlist</div>
+        <div class="sidebar-footer">Live data · NSE/BSE</div>
+    </div>
+
+    <script>
+        (function() {
+            // Get elements
+            const btn = document.getElementById('menuBtn');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            
+            let isOpen = false;
+            
+            function openSidebar() {
+                sidebar.classList.add('open');
+                overlay.classList.add('show');
+                btn.innerHTML = '✕';
+                isOpen = true;
             }
-        }
-        
-        toggleBtn.addEventListener('click', toggleNavSidebar);
-        overlay.addEventListener('click', closeNavSidebar);
-        
-        // Handle menu clicks
-        document.querySelectorAll('.mobile-nav-item').forEach(item => {
-            item.addEventListener('click', function() {
-                const section = this.getAttribute('data-nav-section');
-                if (section) {
-                    const element = document.getElementById(section);
-                    if (element) {
-                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            function closeSidebar() {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('show');
+                btn.innerHTML = '☰';
+                isOpen = false;
+            }
+            
+            btn.onclick = function(e) {
+                e.stopPropagation();
+                if (isOpen) closeSidebar();
+                else openSidebar();
+            };
+            
+            overlay.onclick = closeSidebar;
+            
+            // Menu clicks
+            document.querySelectorAll('.menu-item').forEach(function(item) {
+                item.onclick = function() {
+                    var section = this.getAttribute('data-section');
+                    if (section) {
+                        var el = document.getElementById(section);
+                        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    closeSidebar();
+                };
+            });
+            
+            // Clear filters
+            document.getElementById('clearBtn').onclick = function() {
+                // Find Streamlit's clear button
+                var btns = document.querySelectorAll('button');
+                for (var i = 0; i < btns.length; i++) {
+                    if (btns[i].innerText.includes('Clear All Filters')) {
+                        btns[i].click();
+                        break;
                     }
                 }
-                closeNavSidebar();
-            });
-        });
-        
-        // Clear filters button
-        const clearBtn = document.getElementById('mobileClearBtn');
-        if (clearBtn) {
-            clearBtn.addEventListener('click', function() {
-                // Find and click Streamlit's clear filters button if exists
-                const streamlitClearBtn = document.querySelector('button[kind="secondary"]');
-                if (streamlitClearBtn && streamlitClearBtn.innerText.includes('Clear')) {
-                    streamlitClearBtn.click();
-                }
-                closeNavSidebar();
-                setTimeout(() => {
-                    alert('🧹 Filters cleared!');
-                }, 200);
-            });
-        }
-        
-        // Close on ESC
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && isOpen) {
-                closeNavSidebar();
-            }
-        });
-    })();
-</script>
-""", unsafe_allow_html=True)
+                closeSidebar();
+                setTimeout(function() { alert('Filters cleared!'); }, 100);
+            };
+            
+            // ESC to close
+            document.onkeydown = function(e) {
+                if (e.key === 'Escape' && isOpen) closeSidebar();
+            };
+        })();
+    </script>
+</body>
+</html>
+""", height=0)
 
-# Helper function for section anchors
-def nav_section_anchor(section_id):
-    """Add an anchor point for sidebar navigation"""
-    st.markdown(f'<div id="{section_id}" class="nav-section-anchor"></div>', unsafe_allow_html=True)
+# Helper function to add navigation anchors
+def nav_anchor(section_id):
+    st.markdown(f'<div id="{section_id}" style="scroll-margin-top: 70px;"></div>', unsafe_allow_html=True)
 
 # ==========================================
 # YOUR EXISTING CSS (keep this)
