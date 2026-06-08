@@ -123,13 +123,13 @@ Strategy 4 — Mean Reversion from 52W High/Low
 # ==========================================
 hide_streamlit_ui = """
 <style>
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
+    #MainMenu {visibility: show;}
+    header {visibility: show;}
     [data-testid="stToolbar"] {visibility: hidden;}
-    footer {visibility: hidden;}
+    footer {visibility: show;}
 </style>
 """
-st.markdown(hide_streamlit_ui, unsafe_allow_html=false)
+st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
 
 import streamlit as st
 from datetime import datetime
