@@ -119,13 +119,15 @@ st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
 import streamlit as st
 from datetime import datetime
 
+import streamlit as st
+
 # ==========================================
 # 🛡️ HIDE THE GITHUB ICON
 # ==========================================
 hide_github_icon = """
 <style>
     #GithubIcon {visibility: hidden;}
-<style>
+</style>
 """
 st.markdown(hide_github_icon, unsafe_allow_html=True)
 
