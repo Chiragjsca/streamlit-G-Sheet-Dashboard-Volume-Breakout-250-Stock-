@@ -122,22 +122,35 @@ hide_streamlit_ui = """
 st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
 
 # ==========================================
-# 🧭 LEFT SIDEBAR NAVIGATION (ADD AT TOP OF SIDEBAR)
+# 🧭 SIDEBAR TOGGLE BUTTON (Open / Hide)
 # ==========================================
-# Initialize session state for page navigation
-if "nav_page" not in st.session_state:
-    st.session_state.nav_page = "Main Dashboard"
+if "sidebar_hidden" not in st.session_state:
+    st.session_state.sidebar_hidden = False
 
-st.sidebar.markdown("---")
-st.sidebar.header("🧭 Navigation")
-page = st.sidebar.radio(
-    "Go to",
-    ["Main Dashboard", "Data Explorer", "About"],
-    index=0,
-    key="nav_radio"
-)
-st.session_state.nav_page = page
-st.sidebar.markdown("---")  # separator before existing filters
+# Custom CSS to hide sidebar and adjust main content
+hide_sidebar_css = """
+<style>
+    /* Hide sidebar completely */
+    .sidebar-hidden section[data-testid="stSidebar"] {
+        display: none !important;
+    }
+    /* Expand main content to full width when sidebar hidden */
+    .sidebar-hidden section[data-testid="stSidebar"] ~ div {
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+</style>
+"""
+
+if st.session_state.sidebar_hidden:
+    st.markdown(hide_sidebar_css, unsafe_allow_html=True)
+
+# Toggle button in main area (top left)
+col1, col2 = st.columns([1, 10])
+with col1:
+    if st.button("☰", help="Toggle Sidebar"):
+        st.session_state.sidebar_hidden = not st.session_state.sidebar_hidden
+        st.rerun()
 
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
