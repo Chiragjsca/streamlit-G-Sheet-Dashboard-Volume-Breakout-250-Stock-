@@ -104,33 +104,14 @@ Strategy 4 — Mean Reversion from 52W High/Low
   Rule 12: Apply a volume reversal filter — only enter when the reversal candle's volume is ≥ 1.5× the 20-day average; plot the 52-week high and low as horizontal reference lines on the chart."""
 
 # ==========================================
-# 🛡️ HIDE STREAMLIT MENU
-# ==========================================
-hide_streamlit_ui = """
-<style>
-    #MainMenu {visibility: show;}
-    header {visibility: show;}
-    [data-testid="stToolbar"] {visibility: show;}
-    footer {visibility: show;}
-</style>
-"""
-st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
-
-import streamlit as st
-from datetime import datetime
-
-# ==========================================
 # 🛡️ HIDE THE GITHUB ICON
 # ==========================================
-hide_github_icon = """
+hide_github_icon = “”"
 #GithubIcon {
-  visibility: hidden;
+visibility: hidden;
 }
-"""
+“”"
 st.markdown(hide_github_icon, unsafe_allow_html=True)
-
-import streamlit as st
-from datetime import datetime
 
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
