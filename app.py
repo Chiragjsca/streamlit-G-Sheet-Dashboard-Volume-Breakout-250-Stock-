@@ -106,7 +106,7 @@ Strategy 4 — Mean Reversion from 52W High/Low
 import streamlit as st
 
 # ==========================================
-# 🛡️ HIDE STREAMLIT ME
+# 🛡️ HIDE STREAMLIT MENU
 # ==========================================
 hide_streamlit_ui = """
 <style>
