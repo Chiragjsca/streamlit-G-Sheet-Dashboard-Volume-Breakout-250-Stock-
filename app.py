@@ -108,36 +108,17 @@ Strategy 4 — Mean Reversion from 52W High/Low
 # ==========================================
 hide_streamlit_ui = """
 <style>
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
+    #MainMenu {visibility: show;}
+    header {visibility: show;}
     [data-testid="stToolbar"] {visibility: hidden;}
-    footer {visibility: hidden;}
-    
-    /* Hide GitHub links/icons */
-    a[href*="github"] { display: none !important; }
-    .stApp a[href*="github.com"] { display: none !important; }
-    a:has(svg[aria-label="GitHub"]) { display: none !important; }
+    footer {visibility: show;}
+    st.sidebar {visibility: show;}
 </style>
 """
 st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
 
-# ==========================================
-# 🧭 LEFT SIDEBAR NAVIGATION (ADD AT TOP OF SIDEBAR)
-# ==========================================
-# Initialize session state for page navigation
-if "nav_page" not in st.session_state:
-    st.session_state.nav_page = "Main Dashboard"
-
-st.sidebar.markdown("---")
-st.sidebar.header("🧭 Navigation")
-page = st.sidebar.radio(
-    "Go to",
-    ["Main Dashboard", "Data Explorer", "About"],
-    index=0,
-    key="nav_radio"
-)
-st.session_state.nav_page = page
-st.sidebar.markdown("---")  # separator before existing filters
+import streamlit as st
+from datetime import datetime
 
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
