@@ -20,22 +20,15 @@ import google.generativeai as genai
 st.set_page_config(page_title="Top 250 NSE Stock-Volume Breakout Dashboard", layout="wide", page_icon="📊")
 
 # ==========================================
-# 📱 MOBILE SIDEBAR WITH HIDE/OPEN BUTTON - FIXED
+# 📱 MOBILE LEFT SIDEBAR WITH HIDE/OPEN BUTTON
 # ==========================================
 def add_mobile_sidebar():
-    """Add collapsible left sidebar with toggle button for mobile screens"""
+    """Add a collapsible left sidebar with toggle button for mobile screens"""
     
     components.html("""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    </head>
-    <body>
     <style>
-        /* Floating Toggle Button - Fixed Bottom Left */
-        .mobile-toggle-btn {
+        /* Floating Toggle Button - Bottom Left */
+        .mobile-sidebar-toggle {
             position: fixed !important;
             left: 16px !important;
             bottom: 80px !important;
@@ -44,7 +37,7 @@ def add_mobile_sidebar():
             border-radius: 50% !important;
             background: #facc15 !important;
             border: none !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important;
             cursor: pointer !important;
             z-index: 999999 !important;
             display: flex !important;
@@ -53,17 +46,17 @@ def add_mobile_sidebar():
             transition: all 0.3s ease !important;
         }
         
-        .mobile-toggle-btn:hover {
+        .mobile-sidebar-toggle:hover {
             transform: scale(1.05) !important;
             background: #eab308 !important;
         }
         
-        .mobile-toggle-btn i {
+        .mobile-sidebar-toggle i {
             font-size: 28px !important;
             color: #0f172a !important;
         }
         
-        /* Sidebar Panel */
+        /* Mobile Sidebar Panel */
         .mobile-sidebar-panel {
             position: fixed !important;
             top: 0 !important;
@@ -83,74 +76,92 @@ def add_mobile_sidebar():
             transform: translateX(0) !important;
         }
         
-        .sidebar-header {
+        .mobile-sidebar-panel::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        .mobile-sidebar-panel::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        
+        .mobile-sidebar-panel::-webkit-scrollbar-thumb {
+            background: #facc15;
+            border-radius: 4px;
+        }
+        
+        .mobile-sidebar-header {
             padding: 24px 20px !important;
             border-bottom: 1px solid rgba(250, 204, 21, 0.3) !important;
             margin-bottom: 20px !important;
         }
         
-        .sidebar-header h3 {
+        .mobile-sidebar-header h3 {
             color: #facc15 !important;
-            font-size: 1.4rem !important;
+            font-size: 1.3rem !important;
             margin: 0 !important;
             display: flex !important;
             align-items: center !important;
             gap: 10px !important;
         }
         
-        .sidebar-header p {
+        .mobile-sidebar-header p {
             color: #94a3b8 !important;
             font-size: 0.7rem !important;
             margin-top: 8px !important;
         }
         
-        .filter-section {
+        .mobile-sidebar-filter {
             padding: 0 16px !important;
             margin-bottom: 25px !important;
         }
         
-        .clear-filters-btn {
+        .mobile-sidebar-clear-btn {
             width: 100% !important;
             padding: 12px !important;
             background: rgba(250, 204, 21, 0.1) !important;
             border: 1px solid #facc15 !important;
             color: #facc15 !important;
-            border-radius: 8px !important;
+            border-radius: 40px !important;
             cursor: pointer !important;
             font-weight: 600 !important;
             font-size: 0.85rem !important;
             transition: all 0.2s !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 8px !important;
         }
         
-        .clear-filters-btn:hover {
+        .mobile-sidebar-clear-btn:hover {
             background: rgba(250, 204, 21, 0.2) !important;
         }
         
-        .sidebar-menu-item {
+        .mobile-sidebar-menu-item {
             padding: 12px 20px !important;
             margin: 4px 12px !important;
-            border-radius: 8px !important;
+            border-radius: 12px !important;
             display: flex !important;
             align-items: center !important;
             gap: 14px !important;
-            font-size: 0.95rem !important;
+            font-size: 0.9rem !important;
             font-weight: 500 !important;
             color: #cbd5e1 !important;
             cursor: pointer !important;
             transition: all 0.2s !important;
         }
         
-        .sidebar-menu-item:hover {
+        .mobile-sidebar-menu-item:hover {
             background: rgba(255, 255, 255, 0.1) !important;
             color: #facc15 !important;
+            transform: translateX(4px) !important;
         }
         
-        .sidebar-menu-item i {
+        .mobile-sidebar-menu-item i {
             width: 24px !important;
             font-size: 1.1rem !important;
         }
         
-        .sidebar-footer {
+        .mobile-sidebar-footer {
             margin-top: 50px !important;
             padding: 20px !important;
             text-align: center !important;
@@ -160,7 +171,7 @@ def add_mobile_sidebar():
         }
         
         /* Overlay */
-        .sidebar-overlay {
+        .mobile-sidebar-overlay {
             position: fixed !important;
             top: 0 !important;
             left: 0 !important;
@@ -171,113 +182,114 @@ def add_mobile_sidebar():
             display: none !important;
         }
         
-        .sidebar-overlay.active {
+        .mobile-sidebar-overlay.active {
             display: block !important;
         }
         
-        /* Ensure button stays on top */
-        iframe {
-            z-index: 999999 !important;
+        /* Hide on desktop (optional - only show on mobile) */
+        @media (min-width: 769px) {
+            .mobile-sidebar-toggle {
+                display: flex !important;
+            }
         }
     </style>
     
-    <!-- Floating Toggle Button -->
-    <button class="mobile-toggle-btn" id="toggleBtn">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <button class="mobile-sidebar-toggle" id="mobileToggleBtn">
         <i class="fas fa-bars"></i>
     </button>
     
-    <!-- Overlay -->
-    <div class="sidebar-overlay" id="overlay"></div>
+    <div class="mobile-sidebar-overlay" id="mobileOverlay"></div>
     
-    <!-- Sidebar -->
-    <div class="mobile-sidebar-panel" id="sidebar">
-        <div class="sidebar-header">
+    <div class="mobile-sidebar-panel" id="mobileSidebarPanel">
+        <div class="mobile-sidebar-header">
             <h3>
-                <i class="fas fa-chart-line"></i> Market Tools
+                <i class="fas fa-chart-line"></i> Market Navigator
             </h3>
-            <p>Quick navigation & filters</p>
+            <p>Quick access & filters</p>
         </div>
         
-        <div class="filter-section">
-            <button class="clear-filters-btn" id="clearBtn">
+        <div class="mobile-sidebar-filter">
+            <button class="mobile-sidebar-clear-btn" id="mobileClearFiltersBtn">
                 <i class="fas fa-eraser"></i> Clear All Filters
             </button>
         </div>
         
-        <div class="sidebar-menu-item" onclick="scrollToSection('top250')">
+        <div class="mobile-sidebar-menu-item" data-section="top250">
             <i class="fas fa-chart-simple"></i> Top 250 NSE Stocks
         </div>
-        <div class="sidebar-menu-item" onclick="scrollToSection('volume')">
+        <div class="mobile-sidebar-menu-item" data-section="volume">
             <i class="fas fa-waveform"></i> Volume Breakout
         </div>
-        <div class="sidebar-menu-item" onclick="scrollToSection('scanner')">
+        <div class="mobile-sidebar-menu-item" data-section="scanner">
             <i class="fas fa-microchip"></i> NSE/BSE Scanner
         </div>
-        <div class="sidebar-menu-item" onclick="scrollToSection('rankings')">
+        <div class="mobile-sidebar-menu-item" data-section="rankings">
             <i class="fas fa-trophy"></i> India Rankings
         </div>
-        <div class="sidebar-menu-item" onclick="scrollToSection('matrix')">
+        <div class="mobile-sidebar-menu-item" data-section="matrix">
             <i class="fas fa-table"></i> Stocks Matrix
         </div>
+        <div class="mobile-sidebar-menu-item" data-section="watchlist">
+            <i class="fas fa-star"></i> My Watchlist
+        </div>
         
-        <div class="sidebar-footer">
+        <div class="mobile-sidebar-footer">
             <i class="fas fa-chart-line"></i> Live market data<br>
             Powered by TradingView
         </div>
     </div>
     
     <script>
-        const toggleBtn = document.getElementById('toggleBtn');
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.getElementById('overlay');
-        let isOpen = false;
+        const toggleBtn = document.getElementById('mobileToggleBtn');
+        const sidebar = document.getElementById('mobileSidebarPanel');
+        const overlay = document.getElementById('mobileOverlay');
+        let isSidebarOpen = false;
         
-        function openSidebar() {
+        function openMobileSidebar() {
             sidebar.classList.add('open');
             overlay.classList.add('active');
             toggleBtn.innerHTML = '<i class="fas fa-times"></i>';
-            isOpen = true;
+            isSidebarOpen = true;
         }
         
-        function closeSidebar() {
+        function closeMobileSidebar() {
             sidebar.classList.remove('open');
             overlay.classList.remove('active');
             toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
-            isOpen = false;
+            isSidebarOpen = false;
         }
         
-        function toggleSidebar() {
-            if (isOpen) {
-                closeSidebar();
+        function toggleMobileSidebar() {
+            if (isSidebarOpen) {
+                closeMobileSidebar();
             } else {
-                openSidebar();
+                openMobileSidebar();
             }
         }
         
-        toggleBtn.addEventListener('click', toggleSidebar);
-        overlay.addEventListener('click', closeSidebar);
+        toggleBtn.addEventListener('click', toggleMobileSidebar);
+        overlay.addEventListener('click', closeMobileSidebar);
         
-        function scrollToSection(sectionId) {
-            const element = document.getElementById(sectionId);
-            if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                closeSidebar();
-            } else {
-                // If element not found, try to find Streamlit element
-                const streamlitElement = parent.document.getElementById(sectionId);
-                if (streamlitElement) {
-                    streamlitElement.scrollIntoView({ behavior: 'smooth' });
+        // Menu click handlers - scroll to sections
+        document.querySelectorAll('.mobile-sidebar-menu-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const section = this.getAttribute('data-section');
+                const element = document.getElementById(section);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
-                closeSidebar();
-            }
-        }
+                closeMobileSidebar();
+            });
+        });
         
-        // Clear filters
-        document.getElementById('clearBtn').addEventListener('click', function() {
+        // Clear filters button
+        document.getElementById('mobileClearFiltersBtn').addEventListener('click', function() {
             if (window.parent && window.parent.postMessage) {
                 window.parent.postMessage({ type: 'clear_filters' }, '*');
             }
-            closeSidebar();
+            closeMobileSidebar();
             setTimeout(() => {
                 alert('🧹 Filters cleared!');
             }, 100);
@@ -285,20 +297,18 @@ def add_mobile_sidebar():
         
         // Close on ESC
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && isOpen) {
-                closeSidebar();
+            if (e.key === 'Escape' && isSidebarOpen) {
+                closeMobileSidebar();
             }
         });
     </script>
-    </body>
-    </html>
     """, height=0)
 
-# Call the sidebar function
+# Call the mobile sidebar function at the very beginning
 add_mobile_sidebar()
 
 # ==========================================
-# 🎨 CUSTOM CSS (Your existing styles with padding fix)
+# 🎨 CUSTOM CSS (Your existing styles with fixes)
 # ==========================================
 st.markdown("""
 <style>
@@ -313,30 +323,26 @@ st.markdown("""
     /* Add bottom padding for mobile to accommodate floating button */
     @media (max-width: 768px) {
         .main .block-container {
-            padding-bottom: 80px !important;
+            padding-bottom: 100px !important;
         }
     }
     
-    /* Section anchor styling */
+    /* Section anchor styling for smooth scrolling */
     .section-anchor {
         scroll-margin-top: 80px;
+    }
+    
+    /* Keep Streamlit sidebar working normally */
+    section[data-testid="stSidebar"] {
+        z-index: 99999;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Helper function to add section anchors
+# Helper function to add section anchors for sidebar navigation
 def section_anchor(section_id):
     """Add an anchor point for sidebar navigation"""
     st.markdown(f'<div id="{section_id}" class="section-anchor"></div>', unsafe_allow_html=True)
-
-# ==========================================
-# 📍 ADD THIS HELPER TO ADD SECTION ANCHORS
-# ==========================================
-# Use section_anchor("top250") before your Top 250 section
-# Use section_anchor("volume") before Volume Breakout section
-# Use section_anchor("scanner") before Scanner section
-# Use section_anchor("rankings") before Rankings section
-# Use section_anchor("matrix") before Matrix section
 
 # ==========================================
 # 🤖 CONFIGURE AI (GEMINI + GROQ)
