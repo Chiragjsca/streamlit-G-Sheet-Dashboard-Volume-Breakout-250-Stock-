@@ -20,295 +20,309 @@ import google.generativeai as genai
 st.set_page_config(page_title="Top 250 NSE Stock-Volume Breakout Dashboard", layout="wide", page_icon="📊")
 
 # ==========================================
-# 📱 MOBILE LEFT SIDEBAR WITH HIDE/OPEN BUTTON
+# 📱 MOBILE LEFT SIDEBAR WITH HIDE/OPEN BUTTON - PURE CSS/JS SOLUTION
 # ==========================================
-def add_mobile_sidebar():
-    """Add a collapsible left sidebar with toggle button for mobile screens"""
+
+# Inject custom CSS and JavaScript directly into the page
+st.markdown("""
+<style>
+    /* Floating Toggle Button - Bottom Left */
+    .floating-menu-btn {
+        position: fixed !important;
+        left: 16px !important;
+        bottom: 80px !important;
+        width: 56px !important;
+        height: 56px !important;
+        border-radius: 50% !important;
+        background: #facc15 !important;
+        border: none !important;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important;
+        cursor: pointer !important;
+        z-index: 999999 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        transition: all 0.3s ease !important;
+        font-size: 28px !important;
+        color: #0f172a !important;
+        font-weight: bold !important;
+    }
     
-    components.html("""
-    <style>
-        /* Floating Toggle Button - Bottom Left */
-        .mobile-sidebar-toggle {
-            position: fixed !important;
-            left: 16px !important;
-            bottom: 80px !important;
-            width: 56px !important;
-            height: 56px !important;
-            border-radius: 50% !important;
-            background: #facc15 !important;
-            border: none !important;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important;
-            cursor: pointer !important;
-            z-index: 999999 !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            transition: all 0.3s ease !important;
-        }
-        
-        .mobile-sidebar-toggle:hover {
-            transform: scale(1.05) !important;
-            background: #eab308 !important;
-        }
-        
-        .mobile-sidebar-toggle i {
-            font-size: 28px !important;
-            color: #0f172a !important;
-        }
-        
-        /* Mobile Sidebar Panel */
-        .mobile-sidebar-panel {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 280px !important;
-            height: 100% !important;
-            background: linear-gradient(180deg, #0f172a 0%, #0a0f1c 100%) !important;
-            z-index: 999998 !important;
-            transform: translateX(-100%) !important;
-            transition: transform 0.3s ease-in-out !important;
-            box-shadow: 2px 0 20px rgba(0,0,0,0.5) !important;
-            overflow-y: auto !important;
-            border-right: 2px solid #facc15 !important;
-        }
-        
-        .mobile-sidebar-panel.open {
-            transform: translateX(0) !important;
-        }
-        
-        .mobile-sidebar-panel::-webkit-scrollbar {
-            width: 4px;
-        }
-        
-        .mobile-sidebar-panel::-webkit-scrollbar-track {
-            background: #1e293b;
-        }
-        
-        .mobile-sidebar-panel::-webkit-scrollbar-thumb {
-            background: #facc15;
-            border-radius: 4px;
-        }
-        
-        .mobile-sidebar-header {
-            padding: 24px 20px !important;
-            border-bottom: 1px solid rgba(250, 204, 21, 0.3) !important;
-            margin-bottom: 20px !important;
-        }
-        
-        .mobile-sidebar-header h3 {
-            color: #facc15 !important;
-            font-size: 1.3rem !important;
-            margin: 0 !important;
-            display: flex !important;
-            align-items: center !important;
-            gap: 10px !important;
-        }
-        
-        .mobile-sidebar-header p {
-            color: #94a3b8 !important;
-            font-size: 0.7rem !important;
-            margin-top: 8px !important;
-        }
-        
-        .mobile-sidebar-filter {
-            padding: 0 16px !important;
-            margin-bottom: 25px !important;
-        }
-        
-        .mobile-sidebar-clear-btn {
-            width: 100% !important;
-            padding: 12px !important;
-            background: rgba(250, 204, 21, 0.1) !important;
-            border: 1px solid #facc15 !important;
-            color: #facc15 !important;
-            border-radius: 40px !important;
-            cursor: pointer !important;
-            font-weight: 600 !important;
-            font-size: 0.85rem !important;
-            transition: all 0.2s !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 8px !important;
-        }
-        
-        .mobile-sidebar-clear-btn:hover {
-            background: rgba(250, 204, 21, 0.2) !important;
-        }
-        
-        .mobile-sidebar-menu-item {
-            padding: 12px 20px !important;
-            margin: 4px 12px !important;
-            border-radius: 12px !important;
-            display: flex !important;
-            align-items: center !important;
-            gap: 14px !important;
-            font-size: 0.9rem !important;
-            font-weight: 500 !important;
-            color: #cbd5e1 !important;
-            cursor: pointer !important;
-            transition: all 0.2s !important;
-        }
-        
-        .mobile-sidebar-menu-item:hover {
-            background: rgba(255, 255, 255, 0.1) !important;
-            color: #facc15 !important;
-            transform: translateX(4px) !important;
-        }
-        
-        .mobile-sidebar-menu-item i {
-            width: 24px !important;
-            font-size: 1.1rem !important;
-        }
-        
-        .mobile-sidebar-footer {
-            margin-top: 50px !important;
-            padding: 20px !important;
-            text-align: center !important;
-            border-top: 1px solid rgba(255,255,255,0.1) !important;
-            font-size: 0.7rem !important;
-            color: #64748b !important;
-        }
-        
-        /* Overlay */
-        .mobile-sidebar-overlay {
-            position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100% !important;
-            height: 100% !important;
-            background: rgba(0,0,0,0.6) !important;
-            z-index: 999997 !important;
-            display: none !important;
-        }
-        
-        .mobile-sidebar-overlay.active {
-            display: block !important;
-        }
-        
-        /* Hide on desktop (optional - only show on mobile) */
-        @media (min-width: 769px) {
-            .mobile-sidebar-toggle {
-                display: flex !important;
-            }
-        }
-    </style>
+    .floating-menu-btn:hover {
+        transform: scale(1.05) !important;
+        background: #eab308 !important;
+    }
     
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    /* Mobile Sidebar Panel */
+    .mobile-nav-sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 280px !important;
+        height: 100% !important;
+        background: linear-gradient(180deg, #0f172a 0%, #0a0f1c 100%) !important;
+        z-index: 999998 !important;
+        transform: translateX(-100%) !important;
+        transition: transform 0.3s ease-in-out !important;
+        box-shadow: 2px 0 20px rgba(0,0,0,0.5) !important;
+        overflow-y: auto !important;
+        border-right: 2px solid #facc15 !important;
+    }
     
-    <button class="mobile-sidebar-toggle" id="mobileToggleBtn">
-        <i class="fas fa-bars"></i>
-    </button>
+    .mobile-nav-sidebar.open {
+        transform: translateX(0) !important;
+    }
     
-    <div class="mobile-sidebar-overlay" id="mobileOverlay"></div>
+    .mobile-nav-sidebar::-webkit-scrollbar {
+        width: 4px;
+    }
     
-    <div class="mobile-sidebar-panel" id="mobileSidebarPanel">
-        <div class="mobile-sidebar-header">
-            <h3>
-                <i class="fas fa-chart-line"></i> Market Navigator
-            </h3>
-            <p>Quick access & filters</p>
-        </div>
-        
-        <div class="mobile-sidebar-filter">
-            <button class="mobile-sidebar-clear-btn" id="mobileClearFiltersBtn">
-                <i class="fas fa-eraser"></i> Clear All Filters
-            </button>
-        </div>
-        
-        <div class="mobile-sidebar-menu-item" data-section="top250">
-            <i class="fas fa-chart-simple"></i> Top 250 NSE Stocks
-        </div>
-        <div class="mobile-sidebar-menu-item" data-section="volume">
-            <i class="fas fa-waveform"></i> Volume Breakout
-        </div>
-        <div class="mobile-sidebar-menu-item" data-section="scanner">
-            <i class="fas fa-microchip"></i> NSE/BSE Scanner
-        </div>
-        <div class="mobile-sidebar-menu-item" data-section="rankings">
-            <i class="fas fa-trophy"></i> India Rankings
-        </div>
-        <div class="mobile-sidebar-menu-item" data-section="matrix">
-            <i class="fas fa-table"></i> Stocks Matrix
-        </div>
-        <div class="mobile-sidebar-menu-item" data-section="watchlist">
-            <i class="fas fa-star"></i> My Watchlist
-        </div>
-        
-        <div class="mobile-sidebar-footer">
-            <i class="fas fa-chart-line"></i> Live market data<br>
-            Powered by TradingView
-        </div>
+    .mobile-nav-sidebar::-webkit-scrollbar-track {
+        background: #1e293b;
+    }
+    
+    .mobile-nav-sidebar::-webkit-scrollbar-thumb {
+        background: #facc15;
+        border-radius: 4px;
+    }
+    
+    .mobile-nav-header {
+        padding: 24px 20px !important;
+        border-bottom: 1px solid rgba(250, 204, 21, 0.3) !important;
+        margin-bottom: 20px !important;
+    }
+    
+    .mobile-nav-header h3 {
+        color: #facc15 !important;
+        font-size: 1.3rem !important;
+        margin: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+    }
+    
+    .mobile-nav-header p {
+        color: #94a3b8 !important;
+        font-size: 0.7rem !important;
+        margin-top: 8px !important;
+    }
+    
+    .mobile-nav-filter {
+        padding: 0 16px !important;
+        margin-bottom: 25px !important;
+    }
+    
+    .mobile-clear-btn {
+        width: 100% !important;
+        padding: 12px !important;
+        background: rgba(250, 204, 21, 0.1) !important;
+        border: 1px solid #facc15 !important;
+        color: #facc15 !important;
+        border-radius: 40px !important;
+        cursor: pointer !important;
+        font-weight: 600 !important;
+        font-size: 0.85rem !important;
+        transition: all 0.2s !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 8px !important;
+    }
+    
+    .mobile-clear-btn:hover {
+        background: rgba(250, 204, 21, 0.2) !important;
+    }
+    
+    .mobile-nav-item {
+        padding: 12px 20px !important;
+        margin: 4px 12px !important;
+        border-radius: 12px !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 14px !important;
+        font-size: 0.9rem !important;
+        font-weight: 500 !important;
+        color: #cbd5e1 !important;
+        cursor: pointer !important;
+        transition: all 0.2s !important;
+    }
+    
+    .mobile-nav-item:hover {
+        background: rgba(255, 255, 255, 0.1) !important;
+        color: #facc15 !important;
+        transform: translateX(4px) !important;
+    }
+    
+    .mobile-nav-footer {
+        margin-top: 50px !important;
+        padding: 20px !important;
+        text-align: center !important;
+        border-top: 1px solid rgba(255,255,255,0.1) !important;
+        font-size: 0.7rem !important;
+        color: #64748b !important;
+    }
+    
+    /* Overlay */
+    .mobile-nav-overlay {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        background: rgba(0,0,0,0.6) !important;
+        z-index: 999997 !important;
+        display: none !important;
+    }
+    
+    .mobile-nav-overlay.active {
+        display: block !important;
+    }
+    
+    /* Bottom padding for mobile */
+    @media (max-width: 768px) {
+        .main .block-container {
+            padding-bottom: 100px !important;
+        }
+    }
+    
+    /* Section anchor styling */
+    .nav-section-anchor {
+        scroll-margin-top: 80px;
+    }
+</style>
+
+<!-- Floating Button -->
+<button class="floating-menu-btn" id="floatingMenuBtn">
+    ☰
+</button>
+
+<!-- Overlay -->
+<div class="mobile-nav-overlay" id="mobileNavOverlay"></div>
+
+<!-- Sidebar Panel -->
+<div class="mobile-nav-sidebar" id="mobileNavSidebar">
+    <div class="mobile-nav-header">
+        <h3>
+            📊 Market Navigator
+        </h3>
+        <p>Quick access & filters</p>
     </div>
     
-    <script>
-        const toggleBtn = document.getElementById('mobileToggleBtn');
-        const sidebar = document.getElementById('mobileSidebarPanel');
-        const overlay = document.getElementById('mobileOverlay');
-        let isSidebarOpen = false;
+    <div class="mobile-nav-filter">
+        <button class="mobile-clear-btn" id="mobileClearBtn">
+            🧹 Clear All Filters
+        </button>
+    </div>
+    
+    <div class="mobile-nav-item" data-nav-section="top250">
+        📈 Top 250 NSE Stocks
+    </div>
+    <div class="mobile-nav-item" data-nav-section="volume">
+        📊 Volume Breakout
+    </div>
+    <div class="mobile-nav-item" data-nav-section="scanner">
+        🔍 NSE/BSE Scanner
+    </div>
+    <div class="mobile-nav-item" data-nav-section="rankings">
+        🏆 India Rankings
+    </div>
+    <div class="mobile-nav-item" data-nav-section="matrix">
+        📑 Stocks Matrix
+    </div>
+    <div class="mobile-nav-item" data-nav-section="watchlist">
+        ⭐ My Watchlist
+    </div>
+    
+    <div class="mobile-nav-footer">
+        📈 Live market data<br>
+        Powered by TradingView
+    </div>
+</div>
+
+<script>
+    (function() {
+        const toggleBtn = document.getElementById('floatingMenuBtn');
+        const sidebar = document.getElementById('mobileNavSidebar');
+        const overlay = document.getElementById('mobileNavOverlay');
+        let isOpen = false;
         
-        function openMobileSidebar() {
+        if (!toggleBtn || !sidebar || !overlay) {
+            console.error('Elements not found');
+            return;
+        }
+        
+        function openNavSidebar() {
             sidebar.classList.add('open');
             overlay.classList.add('active');
-            toggleBtn.innerHTML = '<i class="fas fa-times"></i>';
-            isSidebarOpen = true;
+            toggleBtn.innerHTML = '✕';
+            isOpen = true;
         }
         
-        function closeMobileSidebar() {
+        function closeNavSidebar() {
             sidebar.classList.remove('open');
             overlay.classList.remove('active');
-            toggleBtn.innerHTML = '<i class="fas fa-bars"></i>';
-            isSidebarOpen = false;
+            toggleBtn.innerHTML = '☰';
+            isOpen = false;
         }
         
-        function toggleMobileSidebar() {
-            if (isSidebarOpen) {
-                closeMobileSidebar();
+        function toggleNavSidebar() {
+            if (isOpen) {
+                closeNavSidebar();
             } else {
-                openMobileSidebar();
+                openNavSidebar();
             }
         }
         
-        toggleBtn.addEventListener('click', toggleMobileSidebar);
-        overlay.addEventListener('click', closeMobileSidebar);
+        toggleBtn.addEventListener('click', toggleNavSidebar);
+        overlay.addEventListener('click', closeNavSidebar);
         
-        // Menu click handlers - scroll to sections
-        document.querySelectorAll('.mobile-sidebar-menu-item').forEach(item => {
+        // Handle menu clicks
+        document.querySelectorAll('.mobile-nav-item').forEach(item => {
             item.addEventListener('click', function() {
-                const section = this.getAttribute('data-section');
-                const element = document.getElementById(section);
-                if (element) {
-                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const section = this.getAttribute('data-nav-section');
+                if (section) {
+                    const element = document.getElementById(section);
+                    if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
                 }
-                closeMobileSidebar();
+                closeNavSidebar();
             });
         });
         
         // Clear filters button
-        document.getElementById('mobileClearFiltersBtn').addEventListener('click', function() {
-            if (window.parent && window.parent.postMessage) {
-                window.parent.postMessage({ type: 'clear_filters' }, '*');
-            }
-            closeMobileSidebar();
-            setTimeout(() => {
-                alert('🧹 Filters cleared!');
-            }, 100);
-        });
+        const clearBtn = document.getElementById('mobileClearBtn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                // Find and click Streamlit's clear filters button if exists
+                const streamlitClearBtn = document.querySelector('button[kind="secondary"]');
+                if (streamlitClearBtn && streamlitClearBtn.innerText.includes('Clear')) {
+                    streamlitClearBtn.click();
+                }
+                closeNavSidebar();
+                setTimeout(() => {
+                    alert('🧹 Filters cleared!');
+                }, 200);
+            });
+        }
         
         // Close on ESC
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && isSidebarOpen) {
-                closeMobileSidebar();
+            if (e.key === 'Escape' && isOpen) {
+                closeNavSidebar();
             }
         });
-    </script>
-    """, height=0)
+    })();
+</script>
+""", unsafe_allow_html=True)
 
-# Call the mobile sidebar function at the very beginning
-add_mobile_sidebar()
+# Helper function for section anchors
+def nav_section_anchor(section_id):
+    """Add an anchor point for sidebar navigation"""
+    st.markdown(f'<div id="{section_id}" class="nav-section-anchor"></div>', unsafe_allow_html=True)
 
 # ==========================================
-# 🎨 CUSTOM CSS (Your existing styles with fixes)
+# YOUR EXISTING CSS (keep this)
 # ==========================================
 st.markdown("""
 <style>
@@ -319,30 +333,8 @@ st.markdown("""
         margin-top: 0.5rem !important;
         margin-bottom: 0.5rem !important;
     }
-    
-    /* Add bottom padding for mobile to accommodate floating button */
-    @media (max-width: 768px) {
-        .main .block-container {
-            padding-bottom: 100px !important;
-        }
-    }
-    
-    /* Section anchor styling for smooth scrolling */
-    .section-anchor {
-        scroll-margin-top: 80px;
-    }
-    
-    /* Keep Streamlit sidebar working normally */
-    section[data-testid="stSidebar"] {
-        z-index: 99999;
-    }
 </style>
 """, unsafe_allow_html=True)
-
-# Helper function to add section anchors for sidebar navigation
-def section_anchor(section_id):
-    """Add an anchor point for sidebar navigation"""
-    st.markdown(f'<div id="{section_id}" class="section-anchor"></div>', unsafe_allow_html=True)
 
 # ==========================================
 # 🤖 CONFIGURE AI (GEMINI + GROQ)
