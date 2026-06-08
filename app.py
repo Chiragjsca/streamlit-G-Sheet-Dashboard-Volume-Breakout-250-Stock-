@@ -122,31 +122,33 @@ hide_streamlit_ui = """
 st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
 
 # ==========================================
-# SIMPLIFIED SIDEBAR TOGGLE (CSS-only)
+# 🧭 SIDEBAR TOGGLE BUTTON (Open / Hide)
 # ==========================================
 if "sidebar_hidden" not in st.session_state:
     st.session_state.sidebar_hidden = False
 
-# Button in main area
-col1, col2 = st.columns([1, 10])
+# Button in the main area (top left)
+col1, col2 = st.columns([0.5, 10])
 with col1:
-    if st.button("☰", help="Toggle Sidebar"):
+    if st.button("☰", help="Toggle Sidebar", key="toggle_sidebar_btn"):
         st.session_state.sidebar_hidden = not st.session_state.sidebar_hidden
         st.rerun()
 
-# Apply CSS based on session state
+# Apply CSS to hide/show the sidebar based on session state
 if st.session_state.sidebar_hidden:
     st.markdown("""
     <style>
         section[data-testid="stSidebar"] {
             display: none !important;
         }
+        /* Optional: expand main content when sidebar hidden */
         .stApp {
             margin-left: 0 !important;
         }
     </style>
     """, unsafe_allow_html=True)
 else:
+    # Ensure sidebar is visible (remove any previous hiding)
     st.markdown("""
     <style>
         section[data-testid="stSidebar"] {
