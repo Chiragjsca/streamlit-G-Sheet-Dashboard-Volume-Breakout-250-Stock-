@@ -122,35 +122,38 @@ hide_streamlit_ui = """
 st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
 
 # ==========================================
-# 🧭 SIDEBAR TOGGLE BUTTON (Open / Hide)
+# SIMPLIFIED SIDEBAR TOGGLE (CSS-only)
 # ==========================================
 if "sidebar_hidden" not in st.session_state:
     st.session_state.sidebar_hidden = False
 
-# Custom CSS to hide sidebar and adjust main content
-hide_sidebar_css = """
-<style>
-    /* Hide sidebar completely */
-    .sidebar-hidden section[data-testid="stSidebar"] {
-        display: none !important;
-    }
-    /* Expand main content to full width when sidebar hidden */
-    .sidebar-hidden section[data-testid="stSidebar"] ~ div {
-        margin-left: 0 !important;
-        width: 100% !important;
-    }
-</style>
-"""
-
-if st.session_state.sidebar_hidden:
-    st.markdown(hide_sidebar_css, unsafe_allow_html=True)
-
-# Toggle button in main area (top left)
+# Button in main area
 col1, col2 = st.columns([1, 10])
 with col1:
     if st.button("☰", help="Toggle Sidebar"):
         st.session_state.sidebar_hidden = not st.session_state.sidebar_hidden
         st.rerun()
+
+# Apply CSS based on session state
+if st.session_state.sidebar_hidden:
+    st.markdown("""
+    <style>
+        section[data-testid="stSidebar"] {
+            display: none !important;
+        }
+        .stApp {
+            margin-left: 0 !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+    <style>
+        section[data-testid="stSidebar"] {
+            display: block !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
