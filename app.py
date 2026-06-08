@@ -118,6 +118,18 @@ hide_streamlit_ui = """
 """
 st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
 
+import streamlit as st
+
+# ==========================================
+# 🛡️ HIDE GITHUB ICON ONLY
+# ==========================================
+hide_github_icon = """
+<style>
+    [data-testid="stToolbar"] button:first-child {display: none;}
+</style>
+"""
+st.markdown(hide_github_icon, unsafe_allow_html=True)
+
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
 # ==========================================
