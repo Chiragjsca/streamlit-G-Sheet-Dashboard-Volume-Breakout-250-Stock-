@@ -17,7 +17,12 @@ import google.generativeai as genai
 # ==========================================
 # ⚙️ PAGE CONFIGURATION
 # ==========================================
-st.set_page_config(page_title="Top 250 NSE Stock-Volume Breakout Dashboard", layout="wide", page_icon="📊")
+st.set_page_config(
+    page_title="Top 250 NSE Stock-Volume Breakout Dashboard",
+    layout="wide",
+    page_icon="📊",
+    initial_sidebar_state="expanded",   # sidebar open by default on every device
+)
 
 # ==========================================
 # YOUR EXISTING CSS (keep this)
@@ -123,10 +128,63 @@ Strategy 4 — Mean Reversion from 52W High/Low
 # ==========================================
 hide_streamlit_ui = """
 <style>
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-    [data-testid="stToolbar"] {visibility: hidden;}
-    footer {visibility: hidden;}
+    /* ── Hide Streamlit branding & menus ─────────────────────────────── */
+    #MainMenu            { visibility: hidden; }
+    [data-testid="stToolbar"] { visibility: hidden; }
+    footer               { visibility: hidden; }
+
+    /* ── Collapse header height WITHOUT removing its children ────────── */
+    /* (the old  "header { visibility: hidden }"  also hid the sidebar   */
+    /*  toggle buttons — this version keeps them alive)                  */
+    header[data-testid="stHeader"] {
+        height      : 0        !important;
+        min-height  : 0        !important;
+        padding     : 0        !important;
+        overflow    : visible  !important;   /* children can escape the 0-height box */
+        background  : transparent !important;
+    }
+
+    /* ── OPEN button  (>> arrow — shown when sidebar is COLLAPSED) ───── */
+    [data-testid="collapsedControl"] {
+        visibility      : visible              !important;
+        display         : flex                 !important;
+        align-items     : center               !important;
+        justify-content : center               !important;
+        position        : fixed                !important;
+        left            : 0                    !important;
+        top             : 50%                  !important;
+        transform       : translateY(-50%)     !important;
+        z-index         : 999999               !important;
+        background      : #f0f2f6             !important;
+        border          : 1.5px solid #c8cacc !important;
+        border-left     : none                 !important;
+        border-radius   : 0 10px 10px 0        !important;
+        padding         : 14px 8px             !important;
+        box-shadow      : 3px 3px 12px rgba(0,0,0,0.13) !important;
+        cursor          : pointer              !important;
+    }
+
+    /* Make sure every child inside the button is also visible */
+    [data-testid="collapsedControl"] *,
+    [data-testid="collapsedControl"] svg,
+    [data-testid="collapsedControl"] button {
+        visibility : visible !important;
+        display    : block   !important;
+    }
+
+    /* ── CLOSE button  (<< arrow — shown INSIDE the sidebar) ─────────── */
+    [data-testid="stSidebarCollapseButton"],
+    [data-testid="stSidebarCollapseButton"] button {
+        visibility : visible !important;
+        display    : flex    !important;
+    }
+
+    /* ── Mobile tweaks — bigger tap target ───────────────────────────── */
+    @media (max-width: 768px) {
+        [data-testid="collapsedControl"] {
+            padding : 18px 11px !important;
+        }
+    }
 </style>
 """
 st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
