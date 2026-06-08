@@ -124,32 +124,20 @@ st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
 # ==========================================
 # 🧭 LEFT SIDEBAR NAVIGATION (ADD AT TOP OF SIDEBAR)
 # ==========================================
-import streamlit as st
+# Initialize session state for page navigation
+if "nav_page" not in st.session_state:
+    st.session_state.nav_page = "Main Dashboard"
 
-# Title in the main area
-st.title("Streamlit App with Left Sidebar")
-
-# Sidebar content
-st.sidebar.header("Navigation")
-page = st.sidebar.radio("Go to", ["Home", "Data", "About"])
-
-# Sidebar inputs
-st.sidebar.subheader("User Input")
-name = st.sidebar.text_input("Enter your name", "")
-age = st.sidebar.number_input("Enter your age", min_value=0, max_value=120, step=1)
-
-# Display content based on selection
-if page == "Home":
-    st.write(f"👋 Welcome {name if name else 'Guest'}!")
-elif page == "Data":
-    st.write("📊 Here is some data...")
-    st.dataframe({"A": [1, 2, 3], "B": [4, 5, 6]})
-elif page == "About":
-    st.write("ℹ️ This is a demo Streamlit app with a left sidebar.")
-
-# Show user info
-if name:
-    st.success(f"Hello {name}, you are {age} years old.")
+st.sidebar.markdown("---")
+st.sidebar.header("🧭 Navigation")
+page = st.sidebar.radio(
+    "Go to",
+    ["Main Dashboard", "Data Explorer", "About"],
+    index=0,
+    key="nav_radio"
+)
+st.session_state.nav_page = page
+st.sidebar.markdown("---")  # separator before existing filters
 
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
