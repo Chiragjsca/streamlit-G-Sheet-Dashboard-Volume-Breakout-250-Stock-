@@ -125,7 +125,13 @@ import streamlit as st
 # ==========================================
 hide_github_icon = """
 <style>
-    a[href="https://github.com/streamlit/streamlit"] {display: none;}
+    [data-testid="stToolbar"] {
+        right: 2rem;
+    }
+    [data-testid="stToolbar"]::before {
+        content: "";
+    }
+    button[kind="header"] {display: none;}
 </style>
 """
 st.markdown(hide_github_icon, unsafe_allow_html=True)
