@@ -122,40 +122,34 @@ hide_streamlit_ui = """
 st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
 
 # ==========================================
-# 🧭 SIDEBAR TOGGLE BUTTON (Open / Hide)
+# 🧭 LEFT SIDEBAR NAVIGATION (ADD AT TOP OF SIDEBAR)
 # ==========================================
-if "sidebar_hidden" not in st.session_state:
-    st.session_state.sidebar_hidden = False
+import streamlit as st
 
-# Button in the main area (top left)
-col1, col2 = st.columns([0.5, 10])
-with col1:
-    if st.button("☰", help="Toggle Sidebar", key="toggle_sidebar_btn"):
-        st.session_state.sidebar_hidden = not st.session_state.sidebar_hidden
-        st.rerun()
+# Title in the main area
+st.title("Streamlit App with Left Sidebar")
 
-# Apply CSS to hide/show the sidebar based on session state
-if st.session_state.sidebar_hidden:
-    st.markdown("""
-    <style>
-        section[data-testid="stSidebar"] {
-            display: none !important;
-        }
-        /* Optional: expand main content when sidebar hidden */
-        .stApp {
-            margin-left: 0 !important;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-else:
-    # Ensure sidebar is visible (remove any previous hiding)
-    st.markdown("""
-    <style>
-        section[data-testid="stSidebar"] {
-            display: block !important;
-        }
-    </style>
-    """, unsafe_allow_html=True)
+# Sidebar content
+st.sidebar.header("Navigation")
+page = st.sidebar.radio("Go to", ["Home", "Data", "About"])
+
+# Sidebar inputs
+st.sidebar.subheader("User Input")
+name = st.sidebar.text_input("Enter your name", "")
+age = st.sidebar.number_input("Enter your age", min_value=0, max_value=120, step=1)
+
+# Display content based on selection
+if page == "Home":
+    st.write(f"👋 Welcome {name if name else 'Guest'}!")
+elif page == "Data":
+    st.write("📊 Here is some data...")
+    st.dataframe({"A": [1, 2, 3], "B": [4, 5, 6]})
+elif page == "About":
+    st.write("ℹ️ This is a demo Streamlit app with a left sidebar.")
+
+# Show user info
+if name:
+    st.success(f"Hello {name}, you are {age} years old.")
 
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
