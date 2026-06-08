@@ -17,12 +17,7 @@ import google.generativeai as genai
 # ==========================================
 # ⚙️ PAGE CONFIGURATION
 # ==========================================
-st.set_page_config(
-    page_title="Top 250 NSE Stock-Volume Breakout Dashboard",
-    layout="wide",
-    page_icon="📊",
-    initial_sidebar_state="expanded",
-)
+st.set_page_config(page_title="Top 250 NSE Stock-Volume Breakout Dashboard", layout="wide", page_icon="📊")
 
 # ==========================================
 # 🤖 CONFIGURE AI (GEMINI + GROQ)
@@ -113,124 +108,13 @@ Strategy 4 — Mean Reversion from 52W High/Low
 # ==========================================
 hide_streamlit_ui = """
 <style>
-    #MainMenu                 { visibility: hidden; }
-    [data-testid="stToolbar"] { visibility: hidden; }
-    footer                    { visibility: hidden; }
-
-    /* Shrink header to zero — hides Deploy btn & logo but NOT the sidebar buttons */
-    header[data-testid="stHeader"] {
-        height     : 0           !important;
-        min-height : 0           !important;
-        padding    : 0           !important;
-        overflow   : hidden      !important;
-        background : transparent !important;
-    }
-
-    /* Keep the sidebar CLOSE button « always visible */
-    [data-testid="stSidebarCollapseButton"],
-    [data-testid="stSidebarCollapseButton"] button {
-        visibility : visible !important;
-        display    : flex    !important;
-    }
-
-    /* Floating OPEN button — created & controlled by the JS below */
-    #_sb_open_btn {
-        position       : fixed                          !important;
-        left           : 0                              !important;
-        top            : 50%                            !important;
-        transform      : translateY(-50%)               !important;
-        z-index        : 2147483647                     !important;
-        background     : #f0f2f6                        !important;
-        border         : 1.5px solid #c8cacc            !important;
-        border-left    : none                           !important;
-        border-radius  : 0 10px 10px 0                  !important;
-        padding        : 14px 9px                       !important;
-        box-shadow     : 3px 3px 12px rgba(0,0,0,0.15) !important;
-        cursor         : pointer                        !important;
-        font-size      : 22px                           !important;
-        font-weight    : bold                           !important;
-        font-family    : system-ui, sans-serif          !important;
-        color          : #31333F                        !important;
-        line-height    : 1                              !important;
-        display        : none;
-        align-items    : center                         !important;
-        justify-content: center                         !important;
-        min-width      : 32px                           !important;
-    }
-    #_sb_open_btn:hover { background: #dde0e5 !important; }
-    @media (max-width: 768px) {
-        #_sb_open_btn { padding: 20px 12px !important; font-size: 24px !important; }
-    }
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    [data-testid="stToolbar"] {visibility: hidden;}
+    footer {visibility: hidden;}
 </style>
 """
 st.markdown(hide_streamlit_ui, unsafe_allow_html=True)
-
-# JS via components.html — st.markdown strips <script> tags, so JS goes here.
-# Runs inside an iframe; window.parent reaches the real page DOM.
-components.html("""
-<script>
-(function () {
-    var w   = window.parent;
-    var doc = w.document;
-    if (w.__sbBtnDone) return;   /* run only once per session */
-    w.__sbBtnDone = true;
-
-    /* Create the › open button and append to <body> */
-    var btn = doc.createElement('button');
-    btn.id        = '_sb_open_btn';
-    btn.title     = 'Open Sidebar';
-    btn.innerHTML = '\u203a';
-    doc.body.appendChild(btn);
-
-    /* Detect collapsed state by sidebar pixel width */
-    function isCollapsed() {
-        var sb = doc.querySelector('[data-testid="stSidebar"]');
-        return !sb || sb.getBoundingClientRect().width < 80;
-    }
-    function sync() {
-        btn.style.display = isCollapsed() ? 'flex' : 'none';
-    }
-
-    /* On click, trigger Streamlit's internal sidebar toggle */
-    btn.addEventListener('click', function () {
-        var sel = [
-            '[data-testid="collapsedControl"] button',
-            '[data-testid="stSidebarCollapsedControl"] button',
-            'button[aria-label*="sidebar"]',
-            'button[aria-label*="Sidebar"]',
-            'button[aria-label*="open"]',
-            'button[aria-label*="Open"]'
-        ];
-        var clicked = false;
-        for (var i = 0; i < sel.length; i++) {
-            var t = doc.querySelector(sel[i]);
-            if (t) { t.click(); clicked = true; break; }
-        }
-        if (!clicked) {
-            var all = doc.querySelectorAll('button');
-            for (var j = 0; j < all.length; j++) {
-                var r = all[j].getBoundingClientRect();
-                if (r.left < 80 && r.top < 300) { all[j].click(); break; }
-            }
-        }
-        w.setTimeout(sync, 250);
-        w.setTimeout(sync, 800);
-    });
-
-    /* Poll + MutationObserver to keep button in sync with sidebar state */
-    w.setInterval(sync, 500);
-    try {
-        new w.MutationObserver(sync).observe(doc.body, {
-            subtree: true, attributes: true,
-            attributeFilter: ['style', 'class', 'aria-expanded']
-        });
-    } catch(e) {}
-    w.setTimeout(sync,  500);
-    w.setTimeout(sync, 1500);
-    w.setTimeout(sync, 3000);
-})();
-</script>
-""", height=0)
 
 import streamlit as st
 from datetime import datetime
@@ -241,7 +125,7 @@ from datetime import datetime
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
 # ==========================================
-ADMIN_PASSWORD = "dada"
+ADMIN_PASSWORD = "lalo"
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -539,7 +423,7 @@ import streamlit.components.v1 as components
 # ==========================================
 # 🌍 NATIONAL EXCHANGE SCANNER (ALL NSE/BSE)
 # ==========================================
-st.markdown("<p style='font-size:0.85rem; font-weight:bold; margin:0; padding:0;'>🌍 National Exchange Scanner (All NSE/BSE Stocks)</p>", unsafe_allow_html=True)
+st.markdown("### 🌍 National Exchange Scanner (All NSE/BSE Stocks)")
 st.caption("Live market data covering 2,000+ equities. Powered by TradingView.")
 
 with st.expander("🏆 Click to view Full-Market India Rankings", expanded=False):
@@ -2158,7 +2042,7 @@ Be specific, data-driven, and actionable for a retail investor.
     # 🌍 NATIONAL ANALYTICS PORTAL WORKSPACE
     # ==========================================
     st.markdown("---")
-    st.subheader("📊 National Live Market Analytics Portal Framework")
+    st.markdown("<p style='font-size:0.85rem; font-weight:bold; margin-top:0.5rem; margin-bottom:0.5rem;'>📊 National Live Market Analytics Portal Framework</p>", unsafe_allow_html=True)
 
     st.markdown("""
     <style>
@@ -2318,7 +2202,7 @@ Be specific, data-driven, and actionable for a retail investor.
     # 🏆 MULTI-HORIZON PERFORMANCE SUMMARY MATRIX
     # ==========================================
     st.markdown("---")
-    st.markdown("### 📈 Multi-Horizon Performance Summary Matrix")
+    st.markdown("<p style='font-size:0.85rem; font-weight:bold; margin-top:0.5rem; margin-bottom:0.5rem;'>📈 Multi-Horizon Performance Summary Matrix</p>", unsafe_allow_html=True)
 
     perf_width_col1, perf_width_col2 = st.columns([4, 1])
     with perf_width_col1:
@@ -2476,7 +2360,7 @@ Be specific, data-driven, and actionable for a retail investor.
     # 🔬 STANDALONE BOTTOM FISHING SCANNER
     # ==========================================
     st.markdown("---")
-    st.markdown("### 🔬 Bottom Fishing Scanner — Buy from Bottom Candidates")
+    st.markdown("<p style='font-size:0.85rem; font-weight:bold; margin-top:0.5rem; margin-bottom:0.5rem;'>🔬 Bottom Fishing Scanner — Buy from Bottom Candidates</p>", unsafe_allow_html=True)
     st.caption("Stocks that are 8–15% above 52W Low, in uptrend, with high volume + strong fundamentals")
 
     bf_width_col1, bf_width_col2 = st.columns([4, 1])
