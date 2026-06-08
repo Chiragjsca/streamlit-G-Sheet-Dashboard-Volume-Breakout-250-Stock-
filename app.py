@@ -110,7 +110,7 @@ hide_streamlit_ui = """
 <style>
     #MainMenu {visibility: show;}
     header {visibility: show;}
-    [data-testid="stToolbar"] {visibility: show;}
+    [data-testid="stToolbar"] {visibility: hidden;}
     footer {visibility: show;}
 </style>
 """
@@ -122,7 +122,7 @@ from datetime import datetime
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
 # ==========================================
-ADMIN_PASSWORD = "dada"
+ADMIN_PASSWORD = "lalo"
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
