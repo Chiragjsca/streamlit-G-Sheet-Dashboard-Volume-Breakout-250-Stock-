@@ -20,6 +20,21 @@ import google.generativeai as genai
 st.set_page_config(page_title="Top 250 NSE Stock-Volume Breakout Dashboard", layout="wide", page_icon="📊")
 
 # ==========================================
+# YOUR EXISTING CSS (keep this)
+# ==========================================
+st.markdown("""
+<style>
+    /* Reduce ALL headings to 90% smaller size */
+    h1, h2, h3, h4, h5, h6, .stSubheader, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+        font-size: 0.85rem !important;
+        font-weight: bold !important;
+        margin-top: 0.5rem !important;
+        margin-bottom: 0.5rem !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ==========================================
 # 🤖 CONFIGURE AI (GEMINI + GROQ)
 # ==========================================
 gemini_enabled = False
