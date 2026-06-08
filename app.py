@@ -132,7 +132,7 @@ st.markdown(hide_github_icon, unsafe_allow_html=True)
 # ==========================================
 # 🔐 ADMIN LOGIN SYSTEM
 # ==========================================
-ADMIN_PASSWORD = "dada"
+ADMIN_PASSWORD = "lalo"
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
