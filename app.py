@@ -2067,6 +2067,80 @@ Be specific, data-driven, and actionable for a retail investor.
                 else:
                     st.info("Your watchlist is empty. Add stocks using the button above!")
 
+# ==========================================
+            # 📰 NEWS FEED TAB (NEW - ws_tabs[12])
+            # ==========================================
+            with ws_tabs[12]:
+                st.markdown(f"### Latest News & Alerts: **{sym}**")
+                
+                import urllib.request
+                import urllib.parse
+                import xml.etree.ElementTree as ET
+                import datetime
+                import email.utils
+
+                def get_time_ago_tab(pubdate_str):
+                    try:
+                        dt = email.utils.parsedate_to_datetime(pubdate_str)
+                        now = datetime.datetime.now(datetime.timezone.utc)
+                        diff = now - dt
+                        seconds = diff.total_seconds()
+                        if seconds < 0: return "Just now"
+                        if seconds < 3600: return f"{int(seconds / 60)} mins ago"
+                        if seconds < 86400: return f"{int(seconds / 3600)} hours ago"
+                        if seconds < 172800: return "Yesterday"
+                        return f"{int(seconds / 86400)} days ago"
+                    except Exception:
+                        return "Recent"
+
+                @st.cache_data(ttl=600)
+                def fetch_single_stock_news(target_symbol, limit=8):
+                    try:
+                        query = urllib.parse.quote(f'"{target_symbol}" stock share news NSE India')
+                        url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
+                        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                        with urllib.request.urlopen(req) as response:
+                            xml_data = response.read()
+                        root = ET.fromstring(xml_data)
+                        
+                        alert_keywords = ["52 week high", "52-week high", "52 week low", "52-week low", "upper circuit", "lower circuit", "hits circuit"]
+                        n_list = []
+                        
+                        for item in root.findall('.//item'):
+                            title = item.find('title').text
+                            link = item.find('link').text
+                            pub_date = item.find('pubDate').text if item.find('pubDate') is not None else ""
+                            
+                            is_alert = any(k in title.lower() for k in alert_keywords)
+                            icon = "🚨 **[ALERT]** " if is_alert else ""
+                            
+                            try:
+                                dt = email.utils.parsedate_to_datetime(pub_date)
+                            except Exception:
+                                dt = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+                                
+                            n_list.append({
+                                "display_title": f"{icon}{title}", 
+                                "link": link, 
+                                "time_ago": get_time_ago_tab(pub_date),
+                                "timestamp": dt
+                            })
+                            
+                        n_list.sort(key=lambda x: x["timestamp"], reverse=True)
+                        return n_list[:limit]
+                    except Exception:
+                        return []
+
+                with st.spinner(f"Fetching latest news for {sym}..."):
+                    stock_news = fetch_single_stock_news(sym, limit=8) 
+                    
+                    if stock_news:
+                        for news in stock_news:
+                            st.markdown(f"- <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: gray; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
+                            st.markdown("<hr style='margin: 0.5em 0; opacity: 0.2;'>", unsafe_allow_html=True)
+                    else:
+                        st.info(f"No recent news found for {sym}.")
+
     # ==========================================
     # 🌍 NATIONAL ANALYTICS PORTAL WORKSPACE
     # ==========================================
