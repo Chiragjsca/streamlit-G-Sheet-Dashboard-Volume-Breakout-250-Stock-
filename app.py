@@ -2794,7 +2794,8 @@ Be specific, data-driven, and actionable for a retail investor.
                     
                     if sym_news:
                         with news_cols[idx_counter % 2]:
-                            with st.expander(f"🚨 {clean_symbol} Action Alerts", expanded=True):
+                            # 🔽 ADDED THE "0 SEC TO 15 DAYS" MESSAGE HERE 🔽
+                            with st.expander(f"🚨 {clean_symbol} Action Alerts (0 Sec to 15 Days)", expanded=True):
                                 top_3_news = sym_news[:3]
                                 remaining_news = sym_news[3:]
                                 
@@ -2814,7 +2815,7 @@ Be specific, data-driven, and actionable for a retail investor.
                         idx_counter += 1
                         
                 if idx_counter == 0:
-                    st.info("No circuit breakouts or 52-week boundary alerts for the currently filtered stocks.")
+                    st.info("No circuit breakouts or 52-week boundary alerts for the currently filtered stocks in the last 15 days (0 sec to 15 days).")
 
             # ==========================================
             # TAB 3: SMART NEWS ENGINE (ALL NEWS + ACTION ALERTS)
