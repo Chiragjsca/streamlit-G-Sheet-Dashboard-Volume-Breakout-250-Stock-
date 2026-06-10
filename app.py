@@ -2646,7 +2646,7 @@ Be specific, data-driven, and actionable for a retail investor.
                     with news_cols[idx % 2]:
                         with st.expander(f"🗞️ {clean_symbol} Circuit / 52W Alerts", expanded=True):
                             for news in news_items:
-                                st.markdown(f"- [{news['title']}]({news['link']}) — *🕒 {news['time_ago']}*")
+                                st.markdown(f"- <a href='{news['link']}' target='_blank' style='text-decoration: none;'>{news['title']}</a> — *🕒 {news['time_ago']}*", unsafe_allow_html=True)
             
             if not news_found_for_any_stock:
                  st.info("No circuit breakouts or 52-week highs/lows reported for the currently filtered stocks.")
