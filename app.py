@@ -2770,6 +2770,9 @@ Be specific, data-driven, and actionable for a retail investor.
                         
                 if idx_counter == 0:
                     st.info("No circuit breakouts or 52-week boundary alerts for the currently filtered stocks.")
+                        
+        else:
+            st.info("No stocks currently filtered to check for alerts.")
 
     # ==========================================
     # 📰 TAB 3: SMART NEWS ENGINE (ALL NEWS + ACTION ALERTS)
