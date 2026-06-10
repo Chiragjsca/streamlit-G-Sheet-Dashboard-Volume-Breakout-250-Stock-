@@ -2774,6 +2774,8 @@ Be specific, data-driven, and actionable for a retail investor.
         else:
             st.info("No stocks currently filtered to check for alerts.")
 
+    except Exception:
+
     # ==========================================
     # 📰 TAB 3: SMART NEWS ENGINE (ALL NEWS + ACTION ALERTS)
     # ==========================================
