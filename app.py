@@ -2547,7 +2547,7 @@ Be specific, data-driven, and actionable for a retail investor.
     # 📰 SMART NEWS ENGINE (ALL NEWS + ACTION ALERTS)
     # ==========================================
     st.markdown("---")
-    st.markdown("### 📰 Latest News & Action Alerts")
+    st.markdown("### Latest News & Action Alerts")
 
     import urllib.request
     import urllib.parse
@@ -2605,11 +2605,11 @@ Be specific, data-driven, and actionable for a retail investor.
                 # Check if it's an important breakout event
                 is_alert = any(keyword in title.lower() for keyword in alert_keywords)
                 
-                # Assign the correct icon
-                icon = "🚨 **[ALERT]**" if is_alert else "📰"
+                # ONLY use an icon if it is an alert. Regular news gets nothing.
+                icon = "🚨 **[ALERT]** " if is_alert else ""
                 
                 # Format the display title cleanly
-                display_title = f"{icon} {title}"
+                display_title = f"{icon}{title}"
                 time_ago_str = get_time_ago(pub_date)
                 
                 # Convert the date for perfect sorting
@@ -2648,7 +2648,8 @@ Be specific, data-driven, and actionable for a retail investor.
                 
                 if news_items:
                     with news_cols[idx % 2]:
-                        with st.expander(f"🗞️ {clean_symbol} News Feed", expanded=True):
+                        # Removed the newspaper icon from the expander title here
+                        with st.expander(f"{clean_symbol} News Feed", expanded=True):
                             for news in news_items:
                                 # Clean HTML formatting with NO underlines
                                 st.markdown(f"- <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: gray; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
