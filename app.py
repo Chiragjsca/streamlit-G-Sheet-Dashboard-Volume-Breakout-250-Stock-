@@ -2514,53 +2514,134 @@ Be specific, data-driven, and actionable for a retail investor.
                 st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
 
     # ==========================================
-    # 📰 LATEST NEWS FOR FILTERED STOCKS
+    # 🏆 DAILY DIRECT BADGES LEADERBOARD
+    # ==========================================
+    if pct_target:
+        st.markdown("---")
+        st.markdown("### 🏆 Top 10 & Bottom 10 Performers (Daily badges)")
+        temp_df = filtered_df.copy()
+        temp_df[pct_target] = pd.to_numeric(temp_df[pct_target].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
+        temp_df = temp_df.dropna(subset=[pct_target])
+        top_10 = temp_df.nlargest(10, pct_target)
+        bottom_10 = temp_df.nsmallest(10, pct_target)
+
+        colA, colB = st.columns(2)
+
+        with colA:
+            st.markdown("#### ⬆️ Top 10 (Daily)")
+            for _, row in top_10.iterrows():
+                clean_s = str(row.get('_raw_symbol_', '')).strip()
+                v = row[pct_target]
+                url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
+                st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#16e37f; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: +{v}%</div></a>", unsafe_allow_html=True)
+
+        with colB:
+            st.markdown("#### ⬇️ Bottom 10 (Daily)")
+            for _, row in bottom_10.iterrows():
+                clean_s = str(row.get('_raw_symbol_', '')).strip()
+                v = row[pct_target]
+                url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
+                st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
+
+    # ==========================================
+    # 📰 STRICT FILTERED NEWS (CIRCUITS & 52W HIGHS/LOWS)
     # ==========================================
     st.markdown("---")
-    st.markdown("### 📰 Latest Headlines for Top Movers")
+    st.markdown("### 📰 Latest Action Alerts (Circuits & 52W Highs/Lows)")
 
     import urllib.request
     import urllib.parse
     import xml.etree.ElementTree as ET
+    import datetime
+    import email.utils
 
-    @st.cache_data(ttl=3600)
-    def fetch_stock_news(symbol, limit=2):
+    # Time calculating function
+    def get_time_ago(pubdate_str):
         try:
-            query = urllib.parse.quote(f"{symbol} stock share news NSE India")
+            dt = email.utils.parsedate_to_datetime(pubdate_str)
+            now = datetime.datetime.now(datetime.timezone.utc)
+            diff = now - dt
+            seconds = diff.total_seconds()
+            
+            if seconds < 0: return "Just now"
+            if seconds < 3600:
+                mins = int(seconds / 60)
+                return f"{mins} min{'s' if mins != 1 else ''} ago"
+            elif seconds < 86400:
+                hours = int(seconds / 3600)
+                return f"{hours} hour{'s' if hours != 1 else ''} ago"
+            elif seconds < 172800:
+                return "Yesterday"
+            else:
+                days = int(seconds / 86400)
+                return f"{days} days ago"
+        except Exception:
+            return "Recent"
+
+    @st.cache_data(ttl=900)
+    def fetch_stock_news(symbol, limit=4):
+        try:
+            # 1. Google Query Gatekeeper: Force search for these specific phrases across all sites
+            search_terms = f'"{symbol}" NSE AND ("52 week high" OR "52 week low" OR "upper circuit" OR "lower circuit")'
+            query = urllib.parse.quote(search_terms)
             url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
+            
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
             with urllib.request.urlopen(req) as response:
                 xml_data = response.read()
+                
             root = ET.fromstring(xml_data)
             news_list = []
-            for item in root.findall('.//item')[:limit]:
+            
+            # 2. Python Gatekeeper: Double-check the headline to ensure no junk slips through
+            strict_keywords = ["52 week high", "52-week high", "52 week low", "52-week low", "upper circuit", "lower circuit", "hits circuit", "locked in circuit"]
+            
+            for item in root.findall('.//item'):
                 title = item.find('title').text
-                link = item.find('link').text
-                news_list.append({"title": title, "link": link})
+                title_lower = title.lower()
+                
+                # Check if any of our strict keywords are actually in the headline
+                if any(keyword in title_lower for keyword in strict_keywords):
+                    link = item.find('link').text
+                    pub_date = item.find('pubDate').text if item.find('pubDate') is not None else ""
+                    time_ago_str = get_time_ago(pub_date)
+                    
+                    news_list.append({"title": title, "link": link, "time_ago": time_ago_str})
+                    
+                    if len(news_list) >= limit:
+                        break
+                        
             return news_list
-        except Exception as e:
+        except Exception:
             return []
 
     try:
-        # This uses filtered_df so it perfectly matches your search bar (e.g. typing "IDEA")
+        # Link directly to the current screen's search results
         filtered_symbols = filtered_df['_raw_symbol_'].dropna().unique()[:10]
         
         if len(filtered_symbols) > 0:
             news_cols = st.columns(2) 
+            news_found_for_any_stock = False
+            
             for idx, symbol in enumerate(filtered_symbols):
                 clean_symbol = str(symbol).strip()
-                news_items = fetch_stock_news(clean_symbol, limit=2)
+                news_items = fetch_stock_news(clean_symbol, limit=4)
                 
                 if news_items:
+                    news_found_for_any_stock = True
                     with news_cols[idx % 2]:
-                        with st.expander(f"🗞️ {clean_symbol} News", expanded=True):
+                        with st.expander(f"🗞️ {clean_symbol} Circuit / 52W Alerts", expanded=True):
                             for news in news_items:
-                                st.markdown(f"- [{news['title']}]({news['link']})")
+                                st.markdown(f"- [{news['title']}]({news['link']}) — *🕒 {news['time_ago']}*")
+            
+            if not news_found_for_any_stock:
+                 st.info("No circuit breakouts or 52-week highs/lows reported for the currently filtered stocks.")
+                 
         else:
             st.info("No stocks currently filtered to show news.")
     except Exception:
         pass
 
-# Make absolutely sure this 'else' has ZERO spaces in front of it!
+# Ensure absolutely NO spaces before this 'else:' statement
 else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
