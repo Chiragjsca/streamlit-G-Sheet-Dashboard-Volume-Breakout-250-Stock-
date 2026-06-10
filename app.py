@@ -2569,7 +2569,7 @@ Be specific, data-driven, and actionable for a retail investor.
         with pd.ExcelWriter(bf_buffer, engine='openpyxl') as writer:
             bf_scan_df.to_excel(writer, index=False, sheet_name="Bottom Fishing")
         st.download_button("📥 Download BF Scanner Results", data=bf_buffer.getvalue(),
-            file_name=f"BottomFishing_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            file_name=f"BottomFishing_{pd.Timestamp.now().strftime('%Y%m%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     else:
         st.info(f"No stocks found with BF Score ≥ {min_bf_score}. Try lowering the minimum score.")
