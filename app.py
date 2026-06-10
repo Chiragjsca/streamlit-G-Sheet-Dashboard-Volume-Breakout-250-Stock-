@@ -2604,7 +2604,7 @@ Be specific, data-driven, and actionable for a retail investor.
                 url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
                 st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
 
-# ==========================================
+    # ==========================================
     # 🏆 DAILY DIRECT BADGES LEADERBOARD
     # ==========================================
     if pct_target:
@@ -2634,7 +2634,7 @@ Be specific, data-driven, and actionable for a retail investor.
                 url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
                 st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
 
-# ==========================================
+    # ==========================================
     # 📰 GLOBAL NEWS ENGINE (3 TABS)
     # ==========================================
     st.markdown("---")
@@ -2661,10 +2661,12 @@ Be specific, data-driven, and actionable for a retail investor.
             if seconds < 86400: 
                 hours = int(seconds / 3600)
                 return f"{hours} hour{'s' if hours != 1 else ''} ago"
-            if seconds < 172800: return "Yesterday"
-            if seconds <= 259200: return "2 days ago"
-            if seconds <= 345600: return "3 days ago"
-            return "Older" 
+            if seconds < 172800: 
+                return f"Yesterday ({dt.strftime('%d %b %Y')})"
+            
+            # Displays exact days ago + the calendar date
+            days = int(seconds / 86400)
+            return f"{days} days ago ({dt.strftime('%d %b %Y')})"
         except Exception:
             return "Recent"
 
@@ -2696,9 +2698,12 @@ Be specific, data-driven, and actionable for a retail investor.
                 except Exception:
                     dt = dt_lib.datetime.min.replace(tzinfo=dt_lib.timezone.utc)
                 
-                time_ago_str = get_time_ago_global(pub_date)
+                # Mathematical filter: Only keep alerts from the last 3 days
+                now = dt_lib.datetime.now(dt_lib.timezone.utc)
+                diff_days = (now - dt).total_seconds() / 86400
                 
-                if time_ago_str != "Older":
+                if diff_days <= 3.0:
+                    time_ago_str = get_time_ago_global(pub_date)
                     news_list.append({
                         "display_title": f"🚨 **[ALERT]** {title}", 
                         "link": link, 
