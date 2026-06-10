@@ -2613,15 +2613,13 @@ Be specific, data-driven, and actionable for a retail investor.
     import urllib.request
     import urllib.parse
     import xml.etree.ElementTree as ET
-    import datetime as dt_lib
-    import email.utils
 
+    # Using robust Pandas datetime instead of native Python datetime to prevent timezone crashes
     def get_time_ago_global(pubdate_str):
         try:
-            dt = email.utils.parsedate_to_datetime(pubdate_str)
-            now = dt_lib.datetime.now(dt_lib.timezone.utc)
-            diff = now - dt
-            seconds = diff.total_seconds()
+            dt = pd.to_datetime(pubdate_str, utc=True)
+            now = pd.Timestamp.now(tz='UTC')
+            seconds = (now - dt).total_seconds()
             
             if seconds < 0: return "Just now"
             if seconds < 60: return f"{int(seconds)} secs ago"
@@ -2634,11 +2632,59 @@ Be specific, data-driven, and actionable for a retail investor.
             if seconds < 172800: 
                 return f"Yesterday ({dt.strftime('%d %b %Y')})"
             
-            # Displays exact days ago + the calendar date
             days = int(seconds / 86400)
-            return f"{days} days ago ({dt.strftime('%d %b %Y')})"
+            if days <= 15:
+                return f"{days} days ago ({dt.strftime('%d %b %Y')})"
+            return "Older"
         except Exception:
             return "Recent"
+
+    @st.cache_data(ttl=600)
+    def fetch_strict_alerts(symbol, limit=10):
+        try:
+            search_terms = f'"{symbol}" NSE AND ("52 week high" OR "52 week low" OR "upper circuit" OR "lower circuit")'
+            query = urllib.parse.quote(search_terms)
+            url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            
+            with urllib.request.urlopen(req) as response:
+                xml_data = response.read()
+            root = ET.fromstring(xml_data)
+            
+            alert_keywords = ["52 week high", "52-week high", "52 week low", "52-week low", "upper circuit", "lower circuit", "hits circuit", "locked in circuit"]
+            news_list = []
+            
+            for item in root.findall('.//item'):
+                title = item.find('title').text
+                if not any(keyword in title.lower() for keyword in alert_keywords):
+                    continue 
+                    
+                link = item.find('link').text
+                pub_date = item.find('pubDate').text if item.find('pubDate') is not None else ""
+                
+                try:
+                    dt = pd.to_datetime(pub_date, utc=True)
+                except Exception:
+                    # Fallback to extremely old date if parsing fails
+                    dt = pd.Timestamp.now(tz='UTC') - pd.Timedelta(days=100) 
+                
+                now = pd.Timestamp.now(tz='UTC')
+                diff_days = (now - dt).total_seconds() / 86400
+                
+                if diff_days <= 15.0:
+                    time_ago_str = get_time_ago_global(pub_date)
+                    news_list.append({
+                        "display_title": f"🚨 **[ALERT]** {title}", 
+                        "link": link, 
+                        "time_ago": time_ago_str,
+                        "timestamp": dt,
+                        "title_raw": title 
+                    })
+            
+            news_list.sort(key=lambda x: x["timestamp"], reverse=True)
+            return news_list[:limit]
+        except Exception:
+            return []
 
     @st.cache_data(ttl=600)
     def fetch_all_stock_news_tab3(symbol, limit=5):
@@ -2665,12 +2711,11 @@ Be specific, data-driven, and actionable for a retail investor.
                 display_title = f"{icon}{title}"
                 
                 try:
-                    dt = email.utils.parsedate_to_datetime(pub_date)
+                    dt = pd.to_datetime(pub_date, utc=True)
                 except Exception:
-                    dt = dt_lib.datetime.min.replace(tzinfo=dt_lib.timezone.utc)
+                    dt = pd.Timestamp.now(tz='UTC') - pd.Timedelta(days=100)
                 
-                # 🔽 MATHEMATICAL FILTER: Only keep news from the last 24 hours (1 Day)
-                now = dt_lib.datetime.now(dt_lib.timezone.utc)
+                now = pd.Timestamp.now(tz='UTC')
                 diff_days = (now - dt).total_seconds() / 86400
                 
                 if diff_days <= 1.0:
@@ -2727,7 +2772,7 @@ Be specific, data-driven, and actionable for a retail investor.
                 if time_filter == "Today Only":
                     display_news = [n for n in display_news if "min" in n['time_ago'] or "hour" in n['time_ago'] or "sec" in n['time_ago'] or "Just now" in n['time_ago']]
                 elif time_filter == "Past 7 Days":
-                    now_utc = dt_lib.datetime.now(dt_lib.timezone.utc)
+                    now_utc = pd.Timestamp.now(tz='UTC')
                     display_news = [n for n in display_news if (now_utc - n['timestamp']).total_seconds() / 86400 <= 7.0]
                 
                 display_news.sort(key=lambda x: x["timestamp"], reverse=(sort_order == "Newest First"))
@@ -2778,7 +2823,7 @@ Be specific, data-driven, and actionable for a retail investor.
                     st.info("No circuit breakouts or 52-week boundary alerts for the currently filtered stocks in the last 15 days (0 sec to 15 days).")
 
             # ==========================================
-            # TAB 3: SMART NEWS ENGINE (ALL NEWS + ACTION ALERTS)
+            # TAB 3: SMART NEWS ENGINE (ALL NEWS)
             # ==========================================
             with news_tab3:
                 st.markdown("### Latest News & Action Alerts")
@@ -2791,10 +2836,8 @@ Be specific, data-driven, and actionable for a retail investor.
                     
                     if news_items:
                         with news_cols_3[idx_counter_3 % 2]:
-                            # 🔽 UPDATED EXPANDER TITLE 🔽
                             with st.expander(f"📰 {clean_symbol} News Feed (0 Sec to 1 Day)", expanded=True):
                                 for news in news_items:
-                                    # 🔽 ADDED GREEN HIGHLIGHT LOGIC FOR TAB 3 🔽
                                     is_today = "min" in news['time_ago'] or "hour" in news['time_ago'] or "sec" in news['time_ago'] or "Just now" in news['time_ago']
                                     time_color = "#16e37f" if is_today else "gray"
                                     time_weight = "bold" if is_today else "normal"
@@ -2807,8 +2850,10 @@ Be specific, data-driven, and actionable for a retail investor.
                                     
         else:
             st.info("No stocks currently filtered to show news.")
-    except Exception:
-        pass
+            
+    except Exception as e:
+        # Instead of failing silently, this will tell us exactly what went wrong if it happens again!
+        st.error(f"⚠️ Could not load the News Engine. Error details: {e}")
 
 # Ensure absolutely NO spaces before this 'else:' statement
 else:
