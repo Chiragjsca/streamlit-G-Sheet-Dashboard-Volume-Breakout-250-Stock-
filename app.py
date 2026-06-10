@@ -2605,7 +2605,7 @@ Be specific, data-driven, and actionable for a retail investor.
                 st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
 
     # ==========================================
-    # 📰 GLOBAL NEWS ENGINE (3 TABS)
+    # 📰 GLOBAL NEWS ENGINE (4 TABS)
     # ==========================================
     st.markdown("---")
     st.markdown("### 📰 Global Market News & Action Alerts")
@@ -2613,6 +2613,7 @@ Be specific, data-driven, and actionable for a retail investor.
     import urllib.request
     import urllib.parse
     import xml.etree.ElementTree as ET
+    import pandas as pd
 
     # Using robust Pandas datetime instead of native Python datetime to prevent timezone crashes
     def get_time_ago_global(pubdate_str):
@@ -2632,10 +2633,9 @@ Be specific, data-driven, and actionable for a retail investor.
             if seconds < 172800: 
                 return f"Yesterday ({dt.strftime('%d %b %Y')})"
             
+            # Since Tab 4 needs older dates, we removed the "Older" text and just display the exact days
             days = int(seconds / 86400)
-            if days <= 15:
-                return f"{days} days ago ({dt.strftime('%d %b %Y')})"
-            return "Older"
+            return f"{days} days ago ({dt.strftime('%d %b %Y')})"
         except Exception:
             return "Recent"
 
@@ -2665,7 +2665,6 @@ Be specific, data-driven, and actionable for a retail investor.
                 try:
                     dt = pd.to_datetime(pub_date, utc=True)
                 except Exception:
-                    # Fallback to extremely old date if parsing fails
                     dt = pd.Timestamp.now(tz='UTC') - pd.Timedelta(days=100) 
                 
                 now = pd.Timestamp.now(tz='UTC')
@@ -2718,6 +2717,7 @@ Be specific, data-driven, and actionable for a retail investor.
                 now = pd.Timestamp.now(tz='UTC')
                 diff_days = (now - dt).total_seconds() / 86400
                 
+                # Tab 3 strictly limits to 1 day (24 hours)
                 if diff_days <= 1.0:
                     time_ago_str = get_time_ago_global(pub_date)
                     news_list.append({
@@ -2733,13 +2733,60 @@ Be specific, data-driven, and actionable for a retail investor.
         except Exception:
             return []
 
+    # NEW FUNCTION: Same as Tab 3, but allows ALL historical dates to pass through
+    @st.cache_data(ttl=600)
+    def fetch_all_stock_news_tab4(symbol, limit=5):
+        try:
+            query = urllib.parse.quote(f'"{symbol}" stock share news NSE India')
+            url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
+            
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req) as response:
+                xml_data = response.read()
+                
+            root = ET.fromstring(xml_data)
+            news_list = []
+            
+            alert_keywords = ["52 week high", "52-week high", "52 week low", "52-week low", "upper circuit", "lower circuit", "hits circuit", "locked in circuit", "upper limit", "lower limit"]
+            
+            for item in root.findall('.//item'):
+                title = item.find('title').text
+                link = item.find('link').text
+                pub_date = item.find('pubDate').text if item.find('pubDate') is not None else ""
+                
+                is_alert = any(keyword in title.lower() for keyword in alert_keywords)
+                icon = "🚨 **[ALERT]** " if is_alert else ""
+                display_title = f"{icon}{title}"
+                
+                try:
+                    dt = pd.to_datetime(pub_date, utc=True)
+                except Exception:
+                    dt = pd.Timestamp.now(tz='UTC') - pd.Timedelta(days=100)
+                
+                time_ago_str = get_time_ago_global(pub_date)
+                
+                # Notice there is no 'diff_days' filter here! It saves all news.
+                news_list.append({
+                    "display_title": display_title, 
+                    "link": link, 
+                    "time_ago": time_ago_str,
+                    "timestamp": dt
+                })
+            
+            news_list.sort(key=lambda x: x["timestamp"], reverse=True)
+            return news_list[:limit]
+            
+        except Exception:
+            return []
+
     try:
         filtered_symbols_full = filtered_df['_raw_symbol_'].dropna().unique()
         
         if len(filtered_symbols_full) > 0:
-            news_tab1, news_tab2, news_tab3 = st.tabs([
+            news_tab1, news_tab2, news_tab3, news_tab4 = st.tabs([
                 "🚨 Latest Alerts Timeline (Consolidated)", 
                 "🏢 Alerts by Stock",
+                "📰 Smart News Engine (1 Day)",
                 "📰 Smart News Engine (All News)"
             ])
             
@@ -2823,10 +2870,10 @@ Be specific, data-driven, and actionable for a retail investor.
                     st.info("No circuit breakouts or 52-week boundary alerts for the currently filtered stocks in the last 15 days (0 sec to 15 days).")
 
             # ==========================================
-            # TAB 3: SMART NEWS ENGINE (ALL NEWS)
+            # TAB 3: SMART NEWS ENGINE (1 DAY ONLY)
             # ==========================================
             with news_tab3:
-                st.markdown("### Latest News & Action Alerts")
+                st.markdown("### Latest News & Action Alerts (Past 24 Hours)")
                 news_cols_3 = st.columns(2) 
                 idx_counter_3 = 0
                 
@@ -2847,12 +2894,39 @@ Be specific, data-driven, and actionable for a retail investor.
                 
                 if idx_counter_3 == 0:
                     st.info("No general news found for the currently filtered stocks in the last 24 hours (0 Sec to 1 Day).")
+
+            # ==========================================
+            # TAB 4: SMART NEWS ENGINE (ALL NEWS + ACTION ALERTS)
+            # ==========================================
+            with news_tab4:
+                st.markdown("### Latest News & Action Alerts (All Time)")
+                news_cols_4 = st.columns(2) 
+                idx_counter_4 = 0
+                
+                for symbol in filtered_symbols_full[:10]:
+                    clean_symbol = str(symbol).strip()
+                    news_items = fetch_all_stock_news_tab4(clean_symbol, limit=5)
+                    
+                    if news_items:
+                        with news_cols_4[idx_counter_4 % 2]:
+                            with st.expander(f"📰 {clean_symbol} News Feed (All News)", expanded=True):
+                                for news in news_items:
+                                    # Maintained the clean green highlight logic so your dashboard looks beautiful!
+                                    is_today = "min" in news['time_ago'] or "hour" in news['time_ago'] or "sec" in news['time_ago'] or "Just now" in news['time_ago']
+                                    time_color = "#16e37f" if is_today else "gray"
+                                    time_weight = "bold" if is_today else "normal"
+                                    
+                                    st.markdown(f"- <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: {time_color}; font-weight: {time_weight}; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
+                        idx_counter_4 += 1
+                
+                if idx_counter_4 == 0:
+                    st.info("No general news found for the currently filtered stocks.")
                                     
         else:
             st.info("No stocks currently filtered to show news.")
             
     except Exception as e:
-        # Instead of failing silently, this will tell us exactly what went wrong if it happens again!
+        # Added explicit error logging so if it crashes, it tells you exactly why!
         st.error(f"⚠️ Could not load the News Engine. Error details: {e}")
 
 # Ensure absolutely NO spaces before this 'else:' statement
