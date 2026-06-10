@@ -2544,10 +2544,10 @@ Be specific, data-driven, and actionable for a retail investor.
                 st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
 
     # ==========================================
-    # 📰 STRICT FILTERED NEWS (CIRCUITS & 52W HIGHS/LOWS)
+    # 📰 SMART NEWS ENGINE (ALL NEWS + ACTION ALERTS)
     # ==========================================
     st.markdown("---")
-    st.markdown("### 📰 Latest Action Alerts (Circuits & 52W Highs/Lows)")
+    st.markdown("### 📰 Latest News & Action Alerts")
 
     import urllib.request
     import urllib.parse
@@ -2555,7 +2555,7 @@ Be specific, data-driven, and actionable for a retail investor.
     import datetime
     import email.utils
 
-    # Time calculating function
+    # Calculate exact "Time Ago"
     def get_time_ago(pubdate_str):
         try:
             dt = email.utils.parsedate_to_datetime(pubdate_str)
@@ -2578,12 +2578,12 @@ Be specific, data-driven, and actionable for a retail investor.
         except Exception:
             return "Recent"
 
-    @st.cache_data(ttl=900)
-    def fetch_stock_news(symbol, limit=4):
+    # Fast 10-minute cache so breaking news hits your dashboard instantly
+    @st.cache_data(ttl=600)
+    def fetch_stock_news(symbol, limit=5):
         try:
-            # 1. Google Query Gatekeeper: Force search for these specific phrases across all sites
-            search_terms = f'"{symbol}" NSE AND ("52 week high" OR "52 week low" OR "upper circuit" OR "lower circuit")'
-            query = urllib.parse.quote(search_terms)
+            # 1. Broad Search: Catch EVERY piece of news from all websites
+            query = urllib.parse.quote(f'"{symbol}" stock share news NSE India')
             url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
             
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -2593,64 +2593,66 @@ Be specific, data-driven, and actionable for a retail investor.
             root = ET.fromstring(xml_data)
             news_list = []
             
-            # 2. Python Gatekeeper: Double-check the headline to ensure no junk slips through
-            strict_keywords = ["52 week high", "52-week high", "52 week low", "52-week low", "upper circuit", "lower circuit", "hits circuit", "locked in circuit"]
+            # Keywords that trigger a high-priority alert
+            alert_keywords = ["52 week high", "52-week high", "52 week low", "52-week low", "upper circuit", "lower circuit", "hits circuit", "locked in circuit", "upper limit", "lower limit"]
             
-            # Collect all valid articles first instead of stopping at the limit
+            # 2. Process all incoming news
             for item in root.findall('.//item'):
                 title = item.find('title').text
-                title_lower = title.lower()
+                link = item.find('link').text
+                pub_date = item.find('pubDate').text if item.find('pubDate') is not None else ""
                 
-                # Check if any of our strict keywords are actually in the headline
-                if any(keyword in title_lower for keyword in strict_keywords):
-                    link = item.find('link').text
-                    pub_date = item.find('pubDate').text if item.find('pubDate') is not None else ""
-                    time_ago_str = get_time_ago(pub_date)
-                    
-                    # Convert the publish date into a machine-readable timestamp for flawless sorting
-                    try:
-                        dt = email.utils.parsedate_to_datetime(pub_date)
-                    except Exception:
-                        dt = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
-                    
-                    news_list.append({
-                        "title": title, 
-                        "link": link, 
-                        "time_ago": time_ago_str,
-                        "timestamp": dt
-                    })
+                # Check if it's an important breakout event
+                is_alert = any(keyword in title.lower() for keyword in alert_keywords)
+                
+                # Assign the correct icon
+                icon = "🚨 **[ALERT]**" if is_alert else "📰"
+                
+                # Format the display title cleanly
+                display_title = f"{icon} {title}"
+                time_ago_str = get_time_ago(pub_date)
+                
+                # Convert the date for perfect sorting
+                try:
+                    dt = email.utils.parsedate_to_datetime(pub_date)
+                except Exception:
+                    dt = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+                
+                news_list.append({
+                    "display_title": display_title, 
+                    "link": link, 
+                    "time_ago": time_ago_str,
+                    "timestamp": dt
+                })
             
-            # 3. Sort chronologically (Newest -> Oldest)
+            # 3. Sort chronologically (Absolute newest news at the top)
             news_list.sort(key=lambda x: x["timestamp"], reverse=True)
             
-            # 4. Return only the top limit AFTER sorting
+            # 4. Return the top results
             return news_list[:limit]
             
         except Exception:
             return []
 
     try:
-        # Link directly to the current screen's search results
+        # Match exactly what is on your screen
         filtered_symbols = filtered_df['_raw_symbol_'].dropna().unique()[:10]
         
         if len(filtered_symbols) > 0:
             news_cols = st.columns(2) 
-            news_found_for_any_stock = False
             
             for idx, symbol in enumerate(filtered_symbols):
                 clean_symbol = str(symbol).strip()
-                news_items = fetch_stock_news(clean_symbol, limit=4)
+                # Fetch up to 5 latest articles per stock so nothing is missed
+                news_items = fetch_stock_news(clean_symbol, limit=5)
                 
                 if news_items:
-                    news_found_for_any_stock = True
                     with news_cols[idx % 2]:
-                        with st.expander(f"🗞️ {clean_symbol} Circuit / 52W Alerts", expanded=True):
+                        with st.expander(f"🗞️ {clean_symbol} News Feed", expanded=True):
                             for news in news_items:
-                                st.markdown(f"- <a href='{news['link']}' target='_blank' style='text-decoration: none;'>{news['title']}</a> — *🕒 {news['time_ago']}*", unsafe_allow_html=True)
-            
-            if not news_found_for_any_stock:
-                 st.info("No circuit breakouts or 52-week highs/lows reported for the currently filtered stocks.")
-                 
+                                # Clean HTML formatting with NO underlines
+                                st.markdown(f"- <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: gray; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
+                            
         else:
             st.info("No stocks currently filtered to show news.")
     except Exception:
