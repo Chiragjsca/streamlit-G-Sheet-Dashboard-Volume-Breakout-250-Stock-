@@ -2604,11 +2604,41 @@ Be specific, data-driven, and actionable for a retail investor.
                 url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
                 st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
 
+# ==========================================
+    # 🏆 DAILY DIRECT BADGES LEADERBOARD
     # ==========================================
-    # 📰 GLOBAL NEWS ENGINE (BOTTOM SECTION)
+    if pct_target:
+        st.markdown("---")
+        st.markdown("### 🏆 Top 10 & Bottom 10 Performers (Daily badges)")
+        temp_df = filtered_df.copy()
+        temp_df[pct_target] = pd.to_numeric(temp_df[pct_target].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
+        temp_df = temp_df.dropna(subset=[pct_target])
+        top_10 = temp_df.nlargest(10, pct_target)
+        bottom_10 = temp_df.nsmallest(10, pct_target)
+
+        colA, colB = st.columns(2)
+
+        with colA:
+            st.markdown("#### ⬆️ Top 10 (Daily)")
+            for _, row in top_10.iterrows():
+                clean_s = str(row.get('_raw_symbol_', '')).strip()
+                v = row[pct_target]
+                url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
+                st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#16e37f; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: +{v}%</div></a>", unsafe_allow_html=True)
+
+        with colB:
+            st.markdown("#### ⬇️ Bottom 10 (Daily)")
+            for _, row in bottom_10.iterrows():
+                clean_s = str(row.get('_raw_symbol_', '')).strip()
+                v = row[pct_target]
+                url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
+                st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
+
+    # ==========================================
+    # 📰 GLOBAL NEWS ENGINE (3 TABS)
     # ==========================================
     st.markdown("---")
-    st.markdown("### 🚨 Today's Action Alerts (Top Filtered Stocks)")
+    st.markdown("### 📰 Global Market News & Action Alerts")
 
     import urllib.request
     import urllib.parse
@@ -2616,7 +2646,7 @@ Be specific, data-driven, and actionable for a retail investor.
     import datetime
     import email.utils
 
-    def get_time_ago_bottom(pubdate_str):
+    def get_time_ago_global(pubdate_str):
         try:
             dt = email.utils.parsedate_to_datetime(pubdate_str)
             now = datetime.datetime.now(datetime.timezone.utc)
@@ -2639,8 +2669,7 @@ Be specific, data-driven, and actionable for a retail investor.
             return "Recent"
 
     @st.cache_data(ttl=600)
-    # Increased limit to 10 so we have enough news to actually hide in the 'Show More' box
-    def fetch_global_stock_news(symbol, limit=10):
+    def fetch_strict_alerts(symbol, limit=10):
         try:
             search_terms = f'"{symbol}" NSE AND ("52 week high" OR "52 week low" OR "upper circuit" OR "lower circuit")'
             query = urllib.parse.quote(search_terms)
@@ -2656,7 +2685,6 @@ Be specific, data-driven, and actionable for a retail investor.
             
             for item in root.findall('.//item'):
                 title = item.find('title').text
-                
                 if not any(keyword in title.lower() for keyword in alert_keywords):
                     continue 
                     
@@ -2668,7 +2696,7 @@ Be specific, data-driven, and actionable for a retail investor.
                 except Exception:
                     dt = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
                 
-                time_ago_str = get_time_ago_bottom(pub_date)
+                time_ago_str = get_time_ago_global(pub_date)
                 
                 if time_ago_str != "Older":
                     news_list.append({
@@ -2684,136 +2712,9 @@ Be specific, data-driven, and actionable for a retail investor.
         except Exception:
             return []
 
-    try:
-        filtered_symbols = filtered_df['_raw_symbol_'].dropna().unique()[:30]
-        
-        if len(filtered_symbols) > 0:
-            news_tab1, news_tab2 = st.tabs(["🚨 Latest Alerts Timeline (Consolidated)", "🏢 Alerts by Stock"])
-            
-            master_news_list = []
-            with st.spinner("Scanning Top 30 stocks for Circuit & 52-Week Breakouts..."):
-                for sym in filtered_symbols:
-                    clean_symbol = str(sym).strip()
-                    news_items = fetch_global_stock_news(clean_symbol, limit=10)
-                    for n in news_items:
-                        n["symbol"] = clean_symbol 
-                        master_news_list.append(n)
-            
-            # ==========================================
-            # TAB 1: CONSOLIDATED & SEARCHABLE TIMELINE
-            # ==========================================
-            with news_tab1:
-                col_s1, col_s2, col_s3 = st.columns([2, 1, 1])
-                search_news = col_s1.text_input("🔍 Search Alerts (by Symbol or Keyword):", placeholder="e.g. ICICIBANK, circuit...", key="global_news_search")
-                time_filter = col_s2.selectbox("⏳ Time Filter:", ["All (Up to 3 Days)", "Today Only"], key="global_news_time")
-                sort_order = col_s3.radio("↕️ Sort By Time:", ["Newest First", "Oldest First"], horizontal=True, key="global_news_sort")
-                
-                display_news = master_news_list.copy()
-                
-                if search_news:
-                    sq = search_news.lower()
-                    display_news = [n for n in display_news if sq in n['symbol'].lower() or sq in n['title_raw'].lower()]
-                
-                if time_filter == "Today Only":
-                    display_news = [n for n in display_news if "min" in n['time_ago'] or "hour" in n['time_ago'] or "sec" in n['time_ago'] or "Just now" in n['time_ago']]
-                
-                display_news.sort(key=lambda x: x["timestamp"], reverse=(sort_order == "Newest First"))
-                
-                st.markdown("<br>", unsafe_allow_html=True)
-                
-                if display_news:
-                    for news in display_news:
-                        is_today = "min" in news['time_ago'] or "hour" in news['time_ago'] or "sec" in news['time_ago'] or "Just now" in news['time_ago']
-                        time_color = "#16e37f" if is_today else "gray"
-                        time_weight = "bold" if is_today else "normal"
-                        
-                        st.markdown(f"- **[{news['symbol']}]** <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: {time_color}; font-weight: {time_weight}; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
-                        st.markdown("<hr style='margin: 0.4em 0; opacity: 0.15;'>", unsafe_allow_html=True)
-                else:
-                    st.info("No circuit or 52-week alerts match your search or filter criteria.")
-
-            # ==========================================
-            # TAB 2: ORIGINAL EXPANDER (WITH "SHOW MORE" STRETCH)
-            # ==========================================
-            with news_tab2:
-                news_cols = st.columns(2) 
-                idx_counter = 0
-                for clean_symbol in [str(s).strip() for s in filtered_symbols]:
-                    sym_news = [n for n in master_news_list if n['symbol'] == clean_symbol]
-                    sym_news.sort(key=lambda x: x["timestamp"], reverse=True) 
-                    
-                    if sym_news:
-                        with news_cols[idx_counter % 2]:
-                            with st.expander(f"🚨 {clean_symbol} Action Alerts", expanded=True):
-                                
-                                # 1. Split the news into the Top 3 and the Rest
-                                top_3_news = sym_news[:3]
-                                remaining_news = sym_news[3:]
-                                
-                                # 2. Always show the Top 3 immediately
-                                for news in top_3_news:
-                                    is_today = "min" in news['time_ago'] or "hour" in news['time_ago'] or "sec" in news['time_ago'] or "Just now" in news['time_ago']
-                                    time_color = "#16e37f" if is_today else "gray"
-                                    time_weight = "bold" if is_today else "normal"
-                                    st.markdown(f"- <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: {time_color}; font-weight: {time_weight}; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
-                                
-                                # 3. If there are more than 3, add a small "Show more" stretch box
-                                if remaining_news:
-                                    with st.expander(f"🔽 Show {len(remaining_news)} more older alerts", expanded=False):
-                                        for news in remaining_news:
-                                            is_today = "min" in news['time_ago'] or "hour" in news['time_ago'] or "sec" in news['time_ago'] or "Just now" in news['time_ago']
-                                            time_color = "#16e37f" if is_today else "gray"
-                                            time_weight = "bold" if is_today else "normal"
-                                            st.markdown(f"- <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: {time_color}; font-weight: {time_weight}; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
-                                            
-                        idx_counter += 1
-                        
-                if idx_counter == 0:
-                    st.info("No circuit breakouts or 52-week boundary alerts for the currently filtered stocks.")
-                        
-        else:
-            st.info("No stocks currently filtered to check for alerts.")
-
-    except Exception:
-
-    # ==========================================
-    # 📰 TAB 3: SMART NEWS ENGINE (ALL NEWS + ACTION ALERTS)
-    # ==========================================
-    st.markdown("---")
-    st.markdown("### Latest News & Action Alerts")
-
-    import urllib.request
-    import urllib.parse
-    import xml.etree.ElementTree as ET
-    import datetime
-    import email.utils
-
-    # Calculate exact "Time Ago"
-    def get_time_ago(pubdate_str):
-        try:
-            dt = email.utils.parsedate_to_datetime(pubdate_str)
-            now = datetime.datetime.now(datetime.timezone.utc)
-            diff = now - dt
-            seconds = diff.total_seconds()
-            
-            if seconds < 0: return "Just now"
-            if seconds < 3600:
-                mins = int(seconds / 60)
-                return f"{mins} min{'s' if mins != 1 else ''} ago"
-            elif seconds < 86400:
-                hours = int(seconds / 3600)
-                return f"{hours} hour{'s' if hours != 1 else ''} ago"
-            elif seconds < 172800:
-                return "Yesterday"
-            else:
-                days = int(seconds / 86400)
-                return f"{days} days ago"
-        except Exception:
-            return "Recent"
-
     # Fast 10-minute cache so breaking news hits your dashboard instantly
     @st.cache_data(ttl=600)
-    def fetch_stock_news(symbol, limit=5):
+    def fetch_all_stock_news_tab3(symbol, limit=5):
         try:
             # 1. Broad Search: Catch EVERY piece of news from all websites
             query = urllib.parse.quote(f'"{symbol}" stock share news NSE India')
@@ -2843,7 +2744,7 @@ Be specific, data-driven, and actionable for a retail investor.
                 
                 # Format the display title cleanly
                 display_title = f"{icon}{title}"
-                time_ago_str = get_time_ago(pub_date)
+                time_ago_str = get_time_ago_global(pub_date)
                 
                 # Convert the date for perfect sorting
                 try:
@@ -2868,25 +2769,109 @@ Be specific, data-driven, and actionable for a retail investor.
             return []
 
     try:
-        # Match exactly what is on your screen
-        filtered_symbols = filtered_df['_raw_symbol_'].dropna().unique()[:10]
+        filtered_symbols_full = filtered_df['_raw_symbol_'].dropna().unique()
         
-        if len(filtered_symbols) > 0:
-            news_cols = st.columns(2) 
+        if len(filtered_symbols_full) > 0:
+            news_tab1, news_tab2, news_tab3 = st.tabs([
+                "🚨 Latest Alerts Timeline (Consolidated)", 
+                "🏢 Alerts by Stock",
+                "📰 Smart News Engine (All News)"
+            ])
             
-            for idx, symbol in enumerate(filtered_symbols):
-                clean_symbol = str(symbol).strip()
-                # Fetch up to 5 latest articles per stock so nothing is missed
-                news_items = fetch_stock_news(clean_symbol, limit=5)
+            # --- Compile Alerts for Tabs 1 & 2 ---
+            master_alerts_list = []
+            filtered_symbols_alerts = filtered_symbols_full[:30] # Top 30 for performance
+            
+            with st.spinner("Scanning Top 30 stocks for Circuit & 52-Week Breakouts..."):
+                for sym in filtered_symbols_alerts:
+                    clean_symbol = str(sym).strip()
+                    news_items = fetch_strict_alerts(clean_symbol, limit=10)
+                    for n in news_items:
+                        n["symbol"] = clean_symbol 
+                        master_alerts_list.append(n)
+            
+            # ==========================================
+            # TAB 1: CONSOLIDATED ALERTS TIMELINE
+            # ==========================================
+            with news_tab1:
+                col_s1, col_s2, col_s3 = st.columns([2, 1, 1])
+                search_news = col_s1.text_input("🔍 Search Alerts:", placeholder="e.g. ICICIBANK, circuit...", key="global_news_search")
+                time_filter = col_s2.selectbox("⏳ Time Filter:", ["All (Up to 3 Days)", "Today Only"], key="global_news_time")
+                sort_order = col_s3.radio("↕️ Sort By Time:", ["Newest First", "Oldest First"], horizontal=True, key="global_news_sort")
                 
-                if news_items:
-                    with news_cols[idx % 2]:
-                        # Removed the newspaper icon from the expander title here
-                        with st.expander(f"{clean_symbol} News Feed", expanded=True):
-                            for news in news_items:
-                                # Clean HTML formatting with NO underlines
-                                st.markdown(f"- <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: gray; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
-                            
+                display_news = master_alerts_list.copy()
+                
+                if search_news:
+                    sq = search_news.lower()
+                    display_news = [n for n in display_news if sq in n['symbol'].lower() or sq in n['title_raw'].lower()]
+                
+                if time_filter == "Today Only":
+                    display_news = [n for n in display_news if "min" in n['time_ago'] or "hour" in n['time_ago'] or "sec" in n['time_ago'] or "Just now" in n['time_ago']]
+                
+                display_news.sort(key=lambda x: x["timestamp"], reverse=(sort_order == "Newest First"))
+                st.markdown("<br>", unsafe_allow_html=True)
+                
+                if display_news:
+                    for news in display_news:
+                        is_today = "min" in news['time_ago'] or "hour" in news['time_ago'] or "sec" in news['time_ago'] or "Just now" in news['time_ago']
+                        time_color = "#16e37f" if is_today else "gray"
+                        time_weight = "bold" if is_today else "normal"
+                        st.markdown(f"- **[{news['symbol']}]** <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: {time_color}; font-weight: {time_weight}; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
+                        st.markdown("<hr style='margin: 0.4em 0; opacity: 0.15;'>", unsafe_allow_html=True)
+                else:
+                    st.info("No circuit or 52-week alerts match your search or filter criteria.")
+
+            # ==========================================
+            # TAB 2: ALERTS BY STOCK (WITH STRETCH BOX)
+            # ==========================================
+            with news_tab2:
+                news_cols = st.columns(2) 
+                idx_counter = 0
+                for clean_symbol in [str(s).strip() for s in filtered_symbols_alerts]:
+                    sym_news = [n for n in master_alerts_list if n['symbol'] == clean_symbol]
+                    sym_news.sort(key=lambda x: x["timestamp"], reverse=True) 
+                    
+                    if sym_news:
+                        with news_cols[idx_counter % 2]:
+                            with st.expander(f"🚨 {clean_symbol} Action Alerts", expanded=True):
+                                top_3_news = sym_news[:3]
+                                remaining_news = sym_news[3:]
+                                
+                                for news in top_3_news:
+                                    is_today = "min" in news['time_ago'] or "hour" in news['time_ago'] or "sec" in news['time_ago'] or "Just now" in news['time_ago']
+                                    time_color = "#16e37f" if is_today else "gray"
+                                    time_weight = "bold" if is_today else "normal"
+                                    st.markdown(f"- <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: {time_color}; font-weight: {time_weight}; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
+                                
+                                if remaining_news:
+                                    with st.expander(f"🔽 Show {len(remaining_news)} more older alerts", expanded=False):
+                                        for news in remaining_news:
+                                            is_today = "min" in news['time_ago'] or "hour" in news['time_ago'] or "sec" in news['time_ago'] or "Just now" in news['time_ago']
+                                            time_color = "#16e37f" if is_today else "gray"
+                                            time_weight = "bold" if is_today else "normal"
+                                            st.markdown(f"- <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: {time_color}; font-weight: {time_weight}; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
+                        idx_counter += 1
+                        
+                if idx_counter == 0:
+                    st.info("No circuit breakouts or 52-week boundary alerts for the currently filtered stocks.")
+
+            # ==========================================
+            # TAB 3: SMART NEWS ENGINE (ALL NEWS + ACTION ALERTS)
+            # ==========================================
+            with news_tab3:
+                st.markdown("### Latest News & Action Alerts")
+                news_cols_3 = st.columns(2) 
+                
+                for idx, symbol in enumerate(filtered_symbols_full[:10]):
+                    clean_symbol = str(symbol).strip()
+                    news_items = fetch_all_stock_news_tab3(clean_symbol, limit=5)
+                    
+                    if news_items:
+                        with news_cols_3[idx % 2]:
+                            with st.expander(f"{clean_symbol} News Feed", expanded=True):
+                                for news in news_items:
+                                    st.markdown(f"- <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: gray; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
+                                    
         else:
             st.info("No stocks currently filtered to show news.")
     except Exception:
