@@ -2067,7 +2067,7 @@ Be specific, data-driven, and actionable for a retail investor.
                 else:
                     st.info("Your watchlist is empty. Add stocks using the button above!")
 
-# ==========================================
+            # ==========================================
             # 📰 NEWS FEED TAB (NEW - ws_tabs[12])
             # ==========================================
             with ws_tabs[12]:
