@@ -2648,7 +2648,7 @@ Be specific, data-driven, and actionable for a retail investor.
                 
             st.markdown(bot_html, unsafe_allow_html=True)
 
-    # ==========================================
+# ==========================================
     # 📰 GLOBAL NEWS ENGINE (5 TABS)
     # ==========================================
     st.markdown("---")
