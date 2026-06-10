@@ -2605,6 +2605,64 @@ Be specific, data-driven, and actionable for a retail investor.
                 st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
 
     # ==========================================
+    # 🏆 DAILY DIRECT BADGES LEADERBOARD
+    # ==========================================
+    if pct_target:
+        st.markdown("---")
+        st.markdown("### 🏆 Top 10 & Bottom 10 Performers (Daily badges)")
+        temp_df = filtered_df.copy()
+        temp_df[pct_target] = pd.to_numeric(temp_df[pct_target].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
+        temp_df = temp_df.dropna(subset=[pct_target])
+        top_10 = temp_df.nlargest(10, pct_target)
+        bottom_10 = temp_df.nsmallest(10, pct_target)
+
+        colA, colB = st.columns(2)
+
+        with colA:
+            st.markdown("#### ⬆️ Top 10 (Daily)")
+            top_html = ""
+            for _, row in top_10.iterrows():
+                clean_s = str(row.get('_raw_symbol_', '')).strip()
+                v = row[pct_target]
+                
+                # Safely extract and format the CMP (Current Market Price)
+                cmp_val = row.get(cmp_target, "") if cmp_target else ""
+                try:
+                    price_str = f"₹{float(str(cmp_val).replace(',', '').strip()):,.2f}"
+                except:
+                    price_str = f"₹{cmp_val}"
+                
+                url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
+                
+                # Flexbox layout keeps the Symbol on the left and Price on the right, tighter margins reduce the gap
+                top_html += f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#16e37f; padding:6px 12px; margin-bottom:4px; border-radius:5px; color:#000000; font-weight:bold; display:flex; justify-content:space-between;'><span>{clean_s}: +{v}%</span><span>{price_str}</span></div></a>"
+                
+            # Render all badges at once to eliminate Streamlit's default paragraph spacing
+            st.markdown(top_html, unsafe_allow_html=True)
+
+        with colB:
+            st.markdown("#### ⬇️ Bottom 10 (Daily)")
+            bot_html = ""
+            for _, row in bottom_10.iterrows():
+                clean_s = str(row.get('_raw_symbol_', '')).strip()
+                v = row[pct_target]
+                
+                # Safely extract and format the CMP (Current Market Price)
+                cmp_val = row.get(cmp_target, "") if cmp_target else ""
+                try:
+                    price_str = f"₹{float(str(cmp_val).replace(',', '').strip()):,.2f}"
+                except:
+                    price_str = f"₹{cmp_val}"
+                
+                url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
+                
+                # Flexbox layout keeps the Symbol on the left and Price on the right, tighter margins reduce the gap
+                bot_html += f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:6px 12px; margin-bottom:4px; border-radius:5px; color:#000000; font-weight:bold; display:flex; justify-content:space-between;'><span>{clean_s}: {v}%</span><span>{price_str}</span></div></a>"
+                
+            # Render all badges at once to eliminate Streamlit's default paragraph spacing
+            st.markdown(bot_html, unsafe_allow_html=True)
+
+    # ==========================================
     # 📰 GLOBAL NEWS ENGINE (4 TABS)
     # ==========================================
     st.markdown("---")
