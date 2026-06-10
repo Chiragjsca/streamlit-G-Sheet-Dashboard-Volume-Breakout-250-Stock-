@@ -2605,36 +2605,6 @@ Be specific, data-driven, and actionable for a retail investor.
                 st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
 
     # ==========================================
-    # 🏆 DAILY DIRECT BADGES LEADERBOARD
-    # ==========================================
-    if pct_target:
-        st.markdown("---")
-        st.markdown("### 🏆 Top 10 & Bottom 10 Performers (Daily badges)")
-        temp_df = filtered_df.copy()
-        temp_df[pct_target] = pd.to_numeric(temp_df[pct_target].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
-        temp_df = temp_df.dropna(subset=[pct_target])
-        top_10 = temp_df.nlargest(10, pct_target)
-        bottom_10 = temp_df.nsmallest(10, pct_target)
-
-        colA, colB = st.columns(2)
-
-        with colA:
-            st.markdown("#### ⬆️ Top 10 (Daily)")
-            for _, row in top_10.iterrows():
-                clean_s = str(row.get('_raw_symbol_', '')).strip()
-                v = row[pct_target]
-                url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
-                st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#16e37f; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: +{v}%</div></a>", unsafe_allow_html=True)
-
-        with colB:
-            st.markdown("#### ⬇️ Bottom 10 (Daily)")
-            for _, row in bottom_10.iterrows():
-                clean_s = str(row.get('_raw_symbol_', '')).strip()
-                v = row[pct_target]
-                url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
-                st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
-
-    # ==========================================
     # 📰 GLOBAL NEWS ENGINE (3 TABS)
     # ==========================================
     st.markdown("---")
