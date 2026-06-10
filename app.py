@@ -2513,5 +2513,62 @@ Be specific, data-driven, and actionable for a retail investor.
                 url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
                 st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
 
+# ==========================================
+# 📰 LATEST NEWS FOR FILTERED STOCKS
+# ==========================================
+st.markdown("---")
+st.markdown("### 📰 Latest Headlines for Top Movers")
+
+import urllib.request
+import urllib.parse
+import xml.etree.ElementTree as ET
+
+# Cache the news for 1 hour to make your dashboard load faster and avoid rate limits
+@st.cache_data(ttl=3600)
+def fetch_stock_news(symbol, limit=2):
+    try:
+        # Targeted query ensures we only get Indian stock market news
+        query = urllib.parse.quote(f"{symbol} stock share news NSE India")
+        url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
+        
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response:
+            xml_data = response.read()
+            
+        root = ET.fromstring(xml_data)
+        news_list = []
+        for item in root.findall('.//item')[:limit]:
+            title = item.find('title').text
+            link = item.find('link').text
+            news_list.append({"title": title, "link": link})
+        return news_list
+    except Exception as e:
+        return []
+
+# Extract the symbols currently showing in your Top 10 Daily list
+# (Make sure 'top_10' variable is accessible here in your code)
+try:
+    filtered_symbols = top_10['_raw_symbol_'].dropna().unique()
+    
+    if len(filtered_symbols) > 0:
+        # Create 2 columns so the dashboard doesn't get too long vertically
+        news_cols = st.columns(2) 
+        
+        for idx, symbol in enumerate(filtered_symbols):
+            clean_symbol = str(symbol).strip()
+            news_items = fetch_stock_news(clean_symbol, limit=2)
+            
+            if news_items:
+                # Alternate between column 1 and column 2
+                with news_cols[idx % 2]:
+                    with st.expander(f"🗞️ {clean_symbol} News", expanded=True):
+                        for news in news_items:
+                            # Render clickable markdown links
+                            st.markdown(f"- [{news['title']}]({news['link']})")
+    else:
+        st.info("No stocks currently filtered to show news.")
+except NameError:
+    st.error("Please ensure this code block is placed after the 'top_10' dataframe is defined.")
+
 else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
