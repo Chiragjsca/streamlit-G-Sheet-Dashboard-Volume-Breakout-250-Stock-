@@ -2557,7 +2557,7 @@ Be specific, data-driven, and actionable for a retail investor.
     else:
         st.info(f"No stocks found with BF Score ≥ {min_bf_score}. Try lowering the minimum score.")
 
-# ==========================================
+    # ==========================================
     # 🏆 DAILY DIRECT BADGES LEADERBOARD
     # ==========================================
     if pct_target:
@@ -2588,10 +2588,10 @@ Be specific, data-driven, and actionable for a retail investor.
                 st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
 
     # ==========================================
-    # 📰 SMART NEWS ENGINE (ALL NEWS + ACTION ALERTS)
+    # 📰 GLOBAL NEWS ENGINE (BOTTOM SECTION)
     # ==========================================
     st.markdown("---")
-    st.markdown("### Latest News & Action Alerts")
+    st.markdown("### 📰 Today's Breaking News & Alerts (Top Filtered Stocks)")
 
     import urllib.request
     import urllib.parse
@@ -2599,8 +2599,7 @@ Be specific, data-driven, and actionable for a retail investor.
     import datetime
     import email.utils
 
-    # Calculate exact "Time Ago"
-    def get_time_ago(pubdate_str):
+    def get_time_ago_bottom(pubdate_str):
         try:
             dt = email.utils.parsedate_to_datetime(pubdate_str)
             now = datetime.datetime.now(datetime.timezone.utc)
@@ -2608,96 +2607,80 @@ Be specific, data-driven, and actionable for a retail investor.
             seconds = diff.total_seconds()
             
             if seconds < 0: return "Just now"
-            if seconds < 3600:
+            if seconds < 60: return f"{int(seconds)} secs ago"
+            if seconds < 3600: 
                 mins = int(seconds / 60)
                 return f"{mins} min{'s' if mins != 1 else ''} ago"
-            elif seconds < 86400:
+            if seconds < 86400: 
                 hours = int(seconds / 3600)
                 return f"{hours} hour{'s' if hours != 1 else ''} ago"
-            elif seconds < 172800:
-                return "Yesterday"
-            else:
-                days = int(seconds / 86400)
-                return f"{days} days ago"
+            if seconds < 172800: return "Yesterday"
+            
+            days = int(seconds / 86400)
+            return f"{days} days ago"
         except Exception:
             return "Recent"
 
-    # Fast 10-minute cache so breaking news hits your dashboard instantly
     @st.cache_data(ttl=600)
-    def fetch_stock_news(symbol, limit=5):
+    def fetch_global_stock_news(symbol, limit=5):
         try:
-            # 1. Broad Search: Catch EVERY piece of news from all websites
             query = urllib.parse.quote(f'"{symbol}" stock share news NSE India')
             url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
-            
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            
             with urllib.request.urlopen(req) as response:
                 xml_data = response.read()
-                
             root = ET.fromstring(xml_data)
+            
+            alert_keywords = ["52 week high", "52-week high", "52 week low", "52-week low", "upper circuit", "lower circuit", "hits circuit", "locked in circuit"]
             news_list = []
             
-            # Keywords that trigger a high-priority alert
-            alert_keywords = ["52 week high", "52-week high", "52 week low", "52-week low", "upper circuit", "lower circuit", "hits circuit", "locked in circuit", "upper limit", "lower limit"]
-            
-            # 2. Process all incoming news
             for item in root.findall('.//item'):
                 title = item.find('title').text
                 link = item.find('link').text
                 pub_date = item.find('pubDate').text if item.find('pubDate') is not None else ""
                 
-                # Check if it's an important breakout event
                 is_alert = any(keyword in title.lower() for keyword in alert_keywords)
-                
-                # ONLY use an icon if it is an alert. Regular news gets nothing.
                 icon = "🚨 **[ALERT]** " if is_alert else ""
                 
-                # Format the display title cleanly
-                display_title = f"{icon}{title}"
-                time_ago_str = get_time_ago(pub_date)
-                
-                # Convert the date for perfect sorting
                 try:
                     dt = email.utils.parsedate_to_datetime(pub_date)
                 except Exception:
                     dt = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
                 
                 news_list.append({
-                    "display_title": display_title, 
+                    "display_title": f"{icon}{title}", 
                     "link": link, 
-                    "time_ago": time_ago_str,
+                    "time_ago": get_time_ago_bottom(pub_date),
                     "timestamp": dt
                 })
             
-            # 3. Sort chronologically (Absolute newest news at the top)
+            # STRICT SORT: Absolute newest news first
             news_list.sort(key=lambda x: x["timestamp"], reverse=True)
-            
-            # 4. Return the top results
             return news_list[:limit]
-            
         except Exception:
             return []
 
     try:
-        # Match exactly what is on your screen
-        filtered_symbols = filtered_df['_raw_symbol_'].dropna().unique()[:10]
+        # Increased limit to 50 to cover much more of the Top 250 list
+        filtered_symbols = filtered_df['_raw_symbol_'].dropna().unique()[:50]
         
         if len(filtered_symbols) > 0:
             news_cols = st.columns(2) 
-            
             for idx, symbol in enumerate(filtered_symbols):
                 clean_symbol = str(symbol).strip()
-                # Fetch up to 5 latest articles per stock so nothing is missed
-                news_items = fetch_stock_news(clean_symbol, limit=5)
+                news_items = fetch_global_stock_news(clean_symbol, limit=5)
                 
                 if news_items:
                     with news_cols[idx % 2]:
-                        # Removed the newspaper icon from the expander title here
                         with st.expander(f"{clean_symbol} News Feed", expanded=True):
                             for news in news_items:
-                                # Clean HTML formatting with NO underlines
-                                st.markdown(f"- <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: gray; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
-                            
+                                # Visually highlight today's news in green so it stands out
+                                is_today = "min" in news['time_ago'] or "hour" in news['time_ago'] or "sec" in news['time_ago'] or "Just now" in news['time_ago']
+                                time_color = "#16e37f" if is_today else "gray"
+                                time_weight = "bold" if is_today else "normal"
+                                
+                                st.markdown(f"- <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: {time_color}; font-weight: {time_weight}; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
         else:
             st.info("No stocks currently filtered to show news.")
     except Exception:
