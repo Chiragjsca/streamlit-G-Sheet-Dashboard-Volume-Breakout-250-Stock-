@@ -2649,10 +2649,10 @@ Be specific, data-driven, and actionable for a retail investor.
             st.markdown(bot_html, unsafe_allow_html=True)
 
     # ==========================================
-    # 📰 GLOBAL NEWS ENGINE (4 TABS)
+    # 📰 GLOBAL NEWS ENGINE (5 TABS)
     # ==========================================
     st.markdown("---")
-    st.markdown("### 📰 Global Market News & Action Alerts")
+    st.markdown("### 📰 Global Market News, Alerts & Corporate Announcements")
 
     import urllib.request
     import urllib.parse
@@ -2677,7 +2677,6 @@ Be specific, data-driven, and actionable for a retail investor.
             if seconds < 172800: 
                 return f"Yesterday ({dt.strftime('%d %b %Y')})"
             
-            # Since Tab 4 needs older dates, we removed the "Older" text and just display the exact days
             days = int(seconds / 86400)
             return f"{days} days ago ({dt.strftime('%d %b %Y')})"
         except Exception:
@@ -2761,7 +2760,6 @@ Be specific, data-driven, and actionable for a retail investor.
                 now = pd.Timestamp.now(tz='UTC')
                 diff_days = (now - dt).total_seconds() / 86400
                 
-                # Tab 3 strictly limits to 1 day (24 hours)
                 if diff_days <= 1.0:
                     time_ago_str = get_time_ago_global(pub_date)
                     news_list.append({
@@ -2777,7 +2775,6 @@ Be specific, data-driven, and actionable for a retail investor.
         except Exception:
             return []
 
-    # NEW FUNCTION: Same as Tab 3, but allows ALL historical dates to pass through
     @st.cache_data(ttl=600)
     def fetch_all_stock_news_tab4(symbol, limit=5):
         try:
@@ -2809,9 +2806,49 @@ Be specific, data-driven, and actionable for a retail investor.
                 
                 time_ago_str = get_time_ago_global(pub_date)
                 
-                # Notice there is no 'diff_days' filter here! It saves all news.
                 news_list.append({
                     "display_title": display_title, 
+                    "link": link, 
+                    "time_ago": time_ago_str,
+                    "timestamp": dt
+                })
+            
+            news_list.sort(key=lambda x: x["timestamp"], reverse=True)
+            return news_list[:limit]
+            
+        except Exception:
+            return []
+
+    # NEW FUNCTION: Exclusively hunts for Screener-style Corporate Announcements & Filings
+    @st.cache_data(ttl=600)
+    def fetch_corporate_announcements(symbol, limit=6):
+        try:
+            # Strictly tuned query to capture LODR, Board Meetings, and Official Exchange Filings
+            search_terms = f'"{symbol}" AND ("Regulation 30" OR "LODR" OR "Board Meeting" OR "AGM" OR "Analyst Meet" OR "Financial Results" OR "Corporate Action" OR "Dividend")'
+            query = urllib.parse.quote(search_terms)
+            url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
+            
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req) as response:
+                xml_data = response.read()
+                
+            root = ET.fromstring(xml_data)
+            news_list = []
+            
+            for item in root.findall('.//item'):
+                title = item.find('title').text
+                link = item.find('link').text
+                pub_date = item.find('pubDate').text if item.find('pubDate') is not None else ""
+                
+                try:
+                    dt = pd.to_datetime(pub_date, utc=True)
+                except Exception:
+                    dt = pd.Timestamp.now(tz='UTC') - pd.Timedelta(days=100)
+                
+                time_ago_str = get_time_ago_global(pub_date)
+                
+                news_list.append({
+                    "display_title": f"📢 {title}", # Unique megaphone icon for announcements
                     "link": link, 
                     "time_ago": time_ago_str,
                     "timestamp": dt
@@ -2827,11 +2864,12 @@ Be specific, data-driven, and actionable for a retail investor.
         filtered_symbols_full = filtered_df['_raw_symbol_'].dropna().unique()
         
         if len(filtered_symbols_full) > 0:
-            news_tab1, news_tab2, news_tab3, news_tab4 = st.tabs([
-                "🚨 Latest Alerts Timeline (Consolidated)", 
+            news_tab1, news_tab2, news_tab3, news_tab4, news_tab5 = st.tabs([
+                "🚨 Latest Alerts Timeline", 
                 "🏢 Alerts by Stock",
                 "📰 Smart News Engine (1 Day)",
-                "📰 Smart News Engine (All News)"
+                "📰 Smart News Engine (All News)",
+                "📢 Corporate Announcements" # THE NEW TAB 5
             ])
             
             master_alerts_list = []
@@ -2911,7 +2949,7 @@ Be specific, data-driven, and actionable for a retail investor.
                         idx_counter += 1
                         
                 if idx_counter == 0:
-                    st.info("No circuit breakouts or 52-week boundary alerts for the currently filtered stocks in the last 15 days (0 sec to 15 days).")
+                    st.info("No circuit breakouts or 52-week boundary alerts for the currently filtered stocks in the last 15 days.")
 
             # ==========================================
             # TAB 3: SMART NEWS ENGINE (1 DAY ONLY)
@@ -2932,15 +2970,14 @@ Be specific, data-driven, and actionable for a retail investor.
                                     is_today = "min" in news['time_ago'] or "hour" in news['time_ago'] or "sec" in news['time_ago'] or "Just now" in news['time_ago']
                                     time_color = "#16e37f" if is_today else "gray"
                                     time_weight = "bold" if is_today else "normal"
-                                    
                                     st.markdown(f"- <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: {time_color}; font-weight: {time_weight}; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
                         idx_counter_3 += 1
                 
                 if idx_counter_3 == 0:
-                    st.info("No general news found for the currently filtered stocks in the last 24 hours (0 Sec to 1 Day).")
+                    st.info("No general news found for the currently filtered stocks in the last 24 hours.")
 
             # ==========================================
-            # TAB 4: SMART NEWS ENGINE (ALL NEWS + ACTION ALERTS)
+            # TAB 4: SMART NEWS ENGINE (ALL NEWS)
             # ==========================================
             with news_tab4:
                 st.markdown("### Latest News & Action Alerts (All Time)")
@@ -2955,22 +2992,49 @@ Be specific, data-driven, and actionable for a retail investor.
                         with news_cols_4[idx_counter_4 % 2]:
                             with st.expander(f"📰 {clean_symbol} News Feed (All News)", expanded=True):
                                 for news in news_items:
-                                    # Maintained the clean green highlight logic so your dashboard looks beautiful!
                                     is_today = "min" in news['time_ago'] or "hour" in news['time_ago'] or "sec" in news['time_ago'] or "Just now" in news['time_ago']
                                     time_color = "#16e37f" if is_today else "gray"
                                     time_weight = "bold" if is_today else "normal"
-                                    
                                     st.markdown(f"- <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: {time_color}; font-weight: {time_weight}; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
                         idx_counter_4 += 1
                 
                 if idx_counter_4 == 0:
                     st.info("No general news found for the currently filtered stocks.")
+
+            # ==========================================
+            # TAB 5: CORPORATE ANNOUNCEMENTS (NEW)
+            # ==========================================
+            with news_tab5:
+                st.markdown("### 📢 Official Exchange Filings & Corporate Announcements")
+                st.markdown("<span style='font-size: 0.9em; color: gray;'>Tracks Regulation 30, LODR, Board Meetings, AGMs, and Analyst Meets.</span>", unsafe_allow_html=True)
+                st.markdown("<br>", unsafe_allow_html=True)
+                
+                news_cols_5 = st.columns(2) 
+                idx_counter_5 = 0
+                
+                for symbol in filtered_symbols_full[:15]: # Scans top 15 stocks for filings
+                    clean_symbol = str(symbol).strip()
+                    announcement_items = fetch_corporate_announcements(clean_symbol, limit=6)
+                    
+                    if announcement_items:
+                        with news_cols_5[idx_counter_5 % 2]:
+                            with st.expander(f"📢 {clean_symbol} Filings & Announcements", expanded=True):
+                                for announcement in announcement_items:
+                                    # Maintained the clean green highlight logic for fresh filings
+                                    is_today = "min" in announcement['time_ago'] or "hour" in announcement['time_ago'] or "sec" in announcement['time_ago'] or "Just now" in announcement['time_ago']
+                                    time_color = "#16e37f" if is_today else "gray"
+                                    time_weight = "bold" if is_today else "normal"
+                                    
+                                    st.markdown(f"- <a href='{announcement['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{announcement['display_title']}</a> <span style='color: {time_color}; font-weight: {time_weight}; font-size: 0.85em;'>— 🕒 {announcement['time_ago']}</span>", unsafe_allow_html=True)
+                        idx_counter_5 += 1
+                
+                if idx_counter_5 == 0:
+                    st.info("No recent corporate filings or official announcements found for the filtered stocks.")
                                     
         else:
-            st.info("No stocks currently filtered to show news.")
+            st.info("No stocks currently filtered to check.")
             
     except Exception as e:
-        # Added explicit error logging so if it crashes, it tells you exactly why!
         st.error(f"⚠️ Could not load the News Engine. Error details: {e}")
 
 # Ensure absolutely NO spaces before this 'else:' statement
