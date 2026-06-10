@@ -2634,7 +2634,7 @@ Be specific, data-driven, and actionable for a retail investor.
                 url = f"https://charting.nseindia.com/?symbol={clean_s}-EQ"
                 st.markdown(f"<a href='{url}' target='_blank' style='text-decoration:none;'><div style='background-color:#f39991; padding:8px; margin:4px; border-radius:5px; color:#000000; font-weight:bold;'>{clean_s}: {v}%</div></a>", unsafe_allow_html=True)
 
-    # ==========================================
+# ==========================================
     # 📰 GLOBAL NEWS ENGINE (3 TABS)
     # ==========================================
     st.markdown("---")
@@ -2643,13 +2643,13 @@ Be specific, data-driven, and actionable for a retail investor.
     import urllib.request
     import urllib.parse
     import xml.etree.ElementTree as ET
-    import datetime
+    import datetime as dt_lib
     import email.utils
 
     def get_time_ago_global(pubdate_str):
         try:
             dt = email.utils.parsedate_to_datetime(pubdate_str)
-            now = datetime.datetime.now(datetime.timezone.utc)
+            now = dt_lib.datetime.now(dt_lib.timezone.utc)
             diff = now - dt
             seconds = diff.total_seconds()
             
@@ -2694,7 +2694,7 @@ Be specific, data-driven, and actionable for a retail investor.
                 try:
                     dt = email.utils.parsedate_to_datetime(pub_date)
                 except Exception:
-                    dt = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+                    dt = dt_lib.datetime.min.replace(tzinfo=dt_lib.timezone.utc)
                 
                 time_ago_str = get_time_ago_global(pub_date)
                 
@@ -2712,11 +2712,9 @@ Be specific, data-driven, and actionable for a retail investor.
         except Exception:
             return []
 
-    # Fast 10-minute cache so breaking news hits your dashboard instantly
     @st.cache_data(ttl=600)
     def fetch_all_stock_news_tab3(symbol, limit=5):
         try:
-            # 1. Broad Search: Catch EVERY piece of news from all websites
             query = urllib.parse.quote(f'"{symbol}" stock share news NSE India')
             url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
             
@@ -2727,30 +2725,22 @@ Be specific, data-driven, and actionable for a retail investor.
             root = ET.fromstring(xml_data)
             news_list = []
             
-            # Keywords that trigger a high-priority alert
             alert_keywords = ["52 week high", "52-week high", "52 week low", "52-week low", "upper circuit", "lower circuit", "hits circuit", "locked in circuit", "upper limit", "lower limit"]
             
-            # 2. Process all incoming news
             for item in root.findall('.//item'):
                 title = item.find('title').text
                 link = item.find('link').text
                 pub_date = item.find('pubDate').text if item.find('pubDate') is not None else ""
                 
-                # Check if it's an important breakout event
                 is_alert = any(keyword in title.lower() for keyword in alert_keywords)
-                
-                # ONLY use an icon if it is an alert. Regular news gets nothing.
                 icon = "🚨 **[ALERT]** " if is_alert else ""
-                
-                # Format the display title cleanly
                 display_title = f"{icon}{title}"
                 time_ago_str = get_time_ago_global(pub_date)
                 
-                # Convert the date for perfect sorting
                 try:
                     dt = email.utils.parsedate_to_datetime(pub_date)
                 except Exception:
-                    dt = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+                    dt = dt_lib.datetime.min.replace(tzinfo=dt_lib.timezone.utc)
                 
                 news_list.append({
                     "display_title": display_title, 
@@ -2759,10 +2749,7 @@ Be specific, data-driven, and actionable for a retail investor.
                     "timestamp": dt
                 })
             
-            # 3. Sort chronologically (Absolute newest news at the top)
             news_list.sort(key=lambda x: x["timestamp"], reverse=True)
-            
-            # 4. Return the top results
             return news_list[:limit]
             
         except Exception:
@@ -2778,9 +2765,8 @@ Be specific, data-driven, and actionable for a retail investor.
                 "📰 Smart News Engine (All News)"
             ])
             
-            # --- Compile Alerts for Tabs 1 & 2 ---
             master_alerts_list = []
-            filtered_symbols_alerts = filtered_symbols_full[:30] # Top 30 for performance
+            filtered_symbols_alerts = filtered_symbols_full[:30] 
             
             with st.spinner("Scanning Top 30 stocks for Circuit & 52-Week Breakouts..."):
                 for sym in filtered_symbols_alerts:
