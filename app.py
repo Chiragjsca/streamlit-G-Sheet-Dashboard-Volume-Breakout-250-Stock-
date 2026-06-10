@@ -2596,6 +2596,7 @@ Be specific, data-driven, and actionable for a retail investor.
             # 2. Python Gatekeeper: Double-check the headline to ensure no junk slips through
             strict_keywords = ["52 week high", "52-week high", "52 week low", "52-week low", "upper circuit", "lower circuit", "hits circuit", "locked in circuit"]
             
+            # Collect all valid articles first instead of stopping at the limit
             for item in root.findall('.//item'):
                 title = item.find('title').text
                 title_lower = title.lower()
@@ -2606,12 +2607,25 @@ Be specific, data-driven, and actionable for a retail investor.
                     pub_date = item.find('pubDate').text if item.find('pubDate') is not None else ""
                     time_ago_str = get_time_ago(pub_date)
                     
-                    news_list.append({"title": title, "link": link, "time_ago": time_ago_str})
+                    # Convert the publish date into a machine-readable timestamp for flawless sorting
+                    try:
+                        dt = email.utils.parsedate_to_datetime(pub_date)
+                    except Exception:
+                        dt = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
                     
-                    if len(news_list) >= limit:
-                        break
-                        
-            return news_list
+                    news_list.append({
+                        "title": title, 
+                        "link": link, 
+                        "time_ago": time_ago_str,
+                        "timestamp": dt
+                    })
+            
+            # 3. Sort chronologically (Newest -> Oldest)
+            news_list.sort(key=lambda x: x["timestamp"], reverse=True)
+            
+            # 4. Return only the top limit AFTER sorting
+            return news_list[:limit]
+            
         except Exception:
             return []
 
