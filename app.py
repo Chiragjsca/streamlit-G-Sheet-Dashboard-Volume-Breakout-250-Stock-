@@ -3246,8 +3246,13 @@ try:
 
                 ctrl1, ctrl2, ctrl3 = st.columns([3, 1.2, 1.2])
                 with ctrl1:
-                    all_doc_syms = [str(s).strip() for s in filtered_symbols_full[:60]]
-                    selected_doc_stocks = st.multiselect("🔍 Stocks to view:", options=all_doc_syms, default=all_doc_syms[:4], key="doc_hub_stocks_v2")
+                    all_doc_syms = [str(s).strip() for s in filtered_symbols_full]  # all sheet stocks
+                    selected_doc_stocks = st.multiselect(
+                        "🔍 Stocks to view:",
+                        options=all_doc_syms,
+                        default=all_doc_syms,          # ← all selected by default
+                        key="doc_hub_stocks_v2"
+                    )
                 with ctrl2:
                     doc_days_label = st.selectbox("📅 Date range:", ["30 Days", "90 Days", "180 Days", "1 Year"], index=1, key="doc_days_v2")
                 with ctrl3:
