@@ -3176,8 +3176,11 @@ if idx_counter_5 == 0:
                                 badges_html += "</div>"
                                 st.markdown(badges_html, unsafe_allow_html=True)
 
-        else:
+else:
             st.info("No stocks currently filtered to check.")
+            
+    except Exception as e:
+        st.error(f"⚠️ Could not load the News Engine. Error details: {e}")
 
 # Ensure absolutely NO spaces before this 'else:' statement
 else:
