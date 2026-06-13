@@ -2510,8 +2510,10 @@ Be specific, data-driven, and actionable for a retail investor.
             cmp_v = clean_r.get(cmp_target, "") if cmp_target else ""
             sector_col = next((c for c in actual_cols if "sector" in c.lower()), None)
             sector_v = clean_r.get(sector_col, "") if sector_col else ""
+            nse_chart_url = f"https://charting.nseindia.com/?symbol={ticker}-EQ"
+            symbol_link = f'<a href="{nse_chart_url}" target="_blank" style="text-decoration:none; color:#000000; font-weight:bold;">{ticker}</a>'
             bf_results.append({
-                "Symbol": ticker,
+                "Symbol": symbol_link,
                 "Score": bf_s,
                 "Grade": bf_g,
                 "CMP": cmp_v,
@@ -2520,7 +2522,7 @@ Be specific, data-driven, and actionable for a retail investor.
             })
 
     if bf_search:
-        bf_results = [r for r in bf_results if bf_search.upper() in r["Symbol"].upper()]
+        bf_results = [r for r in bf_results if bf_search.upper() in re.sub(r'<[^>]*>', '', r["Symbol"]).upper()]
 
     bf_results.sort(key=lambda x: x["Score"], reverse=(bf_sort == "Score (High→Low)"))
 
@@ -2556,6 +2558,8 @@ Be specific, data-driven, and actionable for a retail investor.
             pinned = "left" if col == "Symbol" else None
             if col == "Score":
                 bf_gb.configure_column(col, width=dyn_w, pinned=pinned, cellStyle=bf_score_style)
+            elif col == "Symbol":
+                bf_gb.configure_column(col, width=dyn_w, pinned=pinned, cellRenderer=html_renderer)
             else:
                 bf_gb.configure_column(col, width=dyn_w, pinned=pinned)
 
@@ -2567,7 +2571,7 @@ Be specific, data-driven, and actionable for a retail investor.
         # Export BF Scanner results
         bf_buffer = io.BytesIO()
         with pd.ExcelWriter(bf_buffer, engine='openpyxl') as writer:
-            bf_scan_df.to_excel(writer, index=False, sheet_name="Bottom Fishing")
+            clean_for_export(bf_scan_df).to_excel(writer, index=False, sheet_name="Bottom Fishing")
         st.download_button("📥 Download BF Scanner Results", data=bf_buffer.getvalue(),
             file_name=f"BottomFishing_{pd.Timestamp.now().strftime('%Y%m%d')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -3246,13 +3250,8 @@ try:
 
                 ctrl1, ctrl2, ctrl3 = st.columns([3, 1.2, 1.2])
                 with ctrl1:
-                    all_doc_syms = [str(s).strip() for s in filtered_symbols_full]  # all sheet stocks
-                    selected_doc_stocks = st.multiselect(
-                        "🔍 Stocks to view:",
-                        options=all_doc_syms,
-                        default=all_doc_syms,          # ← all selected by default
-                        key="doc_hub_stocks_v2"
-                    )
+                    all_doc_syms = [str(s).strip() for s in filtered_symbols_full[:60]]
+                    selected_doc_stocks = st.multiselect("🔍 Stocks to view:", options=all_doc_syms, default=all_doc_syms[:4], key="doc_hub_stocks_v2")
                 with ctrl2:
                     doc_days_label = st.selectbox("📅 Date range:", ["30 Days", "90 Days", "180 Days", "1 Year"], index=1, key="doc_days_v2")
                 with ctrl3:
