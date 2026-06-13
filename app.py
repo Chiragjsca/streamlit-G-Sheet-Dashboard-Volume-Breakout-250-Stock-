@@ -2863,14 +2863,15 @@ Be specific, data-driven, and actionable for a retail investor.
     try:
         filtered_symbols_full = filtered_df['_raw_symbol_'].dropna().unique()
         
-        if len(filtered_symbols_full) > 0:
-            news_tab1, news_tab2, news_tab3, news_tab4, news_tab5 = st.tabs([
+if len(filtered_symbols_full) > 0:
+            # Added news_tab6 and the missing comma on the 5th tab
+            news_tab1, news_tab2, news_tab3, news_tab4, news_tab5, news_tab6 = st.tabs([
                 "🚨 Latest Alerts Timeline", 
                 "🏢 Alerts by Stock",
                 "📰 Smart News Engine (1 Day)",
                 "📰 Smart News Engine (All News)",
-                "📢 Corporate Announcements" # THE NEW TAB 5
-                "📢 DOCUMENTS HUB" # THE NEW TAB 6
+                "📢 Corporate Announcements", 
+                "📢 DOCUMENTS HUB" 
             ])
             
             master_alerts_list = []
@@ -3038,19 +3039,9 @@ Be specific, data-driven, and actionable for a retail investor.
     except Exception as e:
         st.error(f"⚠️ Could not load the News Engine. Error details: {e}")
 
-# ================================================================
-# EXACT PASTE INSTRUCTIONS
-# ================================================================
-# In your app.py, find this exact line (currently line 3032):
-#
-#     if idx_counter_5 == 0:
-#         st.info("No recent corporate filings...")
-#
-# Paste the ENTIRE block below IMMEDIATELY AFTER that line,
-# and BEFORE the "        else:" line (line 3034).
-# The indentation below is already correct — do NOT add or remove spaces.
-# ================================================================
-
+if idx_counter_5 == 0:
+                    st.info("No recent corporate filings or official announcements found for the filtered stocks.")
+                    
             # ==========================================
             # TAB 6: DOCUMENTS HUB
             # ==========================================
@@ -3184,6 +3175,9 @@ Be specific, data-driven, and actionable for a retail investor.
                                     badges_html += f"<a href='{href}' target='_blank' style='background:{bg}; color:{fg}; padding:3px 10px; border-radius:4px; font-size:0.76em; font-weight:600; text-decoration:none;'>{label}</a>"
                                 badges_html += "</div>"
                                 st.markdown(badges_html, unsafe_allow_html=True)
+
+        else:
+            st.info("No stocks currently filtered to check.")
 
 # Ensure absolutely NO spaces before this 'else:' statement
 else:
