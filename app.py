@@ -3181,6 +3181,5 @@ else:
     except Exception as e:
         st.error(f"⚠️ Could not load the News Engine. Error details: {e}")
 
-# This else belongs to the main data load check from the top of the file
 else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
