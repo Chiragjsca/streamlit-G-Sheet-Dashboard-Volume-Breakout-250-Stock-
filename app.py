@@ -3184,4 +3184,3 @@ else:
 # This else belongs to the main data load check from the top of the file
 else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
-    st.warning("No data loaded. Check sheet sharing and secrets.")
