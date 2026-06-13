@@ -2649,7 +2649,7 @@ Be specific, data-driven, and actionable for a retail investor.
             st.markdown(bot_html, unsafe_allow_html=True)
 
     # ==========================================
-    # 📰 GLOBAL NEWS ENGINE (5 TABS)
+    # 📰 GLOBAL NEWS ENGINE (6 TABS)
     # ==========================================
     st.markdown("---")
     st.markdown("### 📰 Global Market News, Alerts & Corporate Announcements")
@@ -2870,6 +2870,7 @@ Be specific, data-driven, and actionable for a retail investor.
                 "📰 Smart News Engine (1 Day)",
                 "📰 Smart News Engine (All News)",
                 "📢 Corporate Announcements" # THE NEW TAB 5
+                "📢 DOCUMENTS HUB" # THE NEW TAB 6
             ])
             
             master_alerts_list = []
