@@ -3032,15 +3032,6 @@ try:
                 if idx_counter_5 == 0:
                     st.info("No recent corporate filings or official announcements found for the filtered stocks.")
                                     
-        else:
-            st.info("No stocks currently filtered to check.")
-            
-    except Exception as e:
-        st.error(f"⚠️ Could not load the News Engine. Error details: {e}")
-
-if idx_counter_5 == 0:
-                    st.info("No recent corporate filings or official announcements found for the filtered stocks.")
-                    
             # ==========================================
             # TAB 6: DOCUMENTS HUB
             # ==========================================
@@ -3175,11 +3166,11 @@ if idx_counter_5 == 0:
                                 badges_html += "</div>"
                                 st.markdown(badges_html, unsafe_allow_html=True)
 
-else:
+        else:
             st.info("No stocks currently filtered to check.")
             
-    except Exception as e:
-        st.error(f"⚠️ Could not load the News Engine. Error details: {e}")
+except Exception as e:
+    st.error(f"⚠️ Could not load the News Engine. Error details: {e}")
 
 else:
     st.warning("No data loaded. Check sheet sharing and secrets.")
