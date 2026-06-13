@@ -3032,6 +3032,32 @@ try:
                     for n in news_items:
                         n["symbol"] = clean_symbol 
                         master_alerts_list.append(n)
+
+            # Build sets for green-highlight logic
+            alerted_symbols     = {n["symbol"] for n in master_alerts_list}
+            fresh_alerted_syms  = {
+                n["symbol"] for n in master_alerts_list
+                if "min"  in n["time_ago"] or "hour" in n["time_ago"]
+                or "sec"  in n["time_ago"] or "Just now" in n["time_ago"]
+            }
+
+            def symbol_badge(sym):
+                """Return a coloured pill badge for a stock symbol."""
+                if sym in fresh_alerted_syms:
+                    # Bright green — alert from today
+                    bg, fg, border = "#16e37f", "#003300", "#0fbf62"
+                elif sym in alerted_symbols:
+                    # Deeper green — alert within 15 days
+                    bg, fg, border = "#1a7a45", "#ffffff", "#145e34"
+                else:
+                    # Neutral grey — in sheet but no alert
+                    bg, fg, border = "#444", "#ffffff", "#333"
+                return (
+                    f"<span style='background:{bg}; color:{fg}; padding:2px 9px; "
+                    f"border-radius:5px; font-weight:700; font-size:0.82em; "
+                    f"border:1px solid {border}; white-space:nowrap;'>"
+                    f"⚡ {sym}</span>"
+                )
             
             # ==========================================
             # TAB 1: CONSOLIDATED ALERTS TIMELINE
@@ -3060,9 +3086,16 @@ try:
                 if display_news:
                     for news in display_news:
                         is_today = "min" in news['time_ago'] or "hour" in news['time_ago'] or "sec" in news['time_ago'] or "Just now" in news['time_ago']
-                        time_color = "#16e37f" if is_today else "gray"
-                        time_weight = "bold" if is_today else "normal"
-                        st.markdown(f"- **[{news['symbol']}]** <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: {time_color}; font-weight: {time_weight}; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
+                        time_color  = "#16e37f" if is_today else "gray"
+                        time_weight = "bold"    if is_today else "normal"
+                        badge = symbol_badge(news['symbol'])
+                        st.markdown(
+                            f"- {badge}&nbsp; <a href='{news['link']}' target='_blank' "
+                            f"style='text-decoration: none; color: inherit;'>{news['display_title']}</a> "
+                            f"<span style='color: {time_color}; font-weight: {time_weight}; font-size: 0.85em;'>"
+                            f"— 🕒 {news['time_ago']}</span>",
+                            unsafe_allow_html=True
+                        )
                         st.markdown("<hr style='margin: 0.4em 0; opacity: 0.15;'>", unsafe_allow_html=True)
                 else:
                     st.info("No circuit or 52-week alerts match your search or filter criteria.")
@@ -3079,7 +3112,9 @@ try:
                     
                     if sym_news:
                         with news_cols[idx_counter % 2]:
-                            with st.expander(f"🚨 {clean_symbol} Action Alerts (0 Sec to 15 Days)", expanded=True):
+                            # Badge colour in the expander label: green if fresh, teal if older
+                            exp_icon = "🟢" if clean_symbol in fresh_alerted_syms else "🟡"
+                            with st.expander(f"{exp_icon} {clean_symbol} Action Alerts (0 Sec to 15 Days)", expanded=True):
                                 top_3_news = sym_news[:3]
                                 remaining_news = sym_news[3:]
                                 
