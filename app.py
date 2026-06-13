@@ -3037,252 +3037,35 @@ Be specific, data-driven, and actionable for a retail investor.
     except Exception as e:
         st.error(f"⚠️ Could not load the News Engine. Error details: {e}")
 
-# ============================================================
-# TAB 6 — DOCUMENTS HUB  (add to your app__9_.py)
-# ============================================================
-# HOW TO INTEGRATE (3 easy steps):
+# ================================================================
+# EXACT PASTE INSTRUCTIONS
+# ================================================================
+# In your app.py, find this exact line (currently line 3032):
 #
-# STEP 1 ► Paste the BSE_CODE_MAP dict + fetch_bse_all_documents()
-#           function ANYWHERE before the News Engine section
-#           (e.g., right after the PINE_CUSTOM_RULES block, ~line 104).
+#     if idx_counter_5 == 0:
+#         st.info("No recent corporate filings...")
 #
-# STEP 2 ► In your existing tab creation line (~line 2867), change:
-#
-#   news_tab1, news_tab2, news_tab3, news_tab4, news_tab5 = st.tabs([
-#       "🚨 Latest Alerts Timeline",
-#       "🏢 Alerts by Stock",
-#       "📰 Smart News Engine (1 Day)",
-#       "📰 Smart News Engine (All News)",
-#       "📢 Corporate Announcements"
-#   ])
-#
-#   TO:
-#
-#   news_tab1, news_tab2, news_tab3, news_tab4, news_tab5, news_tab6 = st.tabs([
-#       "🚨 Latest Alerts Timeline",
-#       "🏢 Alerts by Stock",
-#       "📰 Smart News Engine (1 Day)",
-#       "📰 Smart News Engine (All News)",
-#       "📢 Corporate Announcements",
-#       "📄 Documents Hub"          # ← NEW
-#   ])
-#
-# STEP 3 ► Paste the "with news_tab6:" block immediately after the
-#           end of your existing "with news_tab5:" block (after line 3032).
-# ============================================================
-
-
-# ============================================================
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  STEP 1 — PASTE THIS BLOCK BEFORE THE NEWS ENGINE SECTION
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# ============================================================
-
-# ------------------------------------------------------------------
-# NSE Symbol → BSE 6-digit Security Code mapping (250 major stocks)
-# Used to build correct BSE URL links & call BSE's public API.
-# If your stock is missing, add it: "YOURSYMBOL": "BSECODE"
-# ------------------------------------------------------------------
-BSE_CODE_MAP = {
-    # ── NIFTY 50 ──────────────────────────────────────────
-    "RELIANCE":   "500325", "TCS":        "532540", "HDFCBANK":   "500180",
-    "INFY":       "500209", "ICICIBANK":  "532174", "HINDUNILVR": "500696",
-    "ITC":        "500875", "SBIN":       "500112", "BHARTIARTL": "532454",
-    "KOTAKBANK":  "500247", "LT":         "500510", "AXISBANK":   "532215",
-    "ASIANPAINT": "500820", "MARUTI":     "532500", "BAJFINANCE":  "500034",
-    "BAJAJFINSV": "532978", "TITAN":      "500114", "NESTLEIND":  "500790",
-    "WIPRO":      "507685", "ULTRACEMCO": "532538", "HCLTECH":    "532281",
-    "SUNPHARMA":  "524715", "M&M":        "500520", "TATASTEEL":  "500470",
-    "TATAMOTORS": "500570", "POWERGRID":  "532898", "NTPC":       "532555",
-    "ONGC":       "500312", "COALINDIA":  "533278", "ADANIPORTS": "532921",
-    "TECHM":      "532755", "DIVISLAB":   "532488", "CIPLA":      "500087",
-    "DRREDDY":    "500124", "GRASIM":     "500300", "BRITANNIA":  "500825",
-    "EICHERMOT":  "505200", "HEROMOTOCO": "500182", "INDUSINDBK": "532187",
-    "BAJAJ-AUTO": "532977", "APOLLOHOSP": "508869", "ADANIENT":   "512599",
-    "SIEMENS":    "500550", "PIDILITIND": "500331", "LTIM":       "540005",
-    "JSWSTEEL":   "500228", "HINDALCO":   "500440", "TATACONSUM": "500800",
-    "BPCL":       "500547", "GAIL":       "532155",
-    # ── NIFTY NEXT 50 / MIDCAP ────────────────────────────
-    "HAVELLS":    "517354", "HFCL":       "500183", "MUTHOOTFIN": "533398",
-    "TATAPOWER":  "500400", "GODREJCP":   "532424", "LUPIN":      "500257",
-    "BIOCON":     "532523", "TORNTPHARM": "500420", "AUROPHARMA": "524804",
-    "CHOLAFIN":   "500111", "BANDHANBNK": "541153", "FEDERALBNK": "500469",
-    "IDFCFIRSTB": "539437", "PNB":        "532461", "CANBK":      "532483",
-    "BANKBARODA": "532134", "UNIONBANK":  "532477", "INDUSTOWER": "534816",
-    "VEDL":       "500295", "SAIL":       "500113", "NMDC":       "526371",
-    "RECLTD":     "532955", "PFC":        "532810", "IOC":        "530965",
-    "HPCL":       "500104", "PETRONET":   "532522", "CUMMINSIND": "500480",
-    "ABB":        "500002", "BHEL":       "500103", "HAL":        "541154",
-    "BEL":        "500048", "SRF":        "503806", "PIIND":      "523642",
-    "DEEPAKNTR":  "506401", "COFORGE":    "532541", "PERSISTENT": "533179",
-    "MPHASIS":    "526299", "KPITTECH":   "542651", "ZOMATO":     "543320",
-    "POLICYBZR":  "543390", "NYKAA":      "543573", "PAYTM":      "543396",
-    "DELHIVERY":  "543529", "IRCTC":      "542830", "RVNL":       "542649",
-    "IRFC":       "543257", "HUDCO":      "539976", "RITES":      "541556",
-    "NBCC":       "534309", "SJVN":       "533206", "NHPC":       "533098",
-    "CESC":       "500084", "DABUR":      "500096", "MARICO":     "531642",
-    "EMAMILTD":   "531162", "VGUARD":     "532953", "VOLTAS":     "500575",
-    "BLUESTAR":   "500067", "CROMPTON":   "539876", "POLYCAB":    "542652",
-    "KEI":        "517569", "APOLLOTYRE": "500877", "MRF":        "500290",
-    "BALKRISIND": "502355", "CEAT":       "500878", "TVSMOTORS":  "532343",
-    "PAGEIND":    "532827", "DMART":      "540376", "TRENT":      "500251",
-    "JUBLFOOD":   "533155", "DEVYANI":    "543354", "WESTLIFE":   "505533",
-    "BERGEPAINT": "509480", "KANSAINER":  "500231", "AKZOINDIA":  "500710",
-    "INDIGOPNTS": "539105", "CONCOR":     "531344", "ESCORTS":    "500495",
-    "ASHOKLEY":   "500477", "MOTHERSON":  "517334", "BOSCHLTD":   "500530",
-    "EXIDEIND":   "500086", "AMARARAJA":  "500008", "ENDURANCE":  "540153",
-    "LAXMIMACH":  "505196", "TRIDENT":    "521064", "WELSPUNLIV": "514162",
-    "RAYMOND":    "500330", "VARDHMAN":   "502986", "ARVIND":     "500101",
-    "NIITLTD":    "500304", "ZENSAR":     "504067", "RATEGAIN":   "543417",
-    "TANLA":      "532790", "ROUTE":      "543228", "INDIAMART":  "542726",
-    "EASEMYTRIP": "543272", "NAUKRI":     "521228", "JUSTDIAL":   "535648",
-    "ZYDUSLIFE":  "532321", "ALKEM":      "539523", "AJANTPHAR":  "532331",
-    "GRANULES":   "532482", "GLENMARK":   "532296", "IPCALAB":    "524494",
-    "NATCOPHARM": "524816", "SANOFI":     "500674", "TORNTPOWER": "532779",
-    "JSWENERGY":  "533148", "KEC":        "532714", "KALPATPOWR": "522287",
-    "IRCON":      "541956", "ENGINERSIN": "532178", "TITAGARH":   "520602",
-    "DLF":        "532868", "PRESTIGE":   "535801", "GODREJPROP": "533150",
-    "OBEROIRLTY": "533273", "BRIGADE":    "532929", "SOBHA":      "532784",
-    "KOLTEPATIL": "532924", "PHOENIXLTD": "503100", "SUNTECK":    "512179",
-    "MANAPPURAM": "531213", "IIFL":       "532636", "IIFLWAM":    "542233",
-    "5PAISA":     "540776", "ICICIPRULI": "540133", "SBILIFE":    "540719",
-    "HDFCLIFE":   "540777", "STARHEALTH": "543412", "GICRE":      "540755",
-    "NIACL":      "540812", "BAJAJHLDNG": "500490", "SHRIRAMFIN": "511218",
-    "M&MFIN":     "532720", "LICHSGFIN":  "500253", "CANFINHOME": "500558",
-    "REPCO":      "535322", "ICICIGI":    "540716", "SBICARD":    "543066",
-    "ZEEL":       "505537", "SUNTV":      "532733", "PVRINOX":    "532689",
-    "SAREGAMA":   "532163", "METROPOLIS": "542650", "THYROCARE":  "539871",
-    "FORTIS":     "532843", "ASTERDM":    "540975", "SAFARI":     "523025",
-    "APLAPOLLO":  "533758", "JSPL":       "532286", "WELCORP":    "532144",
-    "RATNAMANI":  "520111", "ATUL":       "500027", "TATACHEM":   "500770",
-    "VINATI":     "524200", "NOCIL":      "500730", "ASTRAL":     "532830",
-    "SUPREMEIND": "509930", "LALPATHLAB": "539493", "CMSINFO":    "542920",
-    "CAMPUS":     "543527", "BATA":       "500043", "RELAXO":     "530517",
-    "BLUEDART":   "526612", "VRLLOG":     "539276", "GATI":       "532345",
-    "ALLCARGO":   "532749", "TCI":        "532349", "TATACOMM":   "500483",
-    "STLTECH":    "532374", "ITI":        "523610", "BEML":       "500048",
-    "MIDHANI":    "541195", "MTAR":       "543268", "DCMSHRIRAM": "523367",
-    "COROMANDEL": "506395", "BAYER":      "506597", "SUMICHEM":   "526330",
-    "UPL":        "512070", "BALRAMCHIN": "500038", "DWARIKESH":  "532610",
-    "EIDPARRY":   "500135", "ZYDUSWELL":  "531335", "INDIAGLYCO": "500201",
-    "LICI":       "543526", "IREDA":      "544097", "JSWINFRA":   "543759",
-    "ADANIGREEN": "541450", "ADANIENSOL": "543234", "TATAINVEST": "501301",
-    "HAL":        "541154", "MFSL":       "500271", "SCHAEFFLER": "505790",
-    "GRINDWELL":  "506076", "BHARATFORG": "500493", "RAMKRISHN":  "532527",
-    "KALYANKJIL": "543278", "CENTURYTEX": "500040", "FORCE":      "505900",
-    "TIINDIA":    "532794", "SUNDRMFAST": "520056", "JBM":        "522268",
-    "GABRIEL":    "505714", "MAHINDCIE":  "532756",
-}
-
-
-@st.cache_data(ttl=900)
-def fetch_bse_all_documents(bse_code, days_back=90):
-    """
-    Fetches live corporate filings from BSE India's public API (no API key needed).
-    Auto-sorts items into: announcements, annual_reports, credit_ratings, concalls, ppt.
-    Returns a dict with lists, or an empty dict on failure.
-    """
-    try:
-        import json as _json
-        from datetime import timedelta as _td
-        from_date = (datetime.now() - _td(days=days_back)).strftime("%Y%m%d")
-        url = (
-            f"https://api.bseindia.com/BseIndiaAPI/api/AnnGetData/w"
-            f"?strPrevDate={from_date}&strScrip={bse_code}"
-            f"&strType=C&strFlag=0&strSrno="
-        )
-        headers = {
-            "User-Agent":      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Referer":         "https://www.bseindia.com/",
-            "Accept":          "application/json, text/plain, */*",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Origin":          "https://www.bseindia.com",
-        }
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=12) as resp:
-            data = _json.loads(resp.read())
-
-        docs = {k: [] for k in ("announcements", "annual_reports", "credit_ratings", "concalls", "ppt")}
-
-        for item in data.get("Table", []):
-            cat    = item.get("CATEGORYNAME",    "").lower()
-            hl     = item.get("HEADLINE",        "")
-            hl_low = hl.lower()
-            dt_str = item.get("NEWS_DT",         "")
-            att    = item.get("ATTACHMENTNAME",  "")
-            link   = (f"https://www.bseindia.com/xml-data/corpfiling/AttachLive/{att}"
-                      if att else "")
-            entry  = {
-                "title":    hl,
-                "date":     dt_str[:10] if dt_str else "",
-                "link":     link,
-                "category": item.get("CATEGORYNAME", ""),
-            }
-            if "annual report" in hl_low or "annual report" in cat:
-                docs["annual_reports"].append(entry)
-            elif "credit" in cat or "rating" in cat or "credit rating" in hl_low:
-                docs["credit_ratings"].append(entry)
-            elif "analyst" in cat or "investor meet" in cat:
-                if any(k in hl_low for k in ("presentation", "ppt", "investor presentation", "investor deck")):
-                    docs["ppt"].append(entry)
-                else:
-                    docs["concalls"].append(entry)
-            else:
-                docs["announcements"].append(entry)
-
-        return docs
-    except Exception:
-        return {}
-
-
-# ============================================================
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#  STEP 3 — PASTE THIS BLOCK RIGHT AFTER THE news_tab5 BLOCK
-#            (after the "if idx_counter_5 == 0:" line)
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# ============================================================
+# Paste the ENTIRE block below IMMEDIATELY AFTER that line,
+# and BEFORE the "        else:" line (line 3034).
+# The indentation below is already correct — do NOT add or remove spaces.
+# ================================================================
 
             # ==========================================
-            # TAB 6: DOCUMENTS HUB (Screener-style)
+            # TAB 6: DOCUMENTS HUB
             # ==========================================
             with news_tab6:
-                st.markdown(
-                    "### 📄 Documents Hub — Announcements · Annual Reports · Credit Ratings · Concalls · PPT · REC",
-                    unsafe_allow_html=False,
-                )
-                st.markdown(
-                    "<span style='font-size:0.88em; color:#888;'>"
-                    "Live data via BSE India's public API (no key required). "
-                    "Annual Reports, Concalls &amp; Credit Ratings also link to Screener.in."
-                    "</span>",
-                    unsafe_allow_html=True,
-                )
+                st.markdown("### 📄 Documents Hub — Announcements · Annual Reports · Credit Ratings · Concalls · PPT · REC")
+                st.markdown("<span style='font-size:0.88em; color:#888;'>Live BSE India filings (public API, no key needed). Annual Reports & Concalls also link to Screener.in.</span>", unsafe_allow_html=True)
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # ── Controls ──────────────────────────────────────────────────
                 ctrl1, ctrl2, ctrl3 = st.columns([3, 1.2, 1.2])
                 with ctrl1:
                     all_doc_syms = [str(s).strip() for s in filtered_symbols_full[:60]]
-                    selected_doc_stocks = st.multiselect(
-                        "🔍 Stocks to view:",
-                        options=all_doc_syms,
-                        default=all_doc_syms[:4],
-                        key="doc_hub_stocks_v2",
-                    )
+                    selected_doc_stocks = st.multiselect("🔍 Stocks to view:", options=all_doc_syms, default=all_doc_syms[:4], key="doc_hub_stocks_v2")
                 with ctrl2:
-                    doc_days_label = st.selectbox(
-                        "📅 Date range:",
-                        ["30 Days", "90 Days", "180 Days", "1 Year"],
-                        index=1,
-                        key="doc_days_v2",
-                    )
+                    doc_days_label = st.selectbox("📅 Date range:", ["30 Days", "90 Days", "180 Days", "1 Year"], index=1, key="doc_days_v2")
                 with ctrl3:
-                    doc_ann_limit = st.selectbox(
-                        "📋 Rows per section:",
-                        [3, 5, 8, 12],
-                        index=1,
-                        key="doc_limit_v2",
-                    )
+                    doc_ann_limit = st.selectbox("📋 Rows per section:", [3, 5, 8, 12], index=1, key="doc_limit_v2")
 
                 days_map = {"30 Days": 30, "90 Days": 90, "180 Days": 180, "1 Year": 365}
                 doc_days_back = days_map[doc_days_label]
@@ -3293,298 +3076,113 @@ def fetch_bse_all_documents(bse_code, days_back=90):
                     for doc_sym in selected_doc_stocks:
                         bse_code = BSE_CODE_MAP.get(doc_sym.upper(), "")
 
-                        # ── Per-stock expander ─────────────────────────────────
-                        with st.expander(
-                            f"📁  {doc_sym}   {'· BSE ' + bse_code if bse_code else '· BSE code not mapped — Screener links shown'}",
-                            expanded=True,
-                        ):
-                            # ── Quick-access button bar (top of card) ──────────
-                            btn_html = "<div style='display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;'>"
+                        with st.expander(f"📁  {doc_sym}   {'· BSE ' + bse_code if bse_code else '· BSE code not mapped — Screener links shown'}", expanded=True):
+                            # Quick-access button bar
+                            btn_html = "<div style='display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;'>"
                             btn_links = [
                                 ("📢 BSE Announcements",
-                                 f"https://www.bseindia.com/corporates/Corp_Annoucement.html?expandable=0&scripcd={bse_code}"
-                                 if bse_code else
-                                 f"https://www.nseindia.com/companies-listing/corporate-filings-announcements?symbol={doc_sym}",
+                                 f"https://www.bseindia.com/corporates/Corp_Annoucement.html?expandable=0&scripcd={bse_code}" if bse_code else f"https://www.nseindia.com/companies-listing/corporate-filings-announcements?symbol={doc_sym}",
                                  "#e8eaf6", "#3949ab"),
-                                ("📑 Annual Reports",
-                                 f"https://www.screener.in/company/{doc_sym}/",
-                                 "#e8f5e9", "#2e7d32"),
-                                ("⭐ Credit Ratings",
-                                 f"https://www.screener.in/company/{doc_sym}/",
-                                 "#fff8e1", "#f57f17"),
-                                ("🎙️ Concalls",
-                                 f"https://www.screener.in/company/{doc_sym}/",
-                                 "#fce4ec", "#c62828"),
+                                ("📑 Annual Reports",   f"https://www.screener.in/company/{doc_sym}/", "#e8f5e9", "#2e7d32"),
+                                ("⭐ Credit Ratings",   f"https://www.screener.in/company/{doc_sym}/", "#fff8e1", "#f57f17"),
+                                ("🎙️ Concalls",         f"https://www.screener.in/company/{doc_sym}/", "#fce4ec", "#c62828"),
                                 ("📊 Investor PPT",
-                                 f"https://www.bseindia.com/corporates/Inv_Rel.aspx?scripcd={bse_code}"
-                                 if bse_code else
-                                 f"https://www.screener.in/company/{doc_sym}/",
+                                 f"https://www.bseindia.com/corporates/Inv_Rel.aspx?scripcd={bse_code}" if bse_code else f"https://www.screener.in/company/{doc_sym}/",
                                  "#f3e5f5", "#6a1b9a"),
-                                ("🏛️ NSE Filings",
-                                 f"https://www.nseindia.com/companies-listing/corporate-filings-announcements?symbol={doc_sym}",
-                                 "#e0f7fa", "#00695c"),
-                                ("📈 Screener",
-                                 f"https://www.screener.in/company/{doc_sym}/",
-                                 "#fffde7", "#f9a825"),
+                                ("🏛️ NSE Filings",      f"https://www.nseindia.com/companies-listing/corporate-filings-announcements?symbol={doc_sym}", "#e0f7fa", "#00695c"),
+                                ("📈 Screener",         f"https://www.screener.in/company/{doc_sym}/", "#fffde7", "#f9a825"),
                             ]
                             for label, href, bg, fg in btn_links:
-                                btn_html += (
-                                    f"<a href='{href}' target='_blank' "
-                                    f"style='background:{bg}; color:{fg}; padding:5px 12px; "
-                                    f"border-radius:6px; font-size:0.78em; font-weight:600; "
-                                    f"text-decoration:none; white-space:nowrap;'>{label}</a>"
-                                )
+                                btn_html += f"<a href='{href}' target='_blank' style='background:{bg}; color:{fg}; padding:5px 12px; border-radius:6px; font-size:0.78em; font-weight:600; text-decoration:none; white-space:nowrap;'>{label}</a>"
                             btn_html += "</div>"
                             st.markdown(btn_html, unsafe_allow_html=True)
 
-                            # ── Fetch live data from BSE ───────────────────────
+                            # Fetch live BSE data
                             docs_data = {}
                             if bse_code:
                                 with st.spinner(f"Fetching BSE filings for {doc_sym}…"):
                                     docs_data = fetch_bse_all_documents(bse_code, days_back=doc_days_back)
 
-                            # ── 4-column Screener-style layout ─────────────────
+                            # 4-column Screener-style layout
                             c_ann, c_ar, c_cr, c_cc = st.columns([3, 2, 2, 3])
 
-                            # ─── Column 1 · Announcements ──────────────────────
+                            # ── Column 1: Announcements ──────────────────────────
                             with c_ann:
-                                st.markdown(
-                                    "<p style='font-weight:700; font-size:0.9em; "
-                                    "border-bottom:2px solid #5c6bc0; padding-bottom:4px; "
-                                    "color:#5c6bc0;'>📢 Announcements</p>",
-                                    unsafe_allow_html=True,
-                                )
+                                st.markdown("<p style='font-weight:700; font-size:0.9em; border-bottom:2px solid #5c6bc0; padding-bottom:4px; color:#5c6bc0;'>📢 Announcements</p>", unsafe_allow_html=True)
                                 ann_items = docs_data.get("announcements", [])
                                 if ann_items:
                                     subtab_recent, subtab_all = st.tabs(["Recent", "All ↗"])
                                     with subtab_recent:
                                         for a in ann_items[:doc_ann_limit]:
                                             title_short = (a["title"][:85] + "…") if len(a["title"]) > 85 else a["title"]
-                                            date_lbl    = a["date"] or ""
-                                            link_part   = (
-                                                f"<a href='{a['link']}' target='_blank' "
-                                                f"style='color:#5c6bc0; text-decoration:none;'>{title_short}</a>"
-                                                if a["link"] else
-                                                f"<span>{title_short}</span>"
-                                            )
-                                            st.markdown(
-                                                f"<div style='font-size:0.82em; margin-bottom:6px; "
-                                                f"border-left:3px solid #c5cae9; padding-left:6px;'>"
-                                                f"{link_part}<br>"
-                                                f"<span style='color:#aaa; font-size:0.85em;'>{date_lbl}</span>"
-                                                f"</div>",
-                                                unsafe_allow_html=True,
-                                            )
+                                            link_part = (f"<a href='{a['link']}' target='_blank' style='color:#5c6bc0; text-decoration:none;'>{title_short}</a>" if a["link"] else f"<span>{title_short}</span>")
+                                            st.markdown(f"<div style='font-size:0.82em; margin-bottom:6px; border-left:3px solid #c5cae9; padding-left:6px;'>{link_part}<br><span style='color:#aaa; font-size:0.85em;'>{a['date']}</span></div>", unsafe_allow_html=True)
                                     with subtab_all:
-                                        full_url = (
-                                            f"https://www.bseindia.com/corporates/Corp_Annoucement.html"
-                                            f"?expandable=0&scripcd={bse_code}"
-                                            if bse_code else
-                                            f"https://www.nseindia.com/companies-listing/"
-                                            f"corporate-filings-announcements?symbol={doc_sym}"
-                                        )
-                                        st.markdown(
-                                            f"<a href='{full_url}' target='_blank' "
-                                            f"style='color:#5c6bc0; font-size:0.85em;'>"
-                                            f"🔗 Open full announcements page →</a>",
-                                            unsafe_allow_html=True,
-                                        )
+                                        full_url = (f"https://www.bseindia.com/corporates/Corp_Annoucement.html?expandable=0&scripcd={bse_code}" if bse_code else f"https://www.nseindia.com/companies-listing/corporate-filings-announcements?symbol={doc_sym}")
+                                        st.markdown(f"<a href='{full_url}' target='_blank' style='color:#5c6bc0; font-size:0.85em;'>🔗 Open full announcements page →</a>", unsafe_allow_html=True)
                                 else:
-                                    # Fallback — Google News search for announcements
-                                    gnews_url = (
-                                        f"https://news.google.com/search?q={doc_sym}+BSE+announcement"
-                                        f"&hl=en-IN&gl=IN&ceid=IN:en"
-                                    )
-                                    if bse_code:
-                                        bse_url = (
-                                            f"https://www.bseindia.com/corporates/Corp_Annoucement.html"
-                                            f"?expandable=0&scripcd={bse_code}"
-                                        )
-                                        st.markdown(
-                                            f"<a href='{bse_url}' target='_blank' "
-                                            f"style='color:#5c6bc0; font-size:0.83em;'>"
-                                            f"🔗 View on BSE India →</a>",
-                                            unsafe_allow_html=True,
-                                        )
-                                    else:
-                                        st.markdown(
-                                            f"<a href='{gnews_url}' target='_blank' "
-                                            f"style='color:#5c6bc0; font-size:0.83em;'>"
-                                            f"🔍 Search Google News →</a>",
-                                            unsafe_allow_html=True,
-                                        )
+                                    bse_url = (f"https://www.bseindia.com/corporates/Corp_Annoucement.html?expandable=0&scripcd={bse_code}" if bse_code else f"https://www.nseindia.com/companies-listing/corporate-filings-announcements?symbol={doc_sym}")
+                                    st.markdown(f"<a href='{bse_url}' target='_blank' style='color:#5c6bc0; font-size:0.83em;'>🔗 View on {'BSE' if bse_code else 'NSE'} →</a>", unsafe_allow_html=True)
                                     st.caption("No announcements in selected date range.")
 
-                            # ─── Column 2 · Annual Reports ─────────────────────
+                            # ── Column 2: Annual Reports ─────────────────────────
                             with c_ar:
-                                st.markdown(
-                                    "<p style='font-weight:700; font-size:0.9em; "
-                                    "border-bottom:2px solid #43a047; padding-bottom:4px; "
-                                    "color:#43a047;'>📑 Annual Reports</p>",
-                                    unsafe_allow_html=True,
-                                )
+                                st.markdown("<p style='font-weight:700; font-size:0.9em; border-bottom:2px solid #43a047; padding-bottom:4px; color:#43a047;'>📑 Annual Reports</p>", unsafe_allow_html=True)
                                 ar_items = docs_data.get("annual_reports", [])
                                 if ar_items:
                                     for ar in ar_items[:6]:
                                         yr = ar["date"][:4] if ar["date"] else "Report"
-                                        link_part = (
-                                            f"<a href='{ar['link']}' target='_blank' "
-                                            f"style='color:#43a047; text-decoration:none;'>"
-                                            f"📄 Annual Report {yr}</a>"
-                                            if ar["link"] else
-                                            f"<span>📄 Annual Report {yr}</span>"
-                                        )
-                                        st.markdown(
-                                            f"<div style='font-size:0.82em; margin-bottom:5px;'>{link_part}</div>",
-                                            unsafe_allow_html=True,
-                                        )
+                                        link_part = (f"<a href='{ar['link']}' target='_blank' style='color:#43a047; text-decoration:none;'>📄 Annual Report {yr}</a>" if ar["link"] else f"<span>📄 Annual Report {yr}</span>")
+                                        st.markdown(f"<div style='font-size:0.82em; margin-bottom:5px;'>{link_part}</div>", unsafe_allow_html=True)
                                 else:
-                                    # Screener has all annual reports, free
-                                    screener_url = f"https://www.screener.in/company/{doc_sym}/"
-                                    # Build year links for last 6 FYs on BSE if code available
                                     if bse_code:
-                                        bse_ar_url = (
-                                            f"https://www.bseindia.com/AnnualReports.html"
-                                            f"?scripcd={bse_code}"
-                                        )
-                                        st.markdown(
-                                            f"<a href='{bse_ar_url}' target='_blank' "
-                                            f"style='color:#43a047; font-size:0.83em;'>"
-                                            f"📑 All Annual Reports (BSE) →</a>",
-                                            unsafe_allow_html=True,
-                                        )
-                                    st.markdown(
-                                        f"<a href='{screener_url}' target='_blank' "
-                                        f"style='color:#43a047; font-size:0.83em;'>"
-                                        f"📑 View on Screener.in →</a>",
-                                        unsafe_allow_html=True,
-                                    )
+                                        st.markdown(f"<a href='https://www.bseindia.com/AnnualReports.html?scripcd={bse_code}' target='_blank' style='color:#43a047; font-size:0.83em;'>📑 BSE Annual Reports →</a>", unsafe_allow_html=True)
+                                    st.markdown(f"<a href='https://www.screener.in/company/{doc_sym}/' target='_blank' style='color:#43a047; font-size:0.83em;'>📑 View on Screener →</a>", unsafe_allow_html=True)
                                     st.caption("Not found in selected range — try 1 Year.")
 
-                            # ─── Column 3 · Credit Ratings ─────────────────────
+                            # ── Column 3: Credit Ratings ─────────────────────────
                             with c_cr:
-                                st.markdown(
-                                    "<p style='font-weight:700; font-size:0.9em; "
-                                    "border-bottom:2px solid #f57f17; padding-bottom:4px; "
-                                    "color:#f57f17;'>⭐ Credit Ratings</p>",
-                                    unsafe_allow_html=True,
-                                )
+                                st.markdown("<p style='font-weight:700; font-size:0.9em; border-bottom:2px solid #f57f17; padding-bottom:4px; color:#f57f17;'>⭐ Credit Ratings</p>", unsafe_allow_html=True)
                                 cr_items = docs_data.get("credit_ratings", [])
                                 if cr_items:
                                     for cr in cr_items[:4]:
                                         title_short = (cr["title"][:70] + "…") if len(cr["title"]) > 70 else cr["title"]
-                                        link_part = (
-                                            f"<a href='{cr['link']}' target='_blank' "
-                                            f"style='color:#f57f17; text-decoration:none;'>{title_short}</a>"
-                                            if cr["link"] else
-                                            f"<span>{title_short}</span>"
-                                        )
-                                        st.markdown(
-                                            f"<div style='font-size:0.82em; margin-bottom:5px; "
-                                            f"border-left:3px solid #ffe0b2; padding-left:6px;'>"
-                                            f"{link_part}<br>"
-                                            f"<span style='color:#aaa; font-size:0.85em;'>{cr['date']}</span>"
-                                            f"</div>",
-                                            unsafe_allow_html=True,
-                                        )
+                                        link_part = (f"<a href='{cr['link']}' target='_blank' style='color:#f57f17; text-decoration:none;'>{title_short}</a>" if cr["link"] else f"<span>{title_short}</span>")
+                                        st.markdown(f"<div style='font-size:0.82em; margin-bottom:5px; border-left:3px solid #ffe0b2; padding-left:6px;'>{link_part}<br><span style='color:#aaa; font-size:0.85em;'>{cr['date']}</span></div>", unsafe_allow_html=True)
                                 else:
-                                    screener_url = f"https://www.screener.in/company/{doc_sym}/"
-                                    st.markdown(
-                                        f"<a href='{screener_url}' target='_blank' "
-                                        f"style='color:#f57f17; font-size:0.83em;'>"
-                                        f"⭐ Ratings on Screener →</a>",
-                                        unsafe_allow_html=True,
-                                    )
-                                    # Direct rating agency links
-                                    st.markdown(
-                                        "<div style='font-size:0.78em; margin-top:8px; color:#888;'>"
-                                        "<a href='https://www.careratings.com' target='_blank' "
-                                        "style='color:#888;'>CARE</a> · "
-                                        "<a href='https://www.icra.in' target='_blank' "
-                                        "style='color:#888;'>ICRA</a> · "
-                                        "<a href='https://www.crisil.com' target='_blank' "
-                                        "style='color:#888;'>CRISIL</a> · "
-                                        "<a href='https://www.infomerics.com' target='_blank' "
-                                        "style='color:#888;'>Infomerics</a>"
-                                        "</div>",
-                                        unsafe_allow_html=True,
-                                    )
+                                    st.markdown(f"<a href='https://www.screener.in/company/{doc_sym}/' target='_blank' style='color:#f57f17; font-size:0.83em;'>⭐ Ratings on Screener →</a>", unsafe_allow_html=True)
+                                    st.markdown("<div style='font-size:0.78em; margin-top:8px; color:#888;'><a href='https://www.careratings.com' target='_blank' style='color:#888;'>CARE</a> · <a href='https://www.icra.in' target='_blank' style='color:#888;'>ICRA</a> · <a href='https://www.crisil.com' target='_blank' style='color:#888;'>CRISIL</a> · <a href='https://www.infomerics.com' target='_blank' style='color:#888;'>Infomerics</a></div>", unsafe_allow_html=True)
                                     st.caption("Not found via BSE — check links above.")
 
-                            # ─── Column 4 · Concalls + PPT + REC ───────────────
+                            # ── Column 4: Concalls + PPT + REC ───────────────────
                             with c_cc:
-                                st.markdown(
-                                    "<p style='font-weight:700; font-size:0.9em; "
-                                    "border-bottom:2px solid #e53935; padding-bottom:4px; "
-                                    "color:#e53935;'>🎙️ Concalls &amp; Investor Docs</p>",
-                                    unsafe_allow_html=True,
-                                )
+                                st.markdown("<p style='font-weight:700; font-size:0.9em; border-bottom:2px solid #e53935; padding-bottom:4px; color:#e53935;'>🎙️ Concalls &amp; Investor Docs</p>", unsafe_allow_html=True)
                                 concall_items = docs_data.get("concalls", [])
-                                ppt_items     = docs_data.get("ppt", [])
-                                combined      = ppt_items + concall_items   # PPT first, then concalls
-
+                                ppt_items = docs_data.get("ppt", [])
+                                combined = ppt_items + concall_items
                                 if combined:
                                     for item in combined[:doc_ann_limit]:
-                                        is_ppt      = item in ppt_items
-                                        icon        = "📊" if is_ppt else "🎙️"
+                                        is_ppt = item in ppt_items
+                                        icon = "📊" if is_ppt else "🎙️"
                                         title_short = (item["title"][:70] + "…") if len(item["title"]) > 70 else item["title"]
-                                        link_part   = (
-                                            f"<a href='{item['link']}' target='_blank' "
-                                            f"style='color:#e53935; text-decoration:none;'>"
-                                            f"{icon} {title_short}</a>"
-                                            if item["link"] else
-                                            f"<span>{icon} {title_short}</span>"
-                                        )
-                                        st.markdown(
-                                            f"<div style='font-size:0.82em; margin-bottom:5px; "
-                                            f"border-left:3px solid #ffcdd2; padding-left:6px;'>"
-                                            f"{link_part}<br>"
-                                            f"<span style='color:#aaa; font-size:0.85em;'>{item['date']}</span>"
-                                            f"</div>",
-                                            unsafe_allow_html=True,
-                                        )
+                                        link_part = (f"<a href='{item['link']}' target='_blank' style='color:#e53935; text-decoration:none;'>{icon} {title_short}</a>" if item["link"] else f"<span>{icon} {title_short}</span>")
+                                        st.markdown(f"<div style='font-size:0.82em; margin-bottom:5px; border-left:3px solid #ffcdd2; padding-left:6px;'>{link_part}<br><span style='color:#aaa; font-size:0.85em;'>{item['date']}</span></div>", unsafe_allow_html=True)
                                 else:
-                                    screener_url = f"https://www.screener.in/company/{doc_sym}/"
-                                    st.markdown(
-                                        f"<a href='{screener_url}' target='_blank' "
-                                        f"style='color:#e53935; font-size:0.83em;'>"
-                                        f"🎙️ Concalls on Screener →</a>",
-                                        unsafe_allow_html=True,
-                                    )
+                                    st.markdown(f"<a href='https://www.screener.in/company/{doc_sym}/' target='_blank' style='color:#e53935; font-size:0.83em;'>🎙️ Concalls on Screener →</a>", unsafe_allow_html=True)
                                     st.caption("No concalls/PPT in selected date range.")
 
-                                # ── Transcript / PPT / REC mini-badges ─────────
                                 st.markdown("<br>", unsafe_allow_html=True)
                                 badges_html = "<div style='display:flex; gap:6px; flex-wrap:wrap;'>"
                                 badges = [
-                                    ("📝 Transcript",
-                                     f"https://www.screener.in/company/{doc_sym}/",
-                                     "#e8eaf6", "#3949ab"),
-                                    ("🤖 AI Summary",
-                                     f"https://www.screener.in/company/{doc_sym}/",
-                                     "#e8f5e9", "#2e7d32"),
-                                    ("📊 PPT",
-                                     f"https://www.bseindia.com/corporates/Inv_Rel.aspx?scripcd={bse_code}"
-                                     if bse_code else
-                                     f"https://www.screener.in/company/{doc_sym}/",
-                                     "#f3e5f5", "#6a1b9a"),
-                                    ("▶️ REC",
-                                     f"https://www.youtube.com/results?search_query={doc_sym}+concall+earnings",
-                                     "#ffebee", "#b71c1c"),
+                                    ("📝 Transcript", f"https://www.screener.in/company/{doc_sym}/", "#e8eaf6", "#3949ab"),
+                                    ("🤖 AI Summary",  f"https://www.screener.in/company/{doc_sym}/", "#e8f5e9", "#2e7d32"),
+                                    ("📊 PPT",         f"https://www.bseindia.com/corporates/Inv_Rel.aspx?scripcd={bse_code}" if bse_code else f"https://www.screener.in/company/{doc_sym}/", "#f3e5f5", "#6a1b9a"),
+                                    ("▶️ REC",          f"https://www.youtube.com/results?search_query={doc_sym}+concall+earnings", "#ffebee", "#b71c1c"),
                                 ]
                                 for label, href, bg, fg in badges:
-                                    badges_html += (
-                                        f"<a href='{href}' target='_blank' "
-                                        f"style='background:{bg}; color:{fg}; padding:3px 10px; "
-                                        f"border-radius:4px; font-size:0.76em; font-weight:600; "
-                                        f"text-decoration:none;'>{label}</a>"
-                                    )
+                                    badges_html += f"<a href='{href}' target='_blank' style='background:{bg}; color:{fg}; padding:3px 10px; border-radius:4px; font-size:0.76em; font-weight:600; text-decoration:none;'>{label}</a>"
                                 badges_html += "</div>"
                                 st.markdown(badges_html, unsafe_allow_html=True)
-
-                # ── No stocks selected guard ───────────────────────────────────
-                if not selected_doc_stocks:
-                    st.info("No stocks selected. Use the multiselect above to pick stocks.")
 
 # Ensure absolutely NO spaces before this 'else:' statement
 else:
