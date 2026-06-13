@@ -3136,16 +3136,27 @@ try:
                 
                 for symbol in filtered_symbols_full[:10]:
                     clean_symbol = str(symbol).strip()
-                    news_items = fetch_all_stock_news_tab4(clean_symbol, limit=5)
+                    news_items = fetch_all_stock_news_tab4(clean_symbol, limit=6)
                     
                     if news_items:
                         with news_cols_4[idx_counter_4 % 2]:
                             with st.expander(f"📰 {clean_symbol} News Feed (All News)", expanded=True):
-                                for news in news_items:
+                                top_3_news4     = news_items[:3]
+                                remaining_news4 = news_items[3:]
+                                
+                                for news in top_3_news4:
                                     is_today = "min" in news['time_ago'] or "hour" in news['time_ago'] or "sec" in news['time_ago'] or "Just now" in news['time_ago']
                                     time_color = "#16e37f" if is_today else "gray"
                                     time_weight = "bold" if is_today else "normal"
                                     st.markdown(f"- <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: {time_color}; font-weight: {time_weight}; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
+                                
+                                if remaining_news4:
+                                    with st.expander(f"🔽 Show {len(remaining_news4)} more articles", expanded=False):
+                                        for news in remaining_news4:
+                                            is_today = "min" in news['time_ago'] or "hour" in news['time_ago'] or "sec" in news['time_ago'] or "Just now" in news['time_ago']
+                                            time_color = "#16e37f" if is_today else "gray"
+                                            time_weight = "bold" if is_today else "normal"
+                                            st.markdown(f"- <a href='{news['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{news['display_title']}</a> <span style='color: {time_color}; font-weight: {time_weight}; font-size: 0.85em;'>— 🕒 {news['time_ago']}</span>", unsafe_allow_html=True)
                         idx_counter_4 += 1
                 
                 if idx_counter_4 == 0:
@@ -3164,18 +3175,27 @@ try:
                 
                 for symbol in filtered_symbols_full[:15]: # Scans top 15 stocks for filings
                     clean_symbol = str(symbol).strip()
-                    announcement_items = fetch_corporate_announcements(clean_symbol, limit=6)
+                    announcement_items = fetch_corporate_announcements(clean_symbol, limit=7)
                     
                     if announcement_items:
                         with news_cols_5[idx_counter_5 % 2]:
                             with st.expander(f"📢 {clean_symbol} Filings & Announcements", expanded=True):
-                                for announcement in announcement_items:
-                                    # Maintained the clean green highlight logic for fresh filings
+                                top_3_ann     = announcement_items[:3]
+                                remaining_ann = announcement_items[3:]
+                                
+                                for announcement in top_3_ann:
                                     is_today = "min" in announcement['time_ago'] or "hour" in announcement['time_ago'] or "sec" in announcement['time_ago'] or "Just now" in announcement['time_ago']
                                     time_color = "#16e37f" if is_today else "gray"
                                     time_weight = "bold" if is_today else "normal"
-                                    
                                     st.markdown(f"- <a href='{announcement['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{announcement['display_title']}</a> <span style='color: {time_color}; font-weight: {time_weight}; font-size: 0.85em;'>— 🕒 {announcement['time_ago']}</span>", unsafe_allow_html=True)
+                                
+                                if remaining_ann:
+                                    with st.expander(f"🔽 Show {len(remaining_ann)} more filings", expanded=False):
+                                        for announcement in remaining_ann:
+                                            is_today = "min" in announcement['time_ago'] or "hour" in announcement['time_ago'] or "sec" in announcement['time_ago'] or "Just now" in announcement['time_ago']
+                                            time_color = "#16e37f" if is_today else "gray"
+                                            time_weight = "bold" if is_today else "normal"
+                                            st.markdown(f"- <a href='{announcement['link']}' target='_blank' style='text-decoration: none; color: inherit;'>{announcement['display_title']}</a> <span style='color: {time_color}; font-weight: {time_weight}; font-size: 0.85em;'>— 🕒 {announcement['time_ago']}</span>", unsafe_allow_html=True)
                         idx_counter_5 += 1
                 
                 if idx_counter_5 == 0:
