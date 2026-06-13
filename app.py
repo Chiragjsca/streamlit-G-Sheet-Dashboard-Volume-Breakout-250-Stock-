@@ -2860,11 +2860,10 @@ Be specific, data-driven, and actionable for a retail investor.
         except Exception:
             return []
 
-    try:
+try:
         filtered_symbols_full = filtered_df['_raw_symbol_'].dropna().unique()
         
-if len(filtered_symbols_full) > 0:
-            # Added news_tab6 and the missing comma on the 5th tab
+        if len(filtered_symbols_full) > 0:
             news_tab1, news_tab2, news_tab3, news_tab4, news_tab5, news_tab6 = st.tabs([
                 "🚨 Latest Alerts Timeline", 
                 "🏢 Alerts by Stock",
@@ -3182,6 +3181,7 @@ else:
     except Exception as e:
         st.error(f"⚠️ Could not load the News Engine. Error details: {e}")
 
-# Ensure absolutely NO spaces before this 'else:' statement
+# This else belongs to the main data load check from the top of the file
 else:
+    st.warning("No data loaded. Check sheet sharing and secrets.")
     st.warning("No data loaded. Check sheet sharing and secrets.")
