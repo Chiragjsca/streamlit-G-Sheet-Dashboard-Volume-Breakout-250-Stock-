@@ -2860,6 +2860,155 @@ Be specific, data-driven, and actionable for a retail investor.
         except Exception:
             return []
 
+    # ── BSE scrip-code lookup (NSE symbol → BSE code) ──────────────────────
+    BSE_CODE_MAP = {
+        "RELIANCE": "500325", "TCS": "532540", "HDFCBANK": "500180",
+        "INFY": "500209", "ICICIBANK": "532174", "HINDUNILVR": "500696",
+        "SBIN": "500112", "BHARTIARTL": "532454", "BAJFINANCE": "500034",
+        "KOTAKBANK": "500247", "LT": "500510", "HCLTECH": "532281",
+        "AXISBANK": "532215", "ASIANPAINT": "500820", "MARUTI": "532500",
+        "SUNPHARMA": "524715", "TITAN": "500114", "ULTRACEMCO": "532538",
+        "ONGC": "500312", "NTPC": "532555", "POWERGRID": "532898",
+        "WIPRO": "507685", "NESTLEIND": "500790", "JSWSTEEL": "500228",
+        "TATASTEEL": "500470", "TATAMOTORS": "500570", "TECHM": "532755",
+        "GRASIM": "500300", "ADANIENT": "512599", "ADANIPORTS": "532921",
+        "COALINDIA": "533278", "DIVISLAB": "532488", "DRREDDY": "500124",
+        "EICHERMOT": "505200", "BAJAJFINSV": "532978", "BAJAJ-AUTO": "532977",
+        "CIPLA": "500087", "BRITANNIA": "500825", "HEROMOTOCO": "500182",
+        "APOLLOHOSP": "508869", "HINDALCO": "500440", "UPL": "512070",
+        "TATACONSUM": "500800", "SBILIFE": "540719", "HDFCLIFE": "540777",
+        "INDUSINDBK": "532187", "BPCL": "500547", "IOC": "530965",
+        "M&M": "500520", "PIDILITIND": "500331", "SIEMENS": "500550",
+        "HAVELLS": "517354", "VOLTAS": "500575", "AMBUJACEM": "500425",
+        "ACC": "500410", "SHREECEM": "500387", "RAMCOCEM": "500260",
+        "DALMIA": "502525", "JKCEMENT": "532644", "STAR": "540175",
+        "TVSMOTOR": "532343", "BOSCHLTD": "500530", "MUTHOOTFIN": "533398",
+        "CHOLAFIN": "500443", "BAJAJHLDNG": "500490", "TORNTPHARM": "500420",
+        "AUROPHARMA": "524208", "LUPIN": "500257", "BIOCON": "532523",
+        "ALKEM": "539523", "IPCALAB": "530827", "GLAXO": "500660",
+        "ABBOTINDIA": "500488", "PFIZER": "500680", "SANOFI": "500674",
+        "MCDOWELL-N": "532432", "ITC": "500875", "GODFRYPHLP": "500163",
+        "COLPAL": "500830", "DABUR": "500096", "MARICO": "531642",
+        "GODREJCP": "532424", "HINDPETRO": "500104", "CASTROLIND": "500870",
+        "INDIGO": "521737", "INTERGLOBE": "539448", "SPICEJET": "500285",
+        "IRCTC": "542830", "CONCOR": "531344", "ADANIGREEN": "541450",
+        "ADANITRANS": "539254", "TATAPOWER": "500400", "TORNTPOWER": "532779",
+        "CESC": "500084", "NHPC": "533098", "SJVN": "533206",
+        "PFC": "532810", "RECLTD": "532955", "IRFC": "543257",
+        "ZOMATO": "543320", "NYKAA": "543384", "PAYTM": "543396",
+        "POLICYBZR": "543390", "DELHIVERY": "543529", "CARTRADE": "543202",
+        "RVNL": "542649", "IRCON": "541956", "NBCC": "534309",
+        "HUDCO": "540530", "MMTC": "513377", "MTNL": "500108",
+        "BEL": "500049", "HAL": "541154", "COCHINSHIP": "526235",
+        "MAZAGON": "543237", "GRSE": "542351", "MIDHANI": "541195",
+        "BEML": "500048", "BHEL": "500103", "SAIL": "500113",
+        "NMDC": "526371", "MOIL": "533286", "NATIONALUM": "532234",
+        "HINDZINC": "500188", "VEDL": "500295", "GMRINFRA": "532754",
+        "NHAI": "500253", "IRB": "532947", "ASHOKLEY": "500477",
+        "ESCORTS": "500495", "FORCE": "517168", "SML": "513275",
+        "MOTHERSON": "517334", "MINDAIND": "532539", "ENDURANCE": "540350",
+        "BALKRISIND": "502355", "APOLLOTYRE": "500877", "MRF": "500290",
+        "CEATLTD": "500878", "JK TYRE": "530007", "INOXWIND": "539083",
+        "SUZLON": "532667", "RPOWER": "500390", "JPPOWER": "532627",
+        "FEDERALBNK": "500469", "IDFCFIRSTB": "539437", "BANDHANBNK": "541153",
+        "RBLBANK": "540065", "DCBBANK": "532772", "KTKBANK": "532209",
+        "SOUTHBANK": "532218", "CANBK": "532483", "BANKBARODA": "532134",
+        "UNIONBANK": "532477", "INDIANB": "532814", "UCOBANK": "532505",
+        "CENTRALBK": "532885", "MAHABANK": "532525", "J&KBANK": "532209",
+        "PNB": "532461", "IOB": "532388", "BANKINDIA": "532149",
+        "DENABANK": "532121", "SYNDIBANK": "532276", "VIJAYABANK": "532245",
+        "ORIENTBANK": "500315", "CORPBANK": "532179", "ANDHRABANK": "532418",
+        "ALLAHABAD": "532480", "ALBK": "532480", "MFSL": "542299",
+        "HDFCAMC": "541530", "NIPPONLIFE": "543171", "UTIAMC": "543238",
+        "ABCAPITAL": "540691", "ANGELONE": "543235", "ICICIGI": "540716",
+        "GICRE": "540755", "NIACL": "540769", "STAR": "540175",
+        "CROMPTON": "539876", "ORIENTELEC": "531637", "BLUESTAR": "500067",
+        "WHIRLPOOL": "500238", "VGUARD": "532953", "BAJAJEL": "500031",
+        "CERA": "532443", "HINDWARE": "509820", "HSIL": "509675",
+        "KAJARIACER": "500233", "SOMANYCER": "532622", "GRINDWELL": "506076",
+        "CARBORUNIV": "513375", "ASTRAL": "532830", "FINOLEX": "500940",
+        "SUPREMEIND": "509930", "BERGER": "509480", "KANSAINER": "500165",
+        "AKZOINDIA": "500710", "INDIACEM": "530005", "RAMCOIND": "500260",
+        "DALMIA": "502525", "HEIDELBERG": "500292", "PRISM": "500338",
+        "BIRLACORPN": "500335", "ORIENTCEM": "502420", "SAGCEM": "502090",
+        "STARCEMENT": "540575", "JKLAKSHMI": "500380", "NUVOCO": "543334",
+        "ZYDUSLIFE": "532321", "TORNTPHAR": "500420", "NATCOPHAR": "524816",
+        "GRANULES": "532482", "LAURUS": "540222", "STRIDES": "532531",
+        "AJANTPHAR": "532331", "CAPLIPOINT": "539266", "DIVI": "532488",
+        "SUNPHARMA": "524715", "GLAND": "543245", "SEQUENT": "543225",
+        "METROPOLIS": "542650", "DRLAL": "532259", "THYROCARE": "539871",
+        "KRSNAA": "543328", "VIJAYA": "532542", "MAXHEALTH": "543220",
+        "KIMS": "543308", "ASTER": "540975", "FORTIS": "532843",
+        "NHOSPIT": "532526", "APOLLOHOSP": "508869", "NARAYANA": "539551",
+        "YATHARTH": "544120", "RAINBOW": "543524", "SUVENPHAR": "530239",
+        "LAURUSLABS": "540222", "SOLARA": "541540", "SHILPAMED": "530879",
+        "PERSISTENT": "533179", "MINDTREE": "532819", "MPHASIS": "526299",
+        "HEXAWARE": "532861", "NIIT": "500304", "KPIT": "542651",
+        "LTTS": "540115", "COFORGE": "532541", "ZENSAR": "504067",
+        "RAMSYSTEMS": "532370", "MASTEK": "523704", "SASKEN": "532663",
+        "TATAELXSI": "500408", "CYIENT": "532175", "SONATSOFTW": "532221",
+        "TANLA": "532790", "LTIM": "540005", "INFY": "500209",
+        "ROUTE": "543228", "BSOFT": "526301", "NEWGEN": "540900",
+        "INTELLECT": "538835", "NUCLEUS": "531209", "NELCO": "504112",
+        "DELTACORP": "532840", "WONDERLA": "538268", "MAHINDCIE": "532756",
+        "STARHLTH": "543412", "NAUKRI": "532777", "JUSTDIAL": "535648",
+        "MATRIMONY": "539846", "MAKEMYTRIP": "513377", "IXIGO": "544229",
+        "RATEGAIN": "543417", "TEAMLEASE": "539658", "QUESS": "539978",
+        "SIS": "540673", "SECURKLOUD": "539963", "HAPPYFORGE": "543532",
+        "KALYANKJIL": "543278", "SENCO": "543456", "THANGAMAYL": "531509",
+        "TRIBHOVAND": "512415", "PC JEWELLER": "534809", "RAJESHEXPO": "531500",
+    }
+
+    @st.cache_data(ttl=600)
+    def fetch_bse_all_documents(bse_code, days_back=90):
+        """Fetch announcements, annual reports, concalls, PPT, credit ratings from BSE."""
+        result = {"announcements": [], "annual_reports": [], "credit_ratings": [], "concalls": [], "ppt": []}
+        try:
+            import datetime
+            to_date   = datetime.date.today()
+            from_date = to_date - datetime.timedelta(days=days_back)
+            str_from  = from_date.strftime("%Y%m%d")
+            str_to    = to_date.strftime("%Y%m%d")
+
+            # ── Announcements (Reg-30 / LODR) ────────────────────────────
+            ann_url = (
+                f"https://api.bseindia.com/BseIndiaAPI/api/AnnSubCategoryGetData/w"
+                f"?pageno=1&strCat=-1&strPrevDate={str_from}&strScrip={bse_code}"
+                f"&strSearch=P&strToDate={str_to}&strType=C&subcategory=-1"
+            )
+            headers = {
+                "User-Agent": "Mozilla/5.0",
+                "Referer": "https://www.bseindia.com/",
+                "Accept": "application/json",
+            }
+            req = urllib.request.Request(ann_url, headers=headers)
+            with urllib.request.urlopen(req, timeout=8) as r:
+                data = json.loads(r.read())
+            for row in (data.get("Table") or [])[:30]:
+                title = row.get("HEADLINE", "") or row.get("SUBCATNAME", "")
+                dt_str = row.get("NEWS_DT", "") or row.get("DT_TM", "")
+                newsid = row.get("NEWSID", "")
+                link = f"https://www.bseindia.com/xml-data/corpfiling/AttachLive/{newsid}.pdf" if newsid else ""
+                try:
+                    dt_disp = pd.to_datetime(dt_str).strftime("%d %b %Y")
+                except Exception:
+                    dt_disp = dt_str[:10]
+                subcat = (row.get("SUBCATNAME") or "").lower()
+                entry = {"title": title, "link": link, "date": dt_disp}
+                if any(k in subcat for k in ["annual report", "annual rep"]):
+                    result["annual_reports"].append(entry)
+                elif any(k in subcat for k in ["credit rat", "rating"]):
+                    result["credit_ratings"].append(entry)
+                elif any(k in subcat for k in ["concall", "con call", "earnings call", "analyst"]):
+                    result["concalls"].append(entry)
+                elif any(k in subcat for k in ["investor presentation", "presentation", "ppt"]):
+                    result["ppt"].append(entry)
+                else:
+                    result["announcements"].append(entry)
+        except Exception:
+            pass
+        return result
+
 try:
         filtered_symbols_full = filtered_df['_raw_symbol_'].dropna().unique()
         
