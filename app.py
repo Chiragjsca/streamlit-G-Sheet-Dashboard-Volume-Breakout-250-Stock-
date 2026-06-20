@@ -1566,7 +1566,7 @@ if not raw_df.empty:
         if is_first_visible_column: is_first_visible_column = False
 
         c_low = col.lower()
-        if any(k in c_low for k in ["trading view", "history data", "screener", "zerodha", "chartlink", "market smith", "official nse", "nse"]):
+        if col == selected_symbol_col or any(k in c_low for k in ["trading view", "history data", "screener", "zerodha", "chartlink", "market smith", "official nse", "nse"]):
             gb.configure_column(col, width=width, minWidth=min_width, sortable=True, filter=True, resizable=True,
                 editable=False, pinned=pinned_value, cellRenderer=html_renderer, cellStyle=exact_mirror_style)
         else:
