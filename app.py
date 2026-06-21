@@ -176,6 +176,87 @@ Rule 3 → Buy Only 52-Week Low Stocks
 - **Priority order:** IPO → F&O → 52-Week Low Shares.
 """
 
+# ==========================================
+# 👁️ COLUMN VISIBILITY CONFIGURATION
+# ==========================================
+# Hide table columns per sheet — two ways, use either or both together:
+#
+#   1) HIDDEN_COLUMNS_BY_NAME   -> hide by the exact column HEADER TEXT (as it appears in the sheet)
+#   2) HIDDEN_COLUMNS_BY_LETTER -> hide by the SPREADSHEET COLUMN LETTER (A, B, C ... Z, AA, AB ...)
+#      Letters are counted left-to-right exactly as in Google Sheets, so this also works for
+#      blank/empty-header columns that have no text to match on.
+#
+# sheet_names = ["Top 250 Stocks", "NSE Fundamentals", "Final List", "Final List 2", "Diff @ 200 DMA", "+%", "-%"]
+#
+# Add/edit a key for any sheet name above. A sheet with no key (or an empty list) shows all its columns.
+# To stop hiding something, just delete its line from the list below.
+
+HIDDEN_COLUMNS_BY_NAME = {
+    "Top 250 Stocks": [
+        "50 DMA",
+        "100 DMA",
+        "200 DMA",
+        "NSE 1",
+        "Trading View 1",
+        "History Data 1",
+        "Screener 1",
+        "Zerodha 1",
+        "Chartlink 1",
+        "Market smith india 1",
+        "Official NSE URL 1",
+    ],
+    "NSE Fundamentals": [],
+    "Final List": [],
+    "Final List 2": [],
+    "Diff @ 200 DMA": [],
+    "+%": [],
+    "-%": [],
+}
+
+# NOTE: the columns below are hidden by default because they are blank/empty-header
+# columns in the actual Google Sheet (no header text to hide them by name). Add more
+# letters for any sheet to hide other columns by position, or delete letters to unhide.
+HIDDEN_COLUMNS_BY_LETTER = {
+    "Top 250 Stocks": [
+        "E", "F", "G",
+        "AA", "AB", "AC", "AD", "AE", "AF", "AG", "AH",
+    ],
+    "NSE Fundamentals": [],
+    "Final List": [],
+    "Final List 2": [],
+    "Diff @ 200 DMA": [],
+    "+%": [],
+    "-%": [],
+}
+
+def _col_letter_to_index(letter: str) -> int:
+    """Convert a spreadsheet column letter ('A', 'B', ... 'Z', 'AA', 'AB', ...) to a 0-based index."""
+    letter = str(letter).strip().upper()
+    if not letter or not letter.isalpha():
+        return -1
+    idx = 0
+    for ch in letter:
+        idx = idx * 26 + (ord(ch) - ord('A') + 1)
+    return idx - 1
+
+def get_hidden_columns(sheet_name: str, ordered_columns) -> set:
+    """Resolve HIDDEN_COLUMNS_BY_NAME + HIDDEN_COLUMNS_BY_LETTER for a sheet into a set of
+    actual column names. `ordered_columns` must be the real data columns in original
+    left-to-right sheet order (i.e. the same order columns appear in Google Sheets)."""
+    ordered_columns = list(ordered_columns)
+    hidden = set()
+
+    for col_name in HIDDEN_COLUMNS_BY_NAME.get(sheet_name, []):
+        if col_name in ordered_columns:
+            hidden.add(col_name)
+
+    for letter in HIDDEN_COLUMNS_BY_LETTER.get(sheet_name, []):
+        idx = _col_letter_to_index(letter)
+        if 0 <= idx < len(ordered_columns):
+            hidden.add(ordered_columns[idx])
+
+    return hidden
+
 import streamlit as st
 
 # ==========================================
@@ -1224,6 +1305,10 @@ if not raw_df.empty:
     guess_idx = 0
     actual_cols = [c for c in raw_df.columns if not c.startswith("_bg_") and not c.startswith("_txt_")]
 
+    # Columns configured to be hidden for this sheet (see HIDDEN_COLUMNS_BY_NAME /
+    # HIDDEN_COLUMNS_BY_LETTER near the top of the file).
+    hidden_cols_for_sheet = get_hidden_columns(selected_sheet, actual_cols)
+
     for i, col_name in enumerate(actual_cols):
         if col_name.lower() in ["nse code", "symbol", "ticker", "stock symbol", "id", "stock"]:
             guess_idx = i
@@ -1542,6 +1627,10 @@ if not raw_df.empty:
 
     for col in filtered_df.columns:
         if col.startswith("_bg_") or col.startswith("_txt_") or col == "_raw_symbol_":
+            gb.configure_column(col, hide=True)
+            continue
+
+        if col in hidden_cols_for_sheet:
             gb.configure_column(col, hide=True)
             continue
 
