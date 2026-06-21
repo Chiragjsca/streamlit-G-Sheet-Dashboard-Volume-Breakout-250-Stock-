@@ -257,6 +257,95 @@ def get_hidden_columns(sheet_name: str, ordered_columns) -> set:
 
     return hidden
 
+# ==========================================
+# 🔒 SYMBOL COLUMN — LOCKED PER SHEET
+# ==========================================
+# The "Symbol Column" (used for hyperlinks/search/selection) is locked by default for
+# every sheet — it shows in the sidebar but can no longer be changed by accident.
+#
+# Leave a sheet set to None to keep the existing auto-detection (it looks for a column
+# named "NSE Code", "Symbol", "Ticker", "Stock Symbol", "Id" or "Stock"). To force a
+# specific column instead, set the exact header text below.
+LOCKED_SYMBOL_COLUMN = {
+    "Top 250 Stocks": None,
+    "NSE Fundamentals": None,
+    "Final List": None,
+    "Final List 2": None,
+    "Diff @ 200 DMA": None,
+    "+%": None,
+    "-%": None,
+}
+
+# ==========================================
+# 🔃 COLUMN ORDER / PRIORITY CONFIGURATION
+# ==========================================
+# Arrange (reorder) table columns per sheet — two ways, use either or both together:
+#
+#   1) COLUMN_ORDER_BY_NAME   -> list column HEADER TEXT in the order you want them to appear
+#   2) COLUMN_ORDER_BY_LETTER -> list SPREADSHEET COLUMN LETTERS in the order you want them to appear
+#
+# Columns you list appear first, left to right, in the exact order written (letter-list first,
+# then name-list). Any column you don't list keeps its original relative position and is simply
+# appended afterwards. The locked Symbol column is always placed first, ahead of this list.
+#
+# sheet_names = ["Top 250 Stocks", "NSE Fundamentals", "Final List", "Final List 2", "Diff @ 200 DMA", "+%", "-%"]
+#
+# Add/edit a key for any sheet name above. A sheet with no key (or two empty lists) keeps the
+# app's original automatic ordering for that sheet.
+
+COLUMN_ORDER_BY_NAME = {
+    "Top 250 Stocks": [
+        "Volume",
+        "Close",
+        "CMP",
+        "Price %",
+        "52W High",
+        "52W Low",
+        "Output",
+        "Differance from 200 DMA",
+        "Cumulative Average Rule (CAR) Rating",
+    ],
+    "NSE Fundamentals": [],
+    "Final List": [],
+    "Final List 2": [],
+    "Diff @ 200 DMA": [],
+    "+%": [],
+    "-%": [],
+}
+
+# NOTE: the columns below are arranged first by default for this sheet. Edit/extend freely —
+# add letters for any other sheet, reorder them, or remove letters to drop them from priority
+# (a dropped column simply falls back to its normal position instead of disappearing).
+COLUMN_ORDER_BY_LETTER = {
+    "Top 250 Stocks": ["B", "C", "D", "L"],
+    "NSE Fundamentals": [],
+    "Final List": [],
+    "Final List 2": [],
+    "Diff @ 200 DMA": [],
+    "+%": [],
+    "-%": [],
+}
+
+def get_priority_columns(sheet_name: str, ordered_columns) -> list:
+    """Resolve COLUMN_ORDER_BY_LETTER + COLUMN_ORDER_BY_NAME for a sheet into an ordered list
+    of actual column names (left-to-right priority). `ordered_columns` must be the real data
+    columns in original left-to-right sheet order (same order as in Google Sheets)."""
+    ordered_columns = list(ordered_columns)
+    priority = []
+
+    for letter in COLUMN_ORDER_BY_LETTER.get(sheet_name, []):
+        idx = _col_letter_to_index(letter)
+        if 0 <= idx < len(ordered_columns):
+            col = ordered_columns[idx]
+            if col not in priority:
+                priority.append(col)
+
+    for col_name in COLUMN_ORDER_BY_NAME.get(sheet_name, []):
+        if col_name in ordered_columns and col_name not in priority:
+            priority.append(col_name)
+
+    return priority
+
 import streamlit as st
 
 # ==========================================
@@ -1309,14 +1398,24 @@ if not raw_df.empty:
     # HIDDEN_COLUMNS_BY_LETTER near the top of the file).
     hidden_cols_for_sheet = get_hidden_columns(selected_sheet, actual_cols)
 
-    for i, col_name in enumerate(actual_cols):
-        if col_name.lower() in ["nse code", "symbol", "ticker", "stock symbol", "id", "stock"]:
-            guess_idx = i
-            break
+    # Symbol column: use the locked override for this sheet if one is configured
+    # (LOCKED_SYMBOL_COLUMN near the top of the file); otherwise auto-detect as before.
+    locked_symbol_override = LOCKED_SYMBOL_COLUMN.get(selected_sheet)
+    if locked_symbol_override and locked_symbol_override in actual_cols:
+        guess_idx = actual_cols.index(locked_symbol_override)
+    else:
+        for i, col_name in enumerate(actual_cols):
+            if col_name.lower() in ["nse code", "symbol", "ticker", "stock symbol", "id", "stock"]:
+                guess_idx = i
+                break
 
     st.sidebar.markdown("---")
     st.sidebar.header("⚙️ Settings")
-    selected_symbol_col = st.sidebar.selectbox("Symbol Column:", actual_cols, index=guess_idx, key="filter_symbol_col")
+    selected_symbol_col = st.sidebar.selectbox(
+        "Symbol Column (locked):", actual_cols, index=guess_idx, key="filter_symbol_col",
+        disabled=True, help="Locked for consistency across sheets. To change it, edit "
+                             "LOCKED_SYMBOL_COLUMN near the top of the .py file."
+    )
 
     final_df = process_hyperlinks(raw_df, selected_symbol_col)
     filtered_df = final_df.copy()
@@ -1495,25 +1594,29 @@ if not raw_df.empty:
     if selected_symbol_col in filtered_df.columns:
         core_sequence.append(selected_symbol_col)
 
+    # NOTE: these "smart-guess" columns are always detected, even when a custom priority
+    # order is configured below — several other features further down the app (Watchlist,
+    # Breakout Finder, Horizon Performance, etc.) rely on these exact variables existing.
     vol_target = next((c for c in actual_cols if "volume" in c.lower()), None)
-    if vol_target and vol_target not in core_sequence: core_sequence.append(vol_target)
-
     close_target = next((c for c in actual_cols if "close price" in c.lower() or "prev" in c.lower()), None)
-    if close_target and close_target not in core_sequence: core_sequence.append(close_target)
-
     cmp_target = next((c for c in actual_cols if "cmp" in c.lower()), None)
-    if cmp_target and cmp_target not in core_sequence: core_sequence.append(cmp_target)
-
     pct_target = next((c for c in actual_cols if "price %" in c.lower()), None)
-    if pct_target and pct_target not in core_sequence: core_sequence.append(pct_target)
-
     high_target = next((c for c in actual_cols if "52" in c.lower() and "high" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
-    if high_target and high_target not in core_sequence: core_sequence.append(high_target)
-
     low_target = next((c for c in actual_cols if "52" in c.lower() and "low" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
-    if low_target and low_target not in core_sequence: core_sequence.append(low_target)
-
     deliv_target = next((c for c in actual_cols if "delivery" in c.lower()), None)
+
+    # If this sheet has a priority order configured (COLUMN_ORDER_BY_NAME /
+    # COLUMN_ORDER_BY_LETTER near the top of the file), use it for column placement.
+    # Otherwise fall back to the original smart-guess order above.
+    configured_priority = get_priority_columns(selected_sheet, actual_cols)
+    if configured_priority:
+        for col in configured_priority:
+            if col not in core_sequence:
+                core_sequence.append(col)
+    else:
+        for target in (vol_target, close_target, cmp_target, pct_target, high_target, low_target):
+            if target and target not in core_sequence:
+                core_sequence.append(target)
 
     all_other_fields = [c for c in filtered_df.columns if c not in core_sequence and not c.startswith("_bg_") and not c.startswith("_txt_") and c != "_raw_symbol_"]
     hidden_meta_attributes = [c for c in filtered_df.columns if c.startswith("_bg_") or c.startswith("_txt_") or c == "_raw_symbol_"]
