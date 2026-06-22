@@ -296,7 +296,6 @@ LOCKED_SYMBOL_COLUMN = {
 COLUMN_ORDER_BY_NAME = {
     "Top 250 Stocks": [
         "Volume",
-        "% Delivery",
         "Close Price",
         "CMP",
         "Price %",
