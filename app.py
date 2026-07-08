@@ -1898,8 +1898,7 @@ if not raw_df.empty:
                 "🪁 Zerodha Portal", "📊 MarketSmith India", "📉 TradingView Symbol Profile",
                 "🤖 AI Stock Analysis", "💻 AI Pine Script Builder",
                 "🔬 Bottom Fishing Score",
-                "🎯 GTT Order Calculator", "📊 Watchlist Manager", "📰 News Feed",
-                "📉 EMA Crossover Chart"
+                "🎯 GTT Order Calculator", "📊 Watchlist Manager", "📰 News Feed"
             ])
 
             with ws_tabs[0]:
@@ -2546,49 +2545,6 @@ Be specific, data-driven, and actionable for a retail investor.
                             st.markdown("<hr style='margin: 0.5em 0; opacity: 0.2;'>", unsafe_allow_html=True)
                     else:
                         st.info(f"No recent news found for {sym}.")
-
-            # ==========================================
-            # 📉 EMA CROSSOVER CHART TAB (NEW - ws_tabs[13])
-            # ==========================================
-            with ws_tabs[13]:
-                _ema_chart_ticker = f"{sym}.NS"
-                _ema_chart_end = pd.Timestamp.now()
-                _ema_chart_start = _ema_chart_end - pd.Timedelta(days=180)
-
-                try:
-                    _ema_chart_data = yf.download(
-                        _ema_chart_ticker, start=_ema_chart_start, end=_ema_chart_end,
-                        interval='1d', auto_adjust=True, progress=False
-                    )
-                except Exception:
-                    _ema_chart_data = pd.DataFrame()
-
-                if _ema_chart_data is not None and not _ema_chart_data.empty:
-                    if isinstance(_ema_chart_data.columns, pd.MultiIndex):
-                        _ema_chart_data.columns = _ema_chart_data.columns.get_level_values(0)
-
-                    _ema_chart_data['EMA7'] = _ema_chart_data['Close'].ewm(span=7, adjust=False).mean()
-                    _ema_chart_data['EMA11'] = _ema_chart_data['Close'].ewm(span=11, adjust=False).mean()
-
-                    _ema_chart_fig = go.Figure()
-                    _ema_chart_fig.add_trace(go.Candlestick(
-                        x=_ema_chart_data.index, open=_ema_chart_data['Open'], high=_ema_chart_data['High'],
-                        low=_ema_chart_data['Low'], close=_ema_chart_data['Close'], name='Candlestick'
-                    ))
-                    _ema_chart_fig.add_trace(go.Scatter(
-                        x=_ema_chart_data.index, y=_ema_chart_data['EMA7'],
-                        name='EMA 7', line=dict(color='green')
-                    ))
-                    _ema_chart_fig.add_trace(go.Scatter(
-                        x=_ema_chart_data.index, y=_ema_chart_data['EMA11'],
-                        name='EMA 11', line=dict(color='orange')
-                    ))
-                    _ema_chart_fig.update_layout(
-                        title=f'{sym} Price and EMA Crossover',
-                        template='plotly_dark',
-                        xaxis_rangeslider_visible=True
-                    )
-                    st.plotly_chart(_ema_chart_fig, use_container_width=True)
 
     # ==========================================
     # 🌍 NATIONAL ANALYTICS PORTAL WORKSPACE
