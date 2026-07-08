@@ -1900,58 +1900,58 @@ if not raw_df.empty:
             box_height = st.slider("📏 Adjust Panel Box Height (px):", min_value=300, max_value=1000, value=500, step=50, key="panel_height_slider")
 
             ws_tabs = st.tabs([
+                "🕯️ Price Chart (EMA + RSI)",
                 "📈 Chart & Trade Info (NSE Component)", "📋 History Data (EquityPandit)",
                 "🎯 Bullish/Bearish Zone", "📁 Screener Documents",
                 "🪁 Zerodha Portal", "📊 MarketSmith India", "📉 TradingView Symbol Profile",
                 "🤖 AI Stock Analysis", "💻 AI Pine Script Builder",
                 "🔬 Bottom Fishing Score",
-                "🎯 GTT Order Calculator", "📊 Watchlist Manager", "📰 News Feed",
-                "🕯️ Price Chart (EMA + RSI)"
+                "🎯 GTT Order Calculator", "📊 Watchlist Manager", "📰 News Feed"
             ])
 
-            with ws_tabs[0]:
+            with ws_tabs[1]:
                 _url0 = f"https://charting.nseindia.com/?symbol={sym}-EQ"
                 st.markdown(f"**NSE Interactive Chart Frame** &nbsp;|&nbsp; [🌐 Open in Browser]({_url0})", unsafe_allow_html=False)
                 st.caption("📱 If frame is blank on mobile, tap the link above to open directly.")
                 components.html(f'<iframe src="{_url0}" width="100%" height="{box_height}" style="border:none; border-radius:5px;"></iframe>', height=box_height+20)
 
-            with ws_tabs[1]:
+            with ws_tabs[2]:
                 _url1 = f"https://www.equitypandit.com/historical-data/{sym.lower()}"
                 st.markdown(f"**EquityPandit Historical Matrix Data** &nbsp;|&nbsp; [🌐 Open in Browser]({_url1})")
                 st.caption("📱 If frame is blank on mobile, tap the link above to open directly.")
                 components.html(f'<iframe src="{_url1}" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
-            with ws_tabs[2]:
+            with ws_tabs[3]:
                 _url2 = f"https://www.equitypandit.com/share-price/{sym.lower()}#chart"
                 st.markdown(f"**Bullish / Bearish Zone Indicator** &nbsp;|&nbsp; [🌐 Open in Browser]({_url2})")
                 st.caption("📱 If frame is blank on mobile, tap the link above to open directly.")
                 components.html(f'<iframe src="{_url2}" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
-            with ws_tabs[3]:
+            with ws_tabs[4]:
                 _url3 = f"https://www.screener.in/company/{sym}/consolidated/"
                 st.markdown(f"**Screener Corporate Filings** &nbsp;|&nbsp; [🌐 Open in Browser]({_url3})")
                 st.caption("📱 If frame is blank on mobile, tap the link above to open directly.")
                 components.html(f'<iframe src="{_url3}" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
-            with ws_tabs[4]:
+            with ws_tabs[5]:
                 _url4 = f"https://zerodha.com/markets/stocks/NSE/{sym}/"
                 st.markdown(f"**Zerodha Markets Financial Performance Metrics** &nbsp;|&nbsp; [🌐 Open in Browser]({_url4})")
                 st.caption("📱 If frame is blank on mobile, tap the link above to open directly.")
                 components.html(f'<iframe src="{_url4}" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
-            with ws_tabs[5]:
+            with ws_tabs[6]:
                 _url5 = f"https://marketsmithindia.com/mstool/eval/{sym.lower()}/evaluation.jsp"
                 st.markdown(f"**MarketSmith India Institutional Trading Evaluation Engine** &nbsp;|&nbsp; [🌐 Open in Browser]({_url5})")
                 st.caption("📱 If frame is blank on mobile, tap the link above to open directly.")
                 components.html(f'<iframe src="{_url5}" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
-            with ws_tabs[6]:
+            with ws_tabs[7]:
                 _url6 = f"https://www.tradingview.com/symbols/{sym}/"
                 st.markdown(f"**TradingView Comprehensive Asset Market Registry Summary Profile** &nbsp;|&nbsp; [🌐 Open in Browser]({_url6})")
                 st.caption("📱 If frame is blank on mobile, tap the link above to open directly.")
                 components.html(f'<iframe src="{_url6}" width="100%" height="{box_height}" style="border:none; border-radius:5px; background-color:white;"></iframe>', height=box_height+20)
 
-            with ws_tabs[7]:
+            with ws_tabs[8]:
                 st.markdown(f"### 🤖 Ask AI About **{sym}**")
 
                 if not ai_enabled:
@@ -2056,7 +2056,7 @@ Please provide a clear, concise, and professional response.
                     )
                     st.text(prompt_lines)
 
-            with ws_tabs[8]:
+            with ws_tabs[9]:
                 st.markdown(f"### 💻 AI Pine Script Generator for **{sym}**")
 
                 if not ai_enabled:
@@ -2124,7 +2124,7 @@ Formatting Requirements:
             # ==========================================
             # 🔬 BOTTOM FISHING SCORE TAB (NEW!)
             # ==========================================
-            with ws_tabs[9]:
+            with ws_tabs[10]:
                 st.markdown(f"### 🔬 Bottom Fishing Analysis: **{sym}**")
                 st.caption("Scores this stock on 8 key criteria for buying from the bottom. Based entirely on your live sheet data.")
 
@@ -2238,7 +2238,7 @@ Be specific, data-driven, and actionable for a retail investor.
             # ==========================================
             # 🎯 GTT ORDER CALCULATOR TAB (NEW - ws_tabs[10])
             # ==========================================
-            with ws_tabs[10]:
+            with ws_tabs[11]:
                 st.markdown(f"### 🎯 GTT Order Calculator: **{sym}**")
                 st.caption("Auto-suggest Stop-Loss, Targets & ATR-based GTT levels from your live sheet data.")
 
@@ -2365,7 +2365,7 @@ Be specific, data-driven, and actionable for a retail investor.
             # ==========================================
             # 📊 WATCHLIST MANAGER TAB (NEW - ws_tabs[11])
             # ==========================================
-            with ws_tabs[11]:
+            with ws_tabs[12]:
                 st.markdown(f"### 📊 Watchlist Manager")
                 clean_sel_wl = {k: v for k, v in sel_row.items() if not str(k).startswith('_')}
                 bf_score_wl, bf_grade_wl, _ = compute_bottom_fishing_score(clean_sel_wl, actual_cols)
@@ -2466,7 +2466,7 @@ Be specific, data-driven, and actionable for a retail investor.
             # ==========================================
             # 📰 NEWS FEED TAB (NEW - ws_tabs[12])
             # ==========================================
-            with ws_tabs[12]:
+            with ws_tabs[13]:
                 st.markdown(f"### 📰 Latest News & Alerts: **{sym}**")
                 
                 import urllib.request
@@ -2554,7 +2554,7 @@ Be specific, data-driven, and actionable for a retail investor.
                     else:
                         st.info(f"No recent news found for {sym}.")
 
-            with ws_tabs[13]:
+            with ws_tabs[0]:
                 st.markdown(f"### 🕯️ Price Chart & Technical Indicators — {sym}")
 
                 hist_period = st.select_slider(
