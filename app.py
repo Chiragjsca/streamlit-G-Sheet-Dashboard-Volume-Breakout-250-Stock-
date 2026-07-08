@@ -29,9 +29,22 @@ st.set_page_config(page_title="Top 250 NSE Stock-Volume Breakout Dashboard", lay
 # ==========================================
 st.markdown("""
 <style>
-    /* Force the tab bar container itself to wrap and stop clipping/scrolling */
-    div[data-testid="stTabs"] div[data-baseweb="tab-list"],
-    div[data-baseweb="tab-list"] {
+    /* Force EVERY tab-bar container to wrap onto multiple lines instead of
+       staying on one scrollable line. Multiple selector variants are used
+       (data-baseweb, role, and Streamlit's own class) because Streamlit's
+       internal DOM/class names have changed across versions. */
+    div[data-testid="stTabs"],
+    div[data-testid="stTabs"] > div,
+    .stTabs,
+    .stTabs > div {
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+        max-width: 100% !important;
+    }
+
+    div[data-baseweb="tab-list"],
+    div[role="tablist"] {
+        display: flex !important;
         flex-wrap: wrap !important;
         overflow-x: visible !important;
         overflow-y: visible !important;
@@ -40,9 +53,17 @@ st.markdown("""
         column-gap: 6px !important;
         height: auto !important;
         max-width: 100% !important;
+        width: 100% !important;
+        scrollbar-width: none !important;
     }
+    div[data-baseweb="tab-list"]::-webkit-scrollbar {
+        display: none !important;
+    }
+
     /* Each tab button: allow shrinking/wrapping instead of forcing one line */
-    div[data-baseweb="tab-list"] button[data-baseweb="tab"] {
+    button[data-baseweb="tab"],
+    div[role="tablist"] > button,
+    div[role="tablist"] [role="tab"] {
         flex: 0 0 auto !important;
         white-space: normal !important;
         margin-top: 1px !important;
@@ -51,16 +72,21 @@ st.markdown("""
         padding-bottom: 6px !important;
         height: auto !important;
     }
-    /* Hide the little "»" / arrow scroll buttons Streamlit shows when a tab bar overflows */
-    div[data-testid="stTabs"] button[data-testid="stTabsScrollButton"],
+
+    /* Hide the "‹ ›" scroll-arrow buttons Streamlit shows when a tab bar overflows */
+    button[data-testid="stTabsScrollButton"],
+    div[data-baseweb="tab-list"] ~ button,
     div[data-baseweb="tab-list"] + button,
-    button[kind="tabScroll"] {
+    button[kind="tabScroll"],
+    button[aria-label*="scroll" i] {
         display: none !important;
     }
+
     div[data-baseweb="tab-highlight"] {
         display: none !important;
     }
-    div[data-baseweb="tab"][aria-selected="true"] {
+    div[data-baseweb="tab"][aria-selected="true"],
+    [role="tab"][aria-selected="true"] {
         background-color: rgba(31, 119, 180, 0.1) !important;
         border-radius: 5px !important;
         border-bottom: 2px solid #1f77b4 !important;
