@@ -13,6 +13,8 @@ import streamlit.components.v1 as components
 import re
 import io
 import google.generativeai as genai
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 # ==========================================
 # ⚙️ PAGE CONFIGURATION
@@ -551,6 +553,26 @@ def rgb_to_hex(color_dict):
     if not color_dict: return "#ffffff"
     r, g, b = int(color_dict.get('red', 0) * 255), int(color_dict.get('green', 0) * 255), int(color_dict.get('blue', 0) * 255)
     return f"#{r:02x}{g:02x}{b:02x}"
+
+@st.cache_data(ttl=300, show_spinner=False)
+def fetch_stock_ohlc_history(nse_symbol, period="1y"):
+    """Fetch daily OHLC history for an NSE symbol via yfinance (used for the price/EMA/RSI chart tab)."""
+    try:
+        raw_sym = str(nse_symbol).strip().upper()
+        if not raw_sym:
+            return pd.DataFrame()
+        ticker_code = raw_sym if raw_sym.endswith(".NS") else f"{raw_sym}.NS"
+        hist = yf.download(ticker_code, period=period, interval="1d",
+                            progress=False, auto_adjust=True)
+        if hist is None or hist.empty:
+            return pd.DataFrame()
+        # yfinance sometimes returns a MultiIndex on columns even for a single ticker
+        if isinstance(hist.columns, pd.MultiIndex):
+            hist.columns = hist.columns.get_level_values(0)
+        hist.index = pd.to_datetime(hist.index)
+        return hist
+    except Exception:
+        return pd.DataFrame()
 
 @st.cache_data(ttl=300)
 def load_sheet_data_with_colors(sheet_name):
@@ -1810,7 +1832,8 @@ if not raw_df.empty:
                 "🪁 Zerodha Portal", "📊 MarketSmith India", "📉 TradingView Symbol Profile",
                 "🤖 AI Stock Analysis", "💻 AI Pine Script Builder",
                 "🔬 Bottom Fishing Score",
-                "🎯 GTT Order Calculator", "📊 Watchlist Manager", "📰 News Feed"
+                "🎯 GTT Order Calculator", "📊 Watchlist Manager", "📰 News Feed",
+                "🕯️ Price Chart (EMA + RSI)"
             ])
 
             with ws_tabs[0]:
@@ -2457,6 +2480,193 @@ Be specific, data-driven, and actionable for a retail investor.
                             st.markdown("<hr style='margin: 0.5em 0; opacity: 0.2;'>", unsafe_allow_html=True)
                     else:
                         st.info(f"No recent news found for {sym}.")
+
+            with ws_tabs[13]:
+                st.markdown(f"### 🕯️ Price Chart & Technical Indicators — {sym}")
+
+                hist_period = st.select_slider(
+                    "History range:", options=["3mo", "6mo", "1y", "2y", "5y"],
+                    value="1y", key=f"chart_period_{sym}"
+                )
+
+                with st.spinner(f"Loading price history for {sym}..."):
+                    chart_df = fetch_stock_ohlc_history(sym, period=hist_period)
+
+                if chart_df.empty or "Close" not in chart_df.columns:
+                    st.warning(f"⚠️ No historical price data available for **{sym}** via Yahoo Finance "
+                               f"(tried `{sym}.NS`). The symbol may be delisted, renamed, or not tracked by Yahoo.")
+                else:
+                    close_s = chart_df["Close"].squeeze().dropna()
+
+                    m1, m2, m3, m4 = st.columns(4)
+                    last_close = float(close_s.iloc[-1])
+                    prev_close = float(close_s.iloc[-2]) if len(close_s) > 1 else last_close
+                    day_chg = ((last_close - prev_close) / prev_close * 100) if prev_close else 0.0
+                    _delta14 = close_s.diff()
+                    _gain14 = _delta14.clip(lower=0).rolling(14).mean()
+                    _loss14 = (-_delta14.clip(upper=0)).rolling(14).mean()
+                    _rsi14_s = 100 - (100 / (1 + _gain14 / _loss14.replace(0, float("nan"))))
+                    last_rsi14 = _rsi14_s.dropna().iloc[-1] if not _rsi14_s.dropna().empty else None
+                    m1.metric("Last Close", f"₹{last_close:,.2f}", f"{day_chg:+.2f}%")
+                    m2.metric("52W High", f"₹{float(chart_df['High'].max()):,.2f}")
+                    m3.metric("52W Low",  f"₹{float(chart_df['Low'].min()):,.2f}")
+                    m4.metric("RSI(14)",  f"{last_rsi14:.1f}" if last_rsi14 is not None else "–")
+
+                    price_tab, rsi_tab = st.tabs(["Price + EMAs", "RSI"])
+
+                    with price_tab:
+                        chart_type = st.radio(
+                            "Chart type", ["Candle", "Line"], horizontal=True, key=f"chart_type_{sym}"
+                        )
+
+                        # ── H-M indicator: RSI(9) / EMA3 / WMA21 momentum panel ──
+                        delta9 = close_s.diff()
+                        gain9  = delta9.clip(lower=0).rolling(9).mean()
+                        loss9  = (-delta9.clip(upper=0)).rolling(9).mean()
+                        rsi9   = 100 - (100 / (1 + gain9 / loss9.replace(0, float("nan"))))
+                        ema3   = rsi9.ewm(span=3, adjust=False).mean()
+                        _w21   = np.arange(1, 22, dtype=float)
+                        wma21  = rsi9.rolling(21).apply(
+                            lambda x: float(np.dot(x, _w21) / _w21.sum()), raw=True
+                        )
+                        idx = list(chart_df.index)
+
+                        rsi9_arr = rsi9.values
+                        nk_sig_x, nk_sig_y_price = [], []
+                        nk_sig_x2, nk_sig_y_rsi = [], []
+                        for i in range(22, len(rsi9)):
+                            r, r_prev = rsi9_arr[i], rsi9_arr[i - 1]
+                            if np.isnan(r) or np.isnan(r_prev):
+                                continue
+                            if r >= 50 and r_prev < 50:
+                                d = rsi9.index[i]
+                                if d in close_s.index:
+                                    nk_sig_x.append(d); nk_sig_y_price.append(float(close_s.loc[d]) * 0.993)
+                                    nk_sig_x2.append(d); nk_sig_y_rsi.append(float(r))
+
+                        if not ema3.dropna().empty and not wma21.dropna().empty:
+                            last_e = ema3.dropna().iloc[-1]; last_w = wma21.dropna().iloc[-1]
+                            sig_color = "#00C853" if last_e > last_w else "#D50000"
+                            sig_text  = "🟢 H-M: POSITIVE (Bullish)" if last_e > last_w else "🔴 H-M: NEGATIVE (Bearish)"
+                            st.markdown(
+                                f"<div style='background:{sig_color}22;border-left:4px solid {sig_color};"
+                                f"padding:6px 12px;border-radius:4px;margin-bottom:6px;font-size:13px;"
+                                f"font-weight:700;color:{sig_color}'>{sig_text} — EMA3: {last_e:.1f} | WMA21: {last_w:.1f}</div>",
+                                unsafe_allow_html=True,
+                            )
+
+                        fig = make_subplots(
+                            rows=2, cols=1, shared_xaxes=True,
+                            row_heights=[0.65, 0.35], vertical_spacing=0.04,
+                        )
+
+                        if chart_type == "Candle":
+                            try:
+                                fig.add_trace(go.Candlestick(
+                                    x=idx,
+                                    open=chart_df["Open"].squeeze(), high=chart_df["High"].squeeze(),
+                                    low=chart_df["Low"].squeeze(), close=chart_df["Close"].squeeze(),
+                                    name="OHLC",
+                                    increasing_line_color="#00C853", decreasing_line_color="#D50000",
+                                ), row=1, col=1)
+                            except Exception:
+                                fig.add_trace(go.Scatter(x=idx, y=close_s, name="Close",
+                                                         line=dict(color="#90CAF9", width=1.5)), row=1, col=1)
+                        else:
+                            fig.add_trace(go.Scatter(x=idx, y=close_s, name="Close",
+                                                     line=dict(color="#90CAF9", width=1.5)), row=1, col=1)
+
+                        for period_n, color, lbl in [(20, "#FFD600", "EMA20"), (50, "#FF6D00", "EMA50"), (200, "#2979FF", "EMA200")]:
+                            ema_line = close_s.ewm(span=period_n, adjust=False).mean()
+                            fig.add_trace(go.Scatter(x=idx, y=ema_line, name=lbl,
+                                                     line=dict(color=color, width=1.5)), row=1, col=1)
+
+                        if nk_sig_x:
+                            fig.add_trace(go.Scatter(
+                                x=nk_sig_x, y=nk_sig_y_price, mode="markers",
+                                name="H-M Entry (RSI>50)",
+                                marker=dict(color="lime", size=12, symbol="circle",
+                                            line=dict(color="white", width=1.5)),
+                            ), row=1, col=1)
+
+                        _rsi_s = rsi9.reindex(rsi9.index)
+                        _mid   = pd.Series(50.0, index=rsi9.index)
+
+                        _above = _rsi_s.where(_rsi_s >= 50, 50.0)
+                        fig.add_trace(go.Scatter(x=idx, y=_mid.tolist(), line=dict(width=0), mode="lines",
+                                                 showlegend=False, hoverinfo="skip"), row=2, col=1)
+                        fig.add_trace(go.Scatter(x=idx, y=_above.tolist(), fill="tonexty",
+                                                 fillcolor="rgba(38,166,154,0.35)", line=dict(width=0), mode="lines",
+                                                 showlegend=False, hoverinfo="skip"), row=2, col=1)
+                        _below = _rsi_s.where(_rsi_s <= 50, 50.0)
+                        fig.add_trace(go.Scatter(x=idx, y=_mid.tolist(), line=dict(width=0), mode="lines",
+                                                 showlegend=False, hoverinfo="skip"), row=2, col=1)
+                        fig.add_trace(go.Scatter(x=idx, y=_below.tolist(), fill="tonexty",
+                                                 fillcolor="rgba(239,83,80,0.35)", line=dict(width=0), mode="lines",
+                                                 showlegend=False, hoverinfo="skip"), row=2, col=1)
+
+                        fig.add_trace(go.Scatter(x=idx, y=rsi9.tolist(), name="RSI(9)",
+                                                 line=dict(color="#90CAF9", width=1.5)), row=2, col=1)
+                        fig.add_trace(go.Scatter(x=idx, y=ema3.tolist(), name="EMA3",
+                                                 line=dict(color="#4CAF50", width=1.5)), row=2, col=1)
+                        fig.add_trace(go.Scatter(x=idx, y=wma21.tolist(), name="WMA21",
+                                                 line=dict(color="#EF5350", width=1.5)), row=2, col=1)
+
+                        if nk_sig_x2:
+                            fig.add_trace(go.Scatter(
+                                x=nk_sig_x2, y=nk_sig_y_rsi, mode="markers",
+                                name="Entry (RSI panel)", showlegend=False,
+                                marker=dict(color="lime", size=6, symbol="circle",
+                                            line=dict(color="white", width=1)),
+                            ), row=2, col=1)
+
+                        fig.add_hline(y=70, line_dash="dot", line_color="#D50000", opacity=0.5, row=2, col=1)
+                        fig.add_hline(y=50, line_dash="dash", line_color="#888888", row=2, col=1,
+                                      annotation_text="50", annotation_position="right")
+                        fig.add_hline(y=30, line_dash="dot", line_color="#FFD600", opacity=0.8, row=2, col=1,
+                                      annotation_text="30", annotation_position="right")
+
+                        fig.update_layout(
+                            template="plotly_dark", height=580,
+                            title=f"{sym} — Price + EMAs  |  H-M",
+                            margin=dict(t=50, b=20, l=10, r=10),
+                            xaxis_rangeslider_visible=False,
+                            xaxis2_rangeslider_visible=False,
+                            legend=dict(orientation="h", y=1.04, x=0, font=dict(size=11)),
+                            hovermode="x unified",
+                        )
+                        fig.update_xaxes(
+                            showspikes=True, spikemode="across+toaxis",
+                            spikesnap="cursor", spikethickness=1,
+                            spikedash="solid", spikecolor="#888888",
+                        )
+                        fig.update_yaxes(range=[0, 100], row=2, col=1)
+                        st.plotly_chart(fig, use_container_width=True, key=f"price_ema_chart_{sym}")
+
+                        if nk_sig_x:
+                            st.caption(
+                                f"🟢 {len(nk_sig_x)} H-M entry signal(s) — RSI(9) crossed above 50 (bottom-catch). "
+                                "**H-M panel:** Green fill = RSI above 50 (momentum). Red fill = RSI below 50 (pullback). "
+                                "For informational purposes only."
+                            )
+                        else:
+                            st.caption(
+                                "**H-M panel:** Green fill = RSI above 50. Red fill = RSI below 50 (pullback zone). "
+                                "🟢 circles = RSI(9) cross above 50 (entry). For informational purposes only."
+                            )
+
+                    with rsi_tab:
+                        idx_rsi = list(chart_df.index)
+                        fig2 = go.Figure()
+                        fig2.add_trace(go.Scatter(x=idx_rsi, y=_rsi14_s, name="RSI(14)",
+                                                   line=dict(color="#AB47BC", width=2)))
+                        fig2.add_hline(y=70, line_dash="dot", line_color="#D50000", opacity=0.6)
+                        fig2.add_hline(y=30, line_dash="dot", line_color="#00C853", opacity=0.6)
+                        fig2.add_hrect(y0=45, y1=65, fillcolor="#00C853", opacity=0.06, line_width=0,
+                                        annotation_text="Ideal entry 45-65", annotation_position="top right")
+                        fig2.update_layout(template="plotly_dark", height=280, yaxis=dict(range=[0, 100]),
+                                            margin=dict(t=30, b=20))
+                        st.plotly_chart(fig2, use_container_width=True, key=f"rsi14_chart_{sym}")
 
     # ==========================================
     # 🌍 NATIONAL ANALYTICS PORTAL WORKSPACE
