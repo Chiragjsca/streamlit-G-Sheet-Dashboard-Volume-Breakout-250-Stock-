@@ -1566,7 +1566,10 @@ if not raw_df.empty:
 
     st.sidebar.markdown("---")
     st.sidebar.header("🎯 Categorical Filters")
-    active_filters = [c for c in actual_cols if any(key in c.lower() for key in ["cumulative average", "industry", "sector", "output", "start gtt order"])]
+    active_filters = [c for c in actual_cols if any(key in c.lower() for key in [
+        "cumulative average", "industry", "sector", "output", "start gtt order",
+        "volume trend", "breakout signal", "trend", "macd crossover", "buy signal"
+    ])]
     for col_to_filter in active_filters:
         unique_options = sorted([val for val in final_df[col_to_filter].unique() if str(val).strip() != ""])
         selected_options = st.sidebar.multiselect(f"Filter by {col_to_filter}:", options=unique_options, key=f"filter_cat_{col_to_filter}")
@@ -1607,7 +1610,7 @@ if not raw_df.empty:
     high_pct_col = next((c for c in actual_cols if "52" in c.lower() and "high" in c.lower() and ("%" in c.lower() or "per" in c.lower())), None)
     if high_pct_col: filtered_df = apply_numeric_slider(filtered_df, high_pct_col, st.sidebar, "From 52W High Range:")
 
-    numeric_targets = ["Volume", "CMP", "Price %", "Promoters %", "Institutional %", "Face Value", "Net Profit", "EPS", "RONW %", "Market Cap", "Enterprise Value"]
+    numeric_targets = ["Volume", "CMP", "Price %", "Promoters %", "Institutional %", "Face Value", "Net Profit", "EPS", "RONW %", "Market Cap", "Enterprise Value", "RSI", "Delivery"]
     processed_cols = {diff_200_col, low_pct_col, high_pct_col}
     for target in numeric_targets:
         col_match = next((c for c in actual_cols if target.lower() in c.lower() and c not in processed_cols), None)
