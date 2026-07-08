@@ -22,6 +22,53 @@ from plotly.subplots import make_subplots
 st.set_page_config(page_title="Top 250 NSE Stock-Volume Breakout Dashboard", layout="wide", page_icon="📊")
 
 # ==========================================
+# 🧷 GLOBAL TAB-BAR CSS — wrap all st.tabs() bars onto multiple lines
+# instead of a single scrollable line with < > arrows.
+# Applies to EVERY st.tabs() in the app (Live Workspace Panel,
+# National Analytics Portal, News Engine, etc.)
+# ==========================================
+st.markdown("""
+<style>
+    /* Force the tab bar container itself to wrap and stop clipping/scrolling */
+    div[data-testid="stTabs"] div[data-baseweb="tab-list"],
+    div[data-baseweb="tab-list"] {
+        flex-wrap: wrap !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+        white-space: normal !important;
+        row-gap: 4px !important;
+        column-gap: 6px !important;
+        height: auto !important;
+        max-width: 100% !important;
+    }
+    /* Each tab button: allow shrinking/wrapping instead of forcing one line */
+    div[data-baseweb="tab-list"] button[data-baseweb="tab"] {
+        flex: 0 0 auto !important;
+        white-space: normal !important;
+        margin-top: 1px !important;
+        margin-bottom: 1px !important;
+        padding-top: 6px !important;
+        padding-bottom: 6px !important;
+        height: auto !important;
+    }
+    /* Hide the little "»" / arrow scroll buttons Streamlit shows when a tab bar overflows */
+    div[data-testid="stTabs"] button[data-testid="stTabsScrollButton"],
+    div[data-baseweb="tab-list"] + button,
+    button[kind="tabScroll"] {
+        display: none !important;
+    }
+    div[data-baseweb="tab-highlight"] {
+        display: none !important;
+    }
+    div[data-baseweb="tab"][aria-selected="true"] {
+        background-color: rgba(31, 119, 180, 0.1) !important;
+        border-radius: 5px !important;
+        border-bottom: 2px solid #1f77b4 !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ==========================================
 # 🤖 CONFIGURE AI (GEMINI + GROQ)
 # ==========================================
 gemini_enabled = False
@@ -2673,31 +2720,6 @@ Be specific, data-driven, and actionable for a retail investor.
     # ==========================================
     st.markdown("---")
     st.subheader("📊 National Live Market Analytics Portal Framework")
-
-    st.markdown("""
-    <style>
-        div[data-baseweb="tab-list"] {
-            flex-wrap: wrap !important;
-            row-gap: 3px !important;
-            column-gap: 8px !important;
-        }
-        div[data-baseweb="tab-list"] button {
-            margin-top: 1px !important;
-            margin-bottom: 1px !important;
-            padding-top: 6px !important;
-            padding-bottom: 6px !important;
-            height: auto !important;
-        }
-        div[data-baseweb="tab-highlight"] {
-            display: none !important;
-        }
-        div[data-baseweb="tab"][aria-selected="true"] {
-            background-color: rgba(31, 119, 180, 0.1) !important;
-            border-radius: 5px !important;
-            border-bottom: 2px solid #1f77b4 !important;
-        }
-    </style>
-    """, unsafe_allow_html=True)
 
     mkt_tabs = st.tabs([
         "🔥 Most Active", "🚀 Volume Gainers", "🏆 Top Gainers/Losers", "⭐ 52W Boundaries", "📦 Stocks Traded", "⚖️ Advances/Declines",
