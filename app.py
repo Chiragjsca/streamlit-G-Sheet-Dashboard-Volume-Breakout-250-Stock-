@@ -2551,51 +2551,24 @@ Be specific, data-driven, and actionable for a retail investor.
             # 📉 EMA CROSSOVER CHART TAB (NEW - ws_tabs[13])
             # ==========================================
             with ws_tabs[13]:
-                st.markdown(f"### 📉 EMA7 / EMA11 Crossover Chart — **{sym}**")
-
-                ema_chart_period = st.selectbox(
-                    "Lookback Period:",
-                    ["3 Months", "6 Months", "1 Year", "2 Years"],
-                    index=1,
-                    key=f"ema_chart_lookback_{sym}"
-                )
-                _ema_lookback_days = {"3 Months": 90, "6 Months": 180, "1 Year": 365, "2 Years": 730}[ema_chart_period]
-
                 _ema_chart_ticker = f"{sym}.NS"
                 _ema_chart_end = pd.Timestamp.now()
-                _ema_chart_start = _ema_chart_end - pd.Timedelta(days=_ema_lookback_days)
+                _ema_chart_start = _ema_chart_end - pd.Timedelta(days=180)
 
                 try:
                     _ema_chart_data = yf.download(
                         _ema_chart_ticker, start=_ema_chart_start, end=_ema_chart_end,
                         interval='1d', auto_adjust=True, progress=False
                     )
-                except Exception as _ema_err:
+                except Exception:
                     _ema_chart_data = pd.DataFrame()
-                    st.error(f"Could not fetch data for {_ema_chart_ticker}: {_ema_err}")
 
-                if _ema_chart_data is None or _ema_chart_data.empty:
-                    st.warning(f"No price data found for **{_ema_chart_ticker}** on Yahoo Finance.")
-                else:
+                if _ema_chart_data is not None and not _ema_chart_data.empty:
                     if isinstance(_ema_chart_data.columns, pd.MultiIndex):
                         _ema_chart_data.columns = _ema_chart_data.columns.get_level_values(0)
 
                     _ema_chart_data['EMA7'] = _ema_chart_data['Close'].ewm(span=7, adjust=False).mean()
                     _ema_chart_data['EMA11'] = _ema_chart_data['Close'].ewm(span=11, adjust=False).mean()
-                    _ema_chart_data['Crossover'] = _ema_chart_data['EMA7'] > _ema_chart_data['EMA11']
-
-                    _ema_status_title = f"{sym}: EMA7/EMA11 Trend"
-                    _ema_last7 = _ema_chart_data.tail(7)
-                    if len(_ema_last7) >= 2:
-                        if _ema_last7['Crossover'].iloc[-1] and not _ema_last7['Crossover'].iloc[-2]:
-                            _ema_status_title = f"{sym}: EMA7 crossed above EMA11"
-                        elif not _ema_last7['Crossover'].iloc[-1] and _ema_last7['Crossover'].iloc[-2]:
-                            _ema_status_title = f"{sym}: EMA7 crossed below EMA11"
-                        else:
-                            _ema_trend = "EMA7 above EMA11 (bullish)" if _ema_chart_data['Crossover'].iloc[-1] else "EMA7 below EMA11 (bearish)"
-                            _ema_status_title = f"{sym}: No crossover in last 7 days — {_ema_trend}"
-
-                    st.subheader(_ema_status_title)
 
                     _ema_chart_fig = go.Figure()
                     _ema_chart_fig.add_trace(go.Candlestick(
