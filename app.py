@@ -2585,7 +2585,6 @@ Be specific, data-driven, and actionable for a retail investor.
                 else:
                     close_s = chart_df["Close"].squeeze().dropna()
 
-                    m1, m2, m3, m4 = st.columns(4)
                     last_close = float(close_s.iloc[-1])
                     prev_close = float(close_s.iloc[-2]) if len(close_s) > 1 else last_close
                     day_chg = ((last_close - prev_close) / prev_close * 100) if prev_close else 0.0
@@ -2594,10 +2593,6 @@ Be specific, data-driven, and actionable for a retail investor.
                     _loss14 = (-_delta14.clip(upper=0)).rolling(14).mean()
                     _rsi14_s = 100 - (100 / (1 + _gain14 / _loss14.replace(0, float("nan"))))
                     last_rsi14 = _rsi14_s.dropna().iloc[-1] if not _rsi14_s.dropna().empty else None
-                    m1.metric("Last Close", f"₹{last_close:,.2f}", f"{day_chg:+.2f}%")
-                    m2.metric("52W High", f"₹{float(chart_df['High'].max()):,.2f}")
-                    m3.metric("52W Low",  f"₹{float(chart_df['Low'].min()):,.2f}")
-                    m4.metric("RSI(14)",  f"{last_rsi14:.1f}" if last_rsi14 is not None else "–")
 
                     price_tab, rsi_tab = st.tabs(["Price + EMAs", "RSI"])
 
@@ -2855,6 +2850,26 @@ Be specific, data-driven, and actionable for a retail investor.
                             f"<div style='font-size:15px;font-weight:800;color:var(--text-color,#0E1117);margin-bottom:2px;'>📋 {sym} — Google Sheet Data</div>",
                             unsafe_allow_html=True,
                         )
+
+                        def _render_group_direct(title, items):
+                            """Like _render_group but takes ready-made (label, value) pairs instead of sheet-column keys."""
+                            cards = "".join(_info_card_html(lbl, val) for lbl, val in items)
+                            st.markdown(
+                                f"<div style='font-size:13px;font-weight:700;color:#1565C0;margin:14px 0 6px 0;'>{title}</div>"
+                                f"<div style='display:flex;flex-wrap:wrap;gap:8px;'>{cards}</div>",
+                                unsafe_allow_html=True,
+                            )
+
+                        # ── Group 0: Price snapshot (moved here from above the chart) ──
+                        _chg_arrow = "▲" if day_chg >= 0 else "▼"
+                        _chg_color = "#00A152" if day_chg >= 0 else "#D32F2F"
+                        _render_group_direct("📊 Price Snapshot", [
+                            ("Last Close", f"₹{last_close:,.2f} "
+                                           f"<span style='color:{_chg_color};font-size:12px;'>{_chg_arrow} {day_chg:+.2f}%</span>"),
+                            ("52W High", f"₹{float(chart_df['High'].max()):,.2f}"),
+                            ("52W Low", f"₹{float(chart_df['Low'].min()):,.2f}"),
+                            ("RSI(14)", f"{last_rsi14:.1f}" if last_rsi14 is not None else "–"),
+                        ])
 
                         # ── Group 1: Company / classification info ──
                         _render_group("🏢 Company Info", [
