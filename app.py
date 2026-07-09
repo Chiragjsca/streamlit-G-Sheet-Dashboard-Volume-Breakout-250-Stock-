@@ -2779,11 +2779,12 @@ Be specific, data-driven, and actionable for a retail investor.
                                 text=f"{sym} — Ultra HD Chart (Price, EMAs, H-M, Volume)", 
                                 font=dict(size=20, color="#0E1117", family="system-ui, -apple-system, sans-serif")
                             ),
-                            margin=dict(t=80, b=30, l=20, r=20),
+                            margin=dict(t=60, b=80, l=20, r=20), # Increased bottom margin (b=80) for the legend
                             xaxis_rangeslider_visible=False, xaxis2_rangeslider_visible=False,
                             xaxis3_rangeslider_visible=False,
                             legend=dict(
-                                orientation="h", y=1.04, x=0, 
+                                orientation="h", 
+                                y=-0.15, x=0.5, xanchor="center", yanchor="top", # Moved to the bottom center
                                 font=dict(size=13, color="#31333F", family="system-ui, -apple-system, sans-serif")
                             ),
                             hovermode="x unified", 
