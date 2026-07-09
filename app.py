@@ -2642,9 +2642,11 @@ Be specific, data-driven, and actionable for a retail investor.
                                 unsafe_allow_html=True,
                             )
 
+                        # ── HD render: crisper candles + a dedicated Volume panel (row 3) ──
                         fig = make_subplots(
-                            rows=2, cols=1, shared_xaxes=True,
-                            row_heights=[0.65, 0.35], vertical_spacing=0.04,
+                            rows=3, cols=1, shared_xaxes=True,
+                            row_heights=[0.55, 0.25, 0.20], vertical_spacing=0.03,
+                            specs=[[{"type": "xy"}], [{"type": "xy"}], [{"type": "xy"}]],
                         )
 
                         if chart_type == "Candle":
@@ -2654,19 +2656,38 @@ Be specific, data-driven, and actionable for a retail investor.
                                     open=chart_df["Open"].squeeze(), high=chart_df["High"].squeeze(),
                                     low=chart_df["Low"].squeeze(), close=chart_df["Close"].squeeze(),
                                     name="OHLC",
-                                    increasing_line_color="#00C853", decreasing_line_color="#D50000",
+                                    increasing_line_color="#00E676", decreasing_line_color="#FF5252",
+                                    increasing_fillcolor="#00E676", decreasing_fillcolor="#FF5252",
+                                    line=dict(width=1.6),
+                                    whiskerwidth=0.9,
                                 ), row=1, col=1)
                             except Exception:
                                 fig.add_trace(go.Scatter(x=idx, y=close_s, name="Close",
-                                                         line=dict(color="#90CAF9", width=1.5)), row=1, col=1)
+                                                         line=dict(color="#90CAF9", width=2)), row=1, col=1)
                         else:
                             fig.add_trace(go.Scatter(x=idx, y=close_s, name="Close",
-                                                     line=dict(color="#90CAF9", width=1.5)), row=1, col=1)
+                                                     line=dict(color="#90CAF9", width=2)), row=1, col=1)
 
                         for period_n, color, lbl in [(20, "#FFD600", "EMA20"), (50, "#FF6D00", "EMA50"), (200, "#2979FF", "EMA200")]:
                             ema_line = close_s.ewm(span=period_n, adjust=False).mean()
                             fig.add_trace(go.Scatter(x=idx, y=ema_line, name=lbl,
-                                                     line=dict(color=color, width=1.5)), row=1, col=1)
+                                                     line=dict(color=color, width=1.8)), row=1, col=1)
+
+                        # ── 52-Week High / Low reference lines on the price panel ──
+                        wk52_high = float(chart_df["High"].max())
+                        wk52_low  = float(chart_df["Low"].min())
+                        fig.add_hline(
+                            y=wk52_high, line_dash="dash", line_color="#B388FF", line_width=1.4,
+                            opacity=0.85, row=1, col=1,
+                            annotation_text=f"52W High ₹{wk52_high:,.2f}", annotation_position="top left",
+                            annotation_font=dict(color="#B388FF", size=11),
+                        )
+                        fig.add_hline(
+                            y=wk52_low, line_dash="dash", line_color="#FFAB40", line_width=1.4,
+                            opacity=0.85, row=1, col=1,
+                            annotation_text=f"52W Low ₹{wk52_low:,.2f}", annotation_position="bottom left",
+                            annotation_font=dict(color="#FFAB40", size=11),
+                        )
 
                         if nk_sig_x:
                             fig.add_trace(go.Scatter(
@@ -2675,6 +2696,28 @@ Be specific, data-driven, and actionable for a retail investor.
                                 marker=dict(color="lime", size=12, symbol="circle",
                                             line=dict(color="white", width=1.5)),
                             ), row=1, col=1)
+
+                        # ── Volume panel (row 3): green/red bars colored by daily up/down close ──
+                        try:
+                            vol_s = chart_df["Volume"].squeeze()
+                            open_s_v = chart_df["Open"].squeeze()
+                            close_s_v = chart_df["Close"].squeeze()
+                            vol_colors = [
+                                "#00E676" if c >= o else "#FF5252"
+                                for o, c in zip(open_s_v.tolist(), close_s_v.tolist())
+                            ]
+                            fig.add_trace(go.Bar(
+                                x=idx, y=vol_s.tolist(), name="Volume",
+                                marker=dict(color=vol_colors, line=dict(width=0)),
+                                opacity=0.85, showlegend=False,
+                            ), row=3, col=1)
+                            vol_avg20 = vol_s.rolling(20).mean()
+                            fig.add_trace(go.Scatter(
+                                x=idx, y=vol_avg20.tolist(), name="Vol Avg(20)",
+                                line=dict(color="#E0E0E0", width=1.2, dash="dot"),
+                            ), row=3, col=1)
+                        except Exception:
+                            pass
 
                         _rsi_s = rsi9.reindex(rsi9.index)
                         _mid   = pd.Series(50.0, index=rsi9.index)
@@ -2714,21 +2757,41 @@ Be specific, data-driven, and actionable for a retail investor.
                                       annotation_text="30", annotation_position="right")
 
                         fig.update_layout(
-                            template="plotly_dark", height=580,
-                            title=f"{sym} — Price + EMAs  |  H-M",
-                            margin=dict(t=50, b=20, l=10, r=10),
+                            template="plotly_dark", height=820,
+                            title=dict(text=f"{sym} — Price + EMAs  |  H-M  |  Volume", font=dict(size=17)),
+                            margin=dict(t=60, b=20, l=10, r=10),
                             xaxis_rangeslider_visible=False,
                             xaxis2_rangeslider_visible=False,
-                            legend=dict(orientation="h", y=1.04, x=0, font=dict(size=11)),
+                            xaxis3_rangeslider_visible=False,
+                            legend=dict(orientation="h", y=1.05, x=0, font=dict(size=11)),
                             hovermode="x unified",
+                            font=dict(size=12),
+                            plot_bgcolor="#0E1117",
+                            paper_bgcolor="#0E1117",
+                            bargap=0.15,
                         )
                         fig.update_xaxes(
                             showspikes=True, spikemode="across+toaxis",
                             spikesnap="cursor", spikethickness=1,
                             spikedash="solid", spikecolor="#888888",
+                            gridcolor="rgba(255,255,255,0.06)",
                         )
+                        fig.update_yaxes(gridcolor="rgba(255,255,255,0.08)", zeroline=False)
                         fig.update_yaxes(range=[0, 100], row=2, col=1)
-                        st.plotly_chart(fig, use_container_width=True, key=f"price_ema_chart_{sym}")
+                        fig.update_yaxes(title_text="Price (₹)", row=1, col=1)
+                        fig.update_yaxes(title_text="RSI / H-M", row=2, col=1)
+                        fig.update_yaxes(title_text="Volume", row=3, col=1)
+
+                        # ── HD export config: crank up the download resolution (2560×1440-class PNG) ──
+                        hd_config = {
+                            "displaylogo": False,
+                            "toImageButtonOptions": {
+                                "format": "png",
+                                "filename": f"{sym}_price_ema_hm_volume",
+                                "scale": 4,
+                            },
+                        }
+                        st.plotly_chart(fig, use_container_width=True, key=f"price_ema_chart_{sym}", config=hd_config)
 
                         if nk_sig_x:
                             st.caption(
@@ -2741,6 +2804,102 @@ Be specific, data-driven, and actionable for a retail investor.
                                 "**H-M panel:** Green fill = RSI above 50. Red fill = RSI below 50 (pullback zone). "
                                 "🟢 circles = RSI(9) cross above 50 (entry). For informational purposes only."
                             )
+
+                        # ==========================================
+                        # 📋 GOOGLE SHEET COLUMN DATA — shown below the Price Chart
+                        # ==========================================
+                        def _sheet_val(row, *keys):
+                            """Fuzzy, case-insensitive lookup of a Google Sheet column value from sel_row."""
+                            try:
+                                row_idx = list(row.index)
+                            except Exception:
+                                return "-"
+                            for key in keys:
+                                k_low = key.lower().strip()
+                                # exact match first
+                                for c in row_idx:
+                                    if str(c).strip().lower() == k_low:
+                                        v = row.get(c, "")
+                                        v = "" if v is None else str(v).strip()
+                                        return v if v not in ("", "nan", "None") else "-"
+                                # then substring match
+                                for c in row_idx:
+                                    if k_low in str(c).strip().lower():
+                                        v = row.get(c, "")
+                                        v = "" if v is None else str(v).strip()
+                                        return v if v not in ("", "nan", "None") else "-"
+                            return "-"
+
+                        def _info_card_html(label, value):
+                            return (
+                                "<div style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);"
+                                "border-radius:6px;padding:8px 10px;min-width:150px;flex:1 1 150px;'>"
+                                f"<div style='font-size:11px;color:#9AA0A6;margin-bottom:3px;'>{label}</div>"
+                                f"<div style='font-size:14px;font-weight:700;color:#ECEFF1;word-break:break-word;'>{value}</div>"
+                                "</div>"
+                            )
+
+                        def _render_group(title, fields):
+                            cards = "".join(
+                                _info_card_html(lbl, _sheet_val(sel_row, *keys)) for lbl, keys in fields
+                            )
+                            st.markdown(
+                                f"<div style='font-size:13px;font-weight:700;color:#90CAF9;margin:14px 0 6px 0;'>{title}</div>"
+                                f"<div style='display:flex;flex-wrap:wrap;gap:8px;'>{cards}</div>",
+                                unsafe_allow_html=True,
+                            )
+
+                        st.markdown("<hr style='margin:16px 0 4px 0;opacity:0.25;'>", unsafe_allow_html=True)
+                        st.markdown(
+                            f"<div style='font-size:15px;font-weight:800;color:#FFFFFF;margin-bottom:2px;'>📋 {sym} — Google Sheet Data</div>",
+                            unsafe_allow_html=True,
+                        )
+
+                        # ── Group 1: Company / classification info ──
+                        _render_group("🏢 Company Info", [
+                            ("Company Name", ["company name", "stock name"]),
+                            ("Sector", ["sector", "industry"]),
+                            ("% Delivery", ["% delivery", "delivery %", "delivery"]),
+                            ("52W High Date", ["52w high date", "52 week high date"]),
+                            ("52W Low Date", ["52w low date", "52 week low date"]),
+                        ])
+
+                        # ── Group 2: Signals / system output ──
+                        _render_group("📡 Signals & System Output", [
+                            ("Output", ["output"]),
+                            ("Difference from 200 DMA", ["difference from 200 dma", "differance from 200 dma"]),
+                            ("CAR Rating", ["cumulative average rule (car) rating", "car rating"]),
+                            ("Start GTT Order", ["start gtt order", "gtt order"]),
+                            ("Volume Trend", ["volume trend"]),
+                            ("Breakout Signal", ["breakout signal"]),
+                            ("Trend", ["trend"]),
+                            ("MACD Crossover", ["macd crossover"]),
+                            ("Buy Signal", ["buy signal"]),
+                        ])
+
+                        # ── Group 3: Fundamentals ──
+                        _render_group("💰 Fundamentals", [
+                            ("Face Value", ["face value"]),
+                            ("Total Equity Capital", ["total equity capital"]),
+                            ("Market Cap", ["market cap"]),
+                            ("EPS", ["eps"]),
+                            ("RONW %", ["ronw"]),
+                            ("Promoters %", ["promoters %", "promoter"]),
+                            ("Institutional %", ["institutional %", "institutional"]),
+                            ("Pledged %", ["pledged %", "pledged"]),
+                            ("D/E Ratio", ["d/e ratio", "de ratio"]),
+                            ("Net Sales (Cr)", ["net sales"]),
+                            ("Net Profit (Cr.)", ["net profit"]),
+                            ("Reserves (Cr)", ["reserves"]),
+                            ("Total Debt (Cr)", ["total debt"]),
+                            ("Inventory (Cr)", ["inventory"]),
+                            ("Cash & Equiv (Cr)", ["cash & equiv", "cash and equiv", "cash equivalent"]),
+                            ("Operating Cash Flow (Cr)", ["operating cash flow"]),
+                            ("Trade Receivables (Cr)", ["trade receivables"]),
+                            ("Trade Payables (Cr)", ["trade payables"]),
+                            ("Fixed Assets/Net PPE (Cr)", ["fixed assets", "net ppe"]),
+                            ("Total Assets (Cr)", ["total assets"]),
+                        ])
 
                     with rsi_tab:
                         idx_rsi = list(chart_df.index)
