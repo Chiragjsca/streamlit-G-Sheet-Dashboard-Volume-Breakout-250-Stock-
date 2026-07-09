@@ -1704,6 +1704,17 @@ if not raw_df.empty:
     low_target = next((c for c in actual_cols if "52" in c.lower() and "low" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
     deliv_target = next((c for c in actual_cols if "delivery" in c.lower()), None)
 
+    # ── Additional smart-guess columns used by the Multi-Horizon Performance
+    # Summary Matrix and the Bottom Fishing Scanner (RSI, Volume Trend,
+    # Breakout Signal, Trend, MACD Crossover, Buy Signal, Diff from 200 DMA) ──
+    rsi_target = next((c for c in actual_cols if "rsi" in c.lower()), None)
+    volume_trend_target = next((c for c in actual_cols if "volume trend" in c.lower()), None)
+    breakout_signal_target = next((c for c in actual_cols if "breakout signal" in c.lower()), None)
+    trend_target = next((c for c in actual_cols if "trend" in c.lower() and c != volume_trend_target and "dma" not in c.lower()), None)
+    macd_crossover_target = next((c for c in actual_cols if "macd" in c.lower()), None)
+    buy_signal_target = next((c for c in actual_cols if "buy signal" in c.lower()), None)
+    diff_200_target = next((c for c in actual_cols if "diff" in c.lower() and "200" in c.lower()), None)
+
     # If this sheet has a priority order configured (COLUMN_ORDER_BY_NAME /
     # COLUMN_ORDER_BY_LETTER near the top of the file), use it for column placement.
     # Otherwise fall back to the original smart-guess order above.
@@ -2964,6 +2975,50 @@ Be specific, data-driven, and actionable for a retail investor.
                 except ValueError:
                     entry["% Delivery"] = 0.0
 
+            # ── NEW: additional requested columns ──────────────────
+            if rsi_target:
+                raw_rsi = str(row.get(rsi_target, "")).replace("%", "").replace(",", "").strip()
+                try:
+                    entry["RSI (14)"] = float(raw_rsi) if raw_rsi not in ["", "nan", "None"] else None
+                except ValueError:
+                    entry["RSI (14)"] = None
+
+            if diff_200_target:
+                raw_diff200 = str(row.get(diff_200_target, "")).replace("%", "").replace(",", "").strip()
+                try:
+                    entry["Diff. from 200 DMA"] = float(raw_diff200) if raw_diff200 not in ["", "nan", "None"] else None
+                except ValueError:
+                    entry["Diff. from 200 DMA"] = None
+
+            if high_target:
+                raw_52h = str(row.get(high_target, "")).replace(",", "").strip()
+                try:
+                    entry["52W High"] = float(raw_52h) if raw_52h not in ["", "nan", "None"] else None
+                except ValueError:
+                    entry["52W High"] = None
+
+            if low_target:
+                raw_52l = str(row.get(low_target, "")).replace(",", "").strip()
+                try:
+                    entry["52W Low"] = float(raw_52l) if raw_52l not in ["", "nan", "None"] else None
+                except ValueError:
+                    entry["52W Low"] = None
+
+            if volume_trend_target:
+                entry["Volume Trend"] = str(row.get(volume_trend_target, "")).strip()
+
+            if breakout_signal_target:
+                entry["Breakout Signal"] = str(row.get(breakout_signal_target, "")).strip()
+
+            if trend_target:
+                entry["Trend"] = str(row.get(trend_target, "")).strip()
+
+            if macd_crossover_target:
+                entry["MACD Crossover"] = str(row.get(macd_crossover_target, "")).strip()
+
+            if buy_signal_target:
+                entry["Buy Signal"] = str(row.get(buy_signal_target, "")).strip()
+
             # ── NEW: Bottom Fishing Score column ──────────────────
             clean_r = {k: v for k, v in row.items() if not str(k).startswith('_')}
             bf_s, bf_g, _ = compute_bottom_fishing_score(clean_r, actual_cols)
@@ -2992,6 +3047,20 @@ Be specific, data-driven, and actionable for a retail investor.
 
         if "% Delivery" in display_perf_df.columns:
             display_perf_df["% Delivery"] = display_perf_df["% Delivery"].apply(lambda x: f"{x:.2f}%" if pd.notnull(x) else "-")
+
+        if "RSI (14)" in display_perf_df.columns:
+            display_perf_df["RSI (14)"] = display_perf_df["RSI (14)"].apply(lambda x: f"{x:.2f}" if pd.notnull(x) else "-")
+
+        if "Diff. from 200 DMA" in display_perf_df.columns:
+            display_perf_df["Diff. from 200 DMA"] = display_perf_df["Diff. from 200 DMA"].apply(
+                lambda x: (f"+{x:.2f}%" if x > 0 else (f"{x:.2f}%" if x < 0 else "0.00%")) if pd.notnull(x) else "-"
+            )
+
+        if "52W High" in display_perf_df.columns:
+            display_perf_df["52W High"] = display_perf_df["52W High"].apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else "-")
+
+        if "52W Low" in display_perf_df.columns:
+            display_perf_df["52W Low"] = display_perf_df["52W Low"].apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else "-")
 
         perf_gb = GridOptionsBuilder.from_dataframe(display_perf_df)
         perf_gb.configure_column("RANK", width=70, pinned="left")
@@ -3027,6 +3096,17 @@ Be specific, data-driven, and actionable for a retail investor.
         }
         """)
 
+        trend_style_js = JsCode("""
+        function(params) {
+            let v = String(params.value).toLowerCase();
+            if (v.includes('strong uptrend') || v.includes('bullish') || v.includes('strong buy')) return { 'backgroundColor': '#16e37f33', 'color': '#000', 'fontWeight': 'bold' };
+            if (v.includes('uptrend') || v.includes('buy') || v.includes('high') || v.includes('yes')) return { 'backgroundColor': '#a5d6a733', 'color': '#000' };
+            if (v.includes('sideways') || v.includes('watch') || v.includes('normal')) return { 'backgroundColor': '#f4b40033', 'color': '#000' };
+            if (v.includes('bearish') || v.includes('avoid') || v.includes('low') || v.includes('downtrend')) return { 'backgroundColor': '#ea433533', 'color': '#000' };
+            return null;
+        }
+        """)
+
         for col in display_perf_df.columns:
             if col in ("RANK",):
                 continue  # already configured above
@@ -3040,7 +3120,11 @@ Be specific, data-driven, and actionable for a retail investor.
                 dyn_width = int(max(char_count, header_count) * 7 + 22)
             else:
                 # Default fixed widths
-                default_widths = {"STOCK NAME": 140, "CURRENT PRICE": 130, "% Delivery": 110, "🔬 BF Score": 110, "📊 BF Grade": 160}
+                default_widths = {
+                    "STOCK NAME": 140, "CURRENT PRICE": 130, "% Delivery": 110, "🔬 BF Score": 110, "📊 BF Grade": 160,
+                    "RSI (14)": 100, "Diff. from 200 DMA": 140, "52W High": 110, "52W Low": 110,
+                    "Volume Trend": 120, "Breakout Signal": 130, "Trend": 130, "MACD Crossover": 130, "Buy Signal": 130,
+                }
                 dyn_width = default_widths.get(col, 130)
 
             if col == "STOCK NAME":
@@ -3051,7 +3135,9 @@ Be specific, data-driven, and actionable for a retail investor.
                 perf_gb.configure_column(col, width=dyn_width, cellStyle=bf_score_js)
             elif col == "📊 BF Grade":
                 perf_gb.configure_column(col, width=dyn_width, cellStyle=bf_grade_js)
-            elif col in detected_metric_map:
+            elif col in ("Volume Trend", "Breakout Signal", "Trend", "MACD Crossover", "Buy Signal"):
+                perf_gb.configure_column(col, width=dyn_width, cellStyle=trend_style_js)
+            elif col in detected_metric_map or col == "Diff. from 200 DMA":
                 perf_gb.configure_column(col, width=dyn_width, cellStyle=color_code_js)
             else:
                 perf_gb.configure_column(col, width=dyn_width)
@@ -3106,12 +3192,31 @@ Be specific, data-driven, and actionable for a retail investor.
                 except ValueError:
                     deliv_v = None
 
+            rsi_v = str(clean_r.get(rsi_target, "")).strip() if rsi_target else "-"
+            diff200_v = str(clean_r.get(diff_200_target, "")).strip() if diff_200_target else "-"
+            high52_v = str(clean_r.get(high_target, "")).strip() if high_target else "-"
+            low52_v = str(clean_r.get(low_target, "")).strip() if low_target else "-"
+            vol_trend_v = str(clean_r.get(volume_trend_target, "")).strip() if volume_trend_target else "-"
+            breakout_v = str(clean_r.get(breakout_signal_target, "")).strip() if breakout_signal_target else "-"
+            trend_v = str(clean_r.get(trend_target, "")).strip() if trend_target else "-"
+            macd_v = str(clean_r.get(macd_crossover_target, "")).strip() if macd_crossover_target else "-"
+            buy_sig_v = str(clean_r.get(buy_signal_target, "")).strip() if buy_signal_target else "-"
+
             bf_results.append({
                 "Symbol": symbol_link,
                 "Score": bf_s,
                 "Grade": bf_g,
                 "CMP": cmp_v,
+                "RSI (14)": rsi_v,
                 "% Delivery": f"{deliv_v:.2f}%" if deliv_v is not None else "-",
+                "Diff. from 200 DMA": diff200_v,
+                "52W High": high52_v,
+                "52W Low": low52_v,
+                "Volume Trend": vol_trend_v,
+                "Breakout Signal": breakout_v,
+                "Trend": trend_v,
+                "MACD Crossover": macd_v,
+                "Buy Signal": buy_sig_v,
                 "Sector": str(sector_v)[:30],
                 "Key Reasons": " | ".join(bf_rsns[:3])
             })
@@ -3137,7 +3242,22 @@ Be specific, data-driven, and actionable for a retail investor.
         }
         """)
 
-        bf_default_widths = {"Symbol": 120, "Score": 90, "Grade": 160, "CMP": 100, "% Delivery": 110, "Sector": 200, "Key Reasons": 400}
+        trend_style_js = JsCode("""
+        function(params) {
+            let v = String(params.value).toLowerCase();
+            if (v.includes('strong uptrend') || v.includes('bullish') || v.includes('strong buy')) return { 'backgroundColor': '#16e37f33', 'color': '#000', 'fontWeight': 'bold' };
+            if (v.includes('uptrend') || v.includes('buy') || v.includes('high') || v.includes('yes')) return { 'backgroundColor': '#a5d6a733', 'color': '#000' };
+            if (v.includes('sideways') || v.includes('watch') || v.includes('normal')) return { 'backgroundColor': '#f4b40033', 'color': '#000' };
+            if (v.includes('bearish') || v.includes('avoid') || v.includes('low') || v.includes('downtrend')) return { 'backgroundColor': '#ea433533', 'color': '#000' };
+            return null;
+        }
+        """)
+
+        bf_default_widths = {
+            "Symbol": 120, "Score": 90, "Grade": 160, "CMP": 100, "% Delivery": 110, "Sector": 200, "Key Reasons": 400,
+            "RSI (14)": 100, "Diff. from 200 DMA": 140, "52W High": 110, "52W Low": 110,
+            "Volume Trend": 120, "Breakout Signal": 130, "Trend": 130, "MACD Crossover": 130, "Buy Signal": 130,
+        }
         for col in bf_scan_df.columns:
             if bf_sizing_mode == "✅ Fit to Row 1" and len(bf_scan_df) > 0:
                 char_count = get_clean_text_length(bf_scan_df.iloc[0][col])
@@ -3155,6 +3275,8 @@ Be specific, data-driven, and actionable for a retail investor.
                 bf_gb.configure_column(col, width=dyn_w, pinned=pinned, cellStyle=bf_score_style)
             elif col == "Symbol":
                 bf_gb.configure_column(col, width=dyn_w, pinned=pinned, cellRenderer=html_renderer)
+            elif col in ("Volume Trend", "Breakout Signal", "Trend", "MACD Crossover", "Buy Signal"):
+                bf_gb.configure_column(col, width=dyn_w, pinned=pinned, cellStyle=trend_style_js)
             else:
                 bf_gb.configure_column(col, width=dyn_w, pinned=pinned)
 
