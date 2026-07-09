@@ -2777,7 +2777,7 @@ Be specific, data-driven, and actionable for a retail investor.
                             height=950, # Increased for clearer canvas
                             title=dict(
                                 text=f"{sym} — Ultra HD Chart (Price, EMAs, H-M, Volume)", 
-                                font=dict(size=20, color="#0E1117", family="system-ui, -apple-system, sans-serif")
+                                font=dict(size=10, color="#0E1117", family="system-ui, -apple-system, sans-serif")
                             ),
                             margin=dict(t=60, b=80, l=20, r=20), # Increased bottom margin (b=80) for the legend
                             xaxis_rangeslider_visible=False, xaxis2_rangeslider_visible=False,
