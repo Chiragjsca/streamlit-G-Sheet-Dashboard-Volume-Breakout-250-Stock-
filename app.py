@@ -3109,29 +3109,32 @@ Be specific, data-driven, and actionable for a retail investor.
         st.markdown("---")
         st.markdown("### 📈 Multi-Horizon Performance Summary Matrix")
 
-        perf_width_col1, perf_width_col2 = st.columns([4, 1])
-        with perf_width_col1:
-            perf_sizing_mode = st.radio(
-                "📏 Column Width Adjustment:",
-                ["Default", "✅ Fit to Row 1", "✅✅ Fit to Row 2"],
-                horizontal=True,
-                help="Automatically adjust column widths based on text length of the selected row.",
-                key="perf_matrix_sizing_mode"
-            )
-
         horizons = [
             "1 Day", "2 Day", "3 Day", "5 Day", "7 Day", "10 Day", "12 Day", "15 Days", "20 Days", "25 Days", "30 Days",
             "2 Months", "3 Months", "4 Months", "5 Months", "6 Months", "7 Months", "8 Months", "9 Months", "10 Months", "11 Months",
             "1 Year", "18 Months", "1.5 Years", "2 Years", "2.5 Years", "3 Years", "Volume"
         ]
 
-        col_tools1, col_tools2, col_tools3 = st.columns([2, 2, 3])
-        with col_tools1:
-            sort_basis = st.selectbox("🎯 Base Horizon for Performance Ranking:", horizons, index=0)
-        with col_tools2:
-            sort_direction = st.radio("排序 Sorting Order Type:", ["Best -> Worst", "Worst -> Best"], index=0, horizontal=True)
-        with col_tools3:
-            summary_search = st.text_input("🔍 Filter stocks inside this matrix...", placeholder="Type symbol name...", key="perf_matrix_search")
+        with st.form(key="perf_matrix_filter_form"):
+            perf_width_col1, perf_width_col2 = st.columns([4, 1])
+            with perf_width_col1:
+                perf_sizing_mode = st.radio(
+                    "📏 Column Width Adjustment:",
+                    ["Default", "✅ Fit to Row 1", "✅✅ Fit to Row 2"],
+                    horizontal=True,
+                    help="Automatically adjust column widths based on text length of the selected row.",
+                    key="perf_matrix_sizing_mode"
+                )
+
+            col_tools1, col_tools2, col_tools3 = st.columns([2, 2, 3])
+            with col_tools1:
+                sort_basis = st.selectbox("🎯 Base Horizon for Performance Ranking:", horizons, index=0)
+            with col_tools2:
+                sort_direction = st.radio("排序 Sorting Order Type:", ["Best -> Worst", "Worst -> Best"], index=0, horizontal=True)
+            with col_tools3:
+                summary_search = st.text_input("🔍 Filter stocks inside this matrix...", placeholder="Type symbol name...", key="perf_matrix_search")
+
+            st.form_submit_button("🔍 Apply Filter / Refresh This Matrix")
 
         detected_metric_map = {}
 
@@ -3359,23 +3362,26 @@ Be specific, data-driven, and actionable for a retail investor.
         st.markdown("### 🔬 Bottom Fishing Scanner — Buy from Bottom Candidates")
         st.caption("Stocks that are 8–15% above 52W Low, in uptrend, with high volume + strong fundamentals")
 
-        bf_width_col1, bf_width_col2 = st.columns([4, 1])
-        with bf_width_col1:
-            bf_sizing_mode = st.radio(
-                "📏 Column Width Adjustment:",
-                ["Default", "✅ Fit to Row 1", "✅✅ Fit to Row 2"],
-                horizontal=True,
-                help="Automatically adjust column widths based on text length of the selected row.",
-                key="bf_scanner_sizing_mode"
-            )
+        with st.form(key="bf_scanner_filter_form"):
+            bf_width_col1, bf_width_col2 = st.columns([4, 1])
+            with bf_width_col1:
+                bf_sizing_mode = st.radio(
+                    "📏 Column Width Adjustment:",
+                    ["Default", "✅ Fit to Row 1", "✅✅ Fit to Row 2"],
+                    horizontal=True,
+                    help="Automatically adjust column widths based on text length of the selected row.",
+                    key="bf_scanner_sizing_mode"
+                )
 
-        bf_col1, bf_col2, bf_col3 = st.columns([2, 2, 2])
-        with bf_col1:
-            min_bf_score = st.slider("Minimum BF Score:", min_value=0, max_value=100, value=55, step=5, key="bf_min_score")
-        with bf_col2:
-            bf_sort = st.radio("Sort by:", ["Score (High→Low)", "Score (Low→High)"], horizontal=True, key="bf_sort")
-        with bf_col3:
-            bf_search = st.text_input("Search symbol:", placeholder="e.g. WIPRO", key="bf_search")
+            bf_col1, bf_col2, bf_col3 = st.columns([2, 2, 2])
+            with bf_col1:
+                min_bf_score = st.slider("Minimum BF Score:", min_value=0, max_value=100, value=55, step=5, key="bf_min_score")
+            with bf_col2:
+                bf_sort = st.radio("Sort by:", ["Score (High→Low)", "Score (Low→High)"], horizontal=True, key="bf_sort")
+            with bf_col3:
+                bf_search = st.text_input("Search symbol:", placeholder="e.g. WIPRO", key="bf_search")
+
+            st.form_submit_button("🔍 Apply Filter / Refresh This Scanner")
 
         bf_results = []
         for idx, row in filtered_df.iterrows():
