@@ -2694,14 +2694,14 @@ Be specific, data-driven, and actionable for a retail investor.
                         fig.add_hline(
                             y=wk52_high, line_dash="dash", line_color="#7C3AED", line_width=1.4,
                             opacity=0.85, row=1, col=1,
-                            annotation_text=f"52W High ₹{wk52_high:,.2f}", annotation_position="top left",
-                            annotation_font=dict(color="#7C3AED", size=11),
+                            annotation_text=f"52W High ₹{wk52_high:,.2f}", annotation_position="top right",
+                            annotation_font=dict(color="#7C3AED", size=13),
                         )
                         fig.add_hline(
                             y=wk52_low, line_dash="dash", line_color="#EF6C00", line_width=1.4,
                             opacity=0.85, row=1, col=1,
-                            annotation_text=f"52W Low ₹{wk52_low:,.2f}", annotation_position="bottom left",
-                            annotation_font=dict(color="#EF6C00", size=11),
+                            annotation_text=f"52W Low ₹{wk52_low:,.2f}", annotation_position="bottom right",
+                            annotation_font=dict(color="#EF6C00", size=13),
                         )
 
                         if nk_sig_x:
