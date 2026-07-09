@@ -3063,6 +3063,7 @@ Be specific, data-driven, and actionable for a retail investor.
             display_perf_df["52W Low"] = display_perf_df["52W Low"].apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else "-")
 
         perf_gb = GridOptionsBuilder.from_dataframe(display_perf_df)
+        perf_gb.configure_default_column(filter=True, sortable=True, resizable=True, floatingFilter=False)
         perf_gb.configure_column("RANK", width=70, pinned="left")
         perf_gb.configure_column("STOCK NAME", width=140, pinned="left", cellRenderer=html_renderer)
 
@@ -3231,6 +3232,7 @@ Be specific, data-driven, and actionable for a retail investor.
         bf_scan_df = pd.DataFrame(bf_results)
 
         bf_gb = GridOptionsBuilder.from_dataframe(bf_scan_df)
+        bf_gb.configure_default_column(filter=True, sortable=True, resizable=True, floatingFilter=False)
 
         bf_score_style = JsCode("""
         function(params) {
