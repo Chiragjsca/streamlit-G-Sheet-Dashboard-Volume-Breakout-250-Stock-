@@ -2771,40 +2771,64 @@ Be specific, data-driven, and actionable for a retail investor.
                         fig.add_hline(y=30, line_dash="dot", line_color="#FFD600", opacity=0.8, row=2, col=1,
                                       annotation_text="30", annotation_position="right")
 
+# ── ULTRA HD CHART STYLING & RENDERING ─────────────────────
                         fig.update_layout(
-                            template="plotly_white", height=820,
-                            title=dict(text=f"{sym} — Price + EMAs  |  H-M  |  Volume", font=dict(size=17, color="#1A1A1A")),
-                            margin=dict(t=60, b=20, l=10, r=10),
-                            xaxis_rangeslider_visible=False,
-                            xaxis2_rangeslider_visible=False,
+                            template="plotly_white", 
+                            height=950, # Increased for clearer canvas
+                            title=dict(
+                                text=f"{sym} — Ultra HD Chart (Price, EMAs, H-M, Volume)", 
+                                font=dict(size=20, color="#0E1117", family="system-ui, -apple-system, sans-serif")
+                            ),
+                            margin=dict(t=80, b=30, l=20, r=20),
+                            xaxis_rangeslider_visible=False, xaxis2_rangeslider_visible=False,
                             xaxis3_rangeslider_visible=False,
-                            legend=dict(orientation="h", y=1.05, x=0, font=dict(size=11, color="#1A1A1A")),
-                            hovermode="x unified",
-                            font=dict(size=12, color="#1A1A1A"),
-                            plot_bgcolor="#FFFFFF",
-                            paper_bgcolor="#FFFFFF",
-                            bargap=0.15,
+                            legend=dict(
+                                orientation="h", y=1.04, x=0, 
+                                font=dict(size=13, color="#31333F", family="system-ui, -apple-system, sans-serif")
+                            ),
+                            hovermode="x unified", 
+                            font=dict(size=13, color="#31333F", family="system-ui, -apple-system, sans-serif"),
+                            hoverlabel=dict(
+                                font_size=14, 
+                                font_family="system-ui, -apple-system, sans-serif",
+                                bgcolor="rgba(255,255,255,0.95)"
+                            ),
+                            plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF", bargap=0.15,
                         )
+                        
+                        # Thicker, crisper grid lines for HD visibility
                         fig.update_xaxes(
                             showspikes=True, spikemode="across+toaxis",
-                            spikesnap="cursor", spikethickness=1,
-                            spikedash="solid", spikecolor="#9AA0A6",
-                            gridcolor="rgba(0,0,0,0.08)", linecolor="rgba(0,0,0,0.2)",
+                            spikesnap="cursor", spikethickness=1.5,
+                            spikedash="solid", spikecolor="#808495",
+                            gridcolor="rgba(0,0,0,0.06)", linecolor="rgba(0,0,0,0.3)",
+                            tickfont=dict(size=12, family="system-ui, sans-serif")
                         )
-                        fig.update_yaxes(gridcolor="rgba(0,0,0,0.08)", zeroline=False, linecolor="rgba(0,0,0,0.2)")
+                        fig.update_yaxes(
+                            gridcolor="rgba(0,0,0,0.06)", zeroline=False, 
+                            linecolor="rgba(0,0,0,0.3)",
+                            tickfont=dict(size=12, family="system-ui, sans-serif")
+                        )
+                        
                         fig.update_yaxes(range=[0, 100], row=2, col=1)
-                        fig.update_yaxes(title_text="Price (₹)", row=1, col=1)
-                        fig.update_yaxes(title_text="RSI / H-M", row=2, col=1)
-                        fig.update_yaxes(title_text="Volume", row=3, col=1)
+                        fig.update_yaxes(title_text="Price (₹)", title_font=dict(size=14, weight="bold"), row=1, col=1)
+                        fig.update_yaxes(title_text="RSI / H-M", title_font=dict(size=14, weight="bold"), row=2, col=1)
+                        fig.update_yaxes(title_text="Volume", title_font=dict(size=14, weight="bold"), row=3, col=1)
 
-                        # ── HD export config: crank up the download resolution (2560×1440-class PNG) ──
+                        # ── ULTRA HD EXPORT & RENDER CONFIGURATION ────────────────
                         hd_config = {
                             "displaylogo": False,
+                            "responsive": True, # Maps vectors 1:1 with high-DPI monitors
                             "toImageButtonOptions": {
                                 "format": "png",
-                                "filename": f"{sym}_price_ema_hm_volume",
-                                "scale": 4,
+                                "filename": f"{sym}_Ultra_HD_Analysis",
+                                "height": 1080,
+                                "width": 1920,
+                                "scale": 6, # 6x scale for an 8K-equivalent vector export
                             },
+                            "modeBarButtonsToAdd": [
+                                "drawline", "drawopenpath", "drawrect", "eraseshape"
+                            ] # Adds drawing tools to the top right bar
                         }
                         st.plotly_chart(fig, use_container_width=True, key=f"price_ema_chart_{sym}", config=hd_config)
 
