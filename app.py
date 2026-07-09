@@ -2663,10 +2663,10 @@ Be specific, data-driven, and actionable for a retail investor.
                                 ), row=1, col=1)
                             except Exception:
                                 fig.add_trace(go.Scatter(x=idx, y=close_s, name="Close",
-                                                         line=dict(color="#90CAF9", width=2)), row=1, col=1)
+                                                         line=dict(color="#1565C0", width=2)), row=1, col=1)
                         else:
                             fig.add_trace(go.Scatter(x=idx, y=close_s, name="Close",
-                                                     line=dict(color="#90CAF9", width=2)), row=1, col=1)
+                                                     line=dict(color="#1565C0", width=2)), row=1, col=1)
 
                         for period_n, color, lbl in [(20, "#FFD600", "EMA20"), (50, "#FF6D00", "EMA50"), (200, "#2979FF", "EMA200")]:
                             ema_line = close_s.ewm(span=period_n, adjust=False).mean()
@@ -2677,16 +2677,16 @@ Be specific, data-driven, and actionable for a retail investor.
                         wk52_high = float(chart_df["High"].max())
                         wk52_low  = float(chart_df["Low"].min())
                         fig.add_hline(
-                            y=wk52_high, line_dash="dash", line_color="#B388FF", line_width=1.4,
+                            y=wk52_high, line_dash="dash", line_color="#7C3AED", line_width=1.4,
                             opacity=0.85, row=1, col=1,
                             annotation_text=f"52W High ₹{wk52_high:,.2f}", annotation_position="top left",
-                            annotation_font=dict(color="#B388FF", size=11),
+                            annotation_font=dict(color="#7C3AED", size=11),
                         )
                         fig.add_hline(
-                            y=wk52_low, line_dash="dash", line_color="#FFAB40", line_width=1.4,
+                            y=wk52_low, line_dash="dash", line_color="#EF6C00", line_width=1.4,
                             opacity=0.85, row=1, col=1,
                             annotation_text=f"52W Low ₹{wk52_low:,.2f}", annotation_position="bottom left",
-                            annotation_font=dict(color="#FFAB40", size=11),
+                            annotation_font=dict(color="#EF6C00", size=11),
                         )
 
                         if nk_sig_x:
@@ -2714,7 +2714,7 @@ Be specific, data-driven, and actionable for a retail investor.
                             vol_avg20 = vol_s.rolling(20).mean()
                             fig.add_trace(go.Scatter(
                                 x=idx, y=vol_avg20.tolist(), name="Vol Avg(20)",
-                                line=dict(color="#E0E0E0", width=1.2, dash="dot"),
+                                line=dict(color="#616161", width=1.2, dash="dot"),
                             ), row=3, col=1)
                         except Exception:
                             pass
@@ -2736,7 +2736,7 @@ Be specific, data-driven, and actionable for a retail investor.
                                                  showlegend=False, hoverinfo="skip"), row=2, col=1)
 
                         fig.add_trace(go.Scatter(x=idx, y=rsi9.tolist(), name="RSI(9)",
-                                                 line=dict(color="#90CAF9", width=1.5)), row=2, col=1)
+                                                 line=dict(color="#1976D2", width=1.5)), row=2, col=1)
                         fig.add_trace(go.Scatter(x=idx, y=ema3.tolist(), name="EMA3",
                                                  line=dict(color="#4CAF50", width=1.5)), row=2, col=1)
                         fig.add_trace(go.Scatter(x=idx, y=wma21.tolist(), name="WMA21",
@@ -2757,26 +2757,26 @@ Be specific, data-driven, and actionable for a retail investor.
                                       annotation_text="30", annotation_position="right")
 
                         fig.update_layout(
-                            template="plotly_dark", height=820,
-                            title=dict(text=f"{sym} — Price + EMAs  |  H-M  |  Volume", font=dict(size=17)),
+                            template="plotly_white", height=820,
+                            title=dict(text=f"{sym} — Price + EMAs  |  H-M  |  Volume", font=dict(size=17, color="#1A1A1A")),
                             margin=dict(t=60, b=20, l=10, r=10),
                             xaxis_rangeslider_visible=False,
                             xaxis2_rangeslider_visible=False,
                             xaxis3_rangeslider_visible=False,
-                            legend=dict(orientation="h", y=1.05, x=0, font=dict(size=11)),
+                            legend=dict(orientation="h", y=1.05, x=0, font=dict(size=11, color="#1A1A1A")),
                             hovermode="x unified",
-                            font=dict(size=12),
-                            plot_bgcolor="#0E1117",
-                            paper_bgcolor="#0E1117",
+                            font=dict(size=12, color="#1A1A1A"),
+                            plot_bgcolor="#FFFFFF",
+                            paper_bgcolor="#FFFFFF",
                             bargap=0.15,
                         )
                         fig.update_xaxes(
                             showspikes=True, spikemode="across+toaxis",
                             spikesnap="cursor", spikethickness=1,
-                            spikedash="solid", spikecolor="#888888",
-                            gridcolor="rgba(255,255,255,0.06)",
+                            spikedash="solid", spikecolor="#9AA0A6",
+                            gridcolor="rgba(0,0,0,0.08)", linecolor="rgba(0,0,0,0.2)",
                         )
-                        fig.update_yaxes(gridcolor="rgba(255,255,255,0.08)", zeroline=False)
+                        fig.update_yaxes(gridcolor="rgba(0,0,0,0.08)", zeroline=False, linecolor="rgba(0,0,0,0.2)")
                         fig.update_yaxes(range=[0, 100], row=2, col=1)
                         fig.update_yaxes(title_text="Price (₹)", row=1, col=1)
                         fig.update_yaxes(title_text="RSI / H-M", row=2, col=1)
@@ -2832,10 +2832,11 @@ Be specific, data-driven, and actionable for a retail investor.
 
                         def _info_card_html(label, value):
                             return (
-                                "<div style='background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);"
+                                "<div style='background:var(--secondary-background-color,#F0F2F6);"
+                                "border:1px solid rgba(128,128,128,0.35);"
                                 "border-radius:6px;padding:8px 10px;min-width:150px;flex:1 1 150px;'>"
-                                f"<div style='font-size:11px;color:#9AA0A6;margin-bottom:3px;'>{label}</div>"
-                                f"<div style='font-size:14px;font-weight:700;color:#ECEFF1;word-break:break-word;'>{value}</div>"
+                                f"<div style='font-size:11px;color:var(--text-color,#31333F);opacity:0.65;margin-bottom:3px;'>{label}</div>"
+                                f"<div style='font-size:14px;font-weight:700;color:var(--text-color,#0E1117);word-break:break-word;'>{value}</div>"
                                 "</div>"
                             )
 
@@ -2844,14 +2845,14 @@ Be specific, data-driven, and actionable for a retail investor.
                                 _info_card_html(lbl, _sheet_val(sel_row, *keys)) for lbl, keys in fields
                             )
                             st.markdown(
-                                f"<div style='font-size:13px;font-weight:700;color:#90CAF9;margin:14px 0 6px 0;'>{title}</div>"
+                                f"<div style='font-size:13px;font-weight:700;color:#1565C0;margin:14px 0 6px 0;'>{title}</div>"
                                 f"<div style='display:flex;flex-wrap:wrap;gap:8px;'>{cards}</div>",
                                 unsafe_allow_html=True,
                             )
 
                         st.markdown("<hr style='margin:16px 0 4px 0;opacity:0.25;'>", unsafe_allow_html=True)
                         st.markdown(
-                            f"<div style='font-size:15px;font-weight:800;color:#FFFFFF;margin-bottom:2px;'>📋 {sym} — Google Sheet Data</div>",
+                            f"<div style='font-size:15px;font-weight:800;color:var(--text-color,#0E1117);margin-bottom:2px;'>📋 {sym} — Google Sheet Data</div>",
                             unsafe_allow_html=True,
                         )
 
@@ -2910,8 +2911,11 @@ Be specific, data-driven, and actionable for a retail investor.
                         fig2.add_hline(y=30, line_dash="dot", line_color="#00C853", opacity=0.6)
                         fig2.add_hrect(y0=45, y1=65, fillcolor="#00C853", opacity=0.06, line_width=0,
                                         annotation_text="Ideal entry 45-65", annotation_position="top right")
-                        fig2.update_layout(template="plotly_dark", height=280, yaxis=dict(range=[0, 100]),
-                                            margin=dict(t=30, b=20))
+                        fig2.update_layout(template="plotly_white", height=280, yaxis=dict(range=[0, 100]),
+                                            margin=dict(t=30, b=20), plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
+                                            font=dict(color="#1A1A1A"))
+                        fig2.update_xaxes(gridcolor="rgba(0,0,0,0.08)")
+                        fig2.update_yaxes(gridcolor="rgba(0,0,0,0.08)")
                         st.plotly_chart(fig2, use_container_width=True, key=f"rsi14_chart_{sym}")
 
     # ==========================================
