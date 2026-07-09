@@ -2864,7 +2864,7 @@ Be specific, data-driven, and actionable for a retail investor.
                         def _sheet_val(row, primary_dict, *keys):
                             """Fuzzy lookup: FIRST checks NSE Fundamentals, THEN falls back to the current sheet (Top 250)."""
                             def _search_row(r_data):
-                                if not r_data: return "-"
+                                if r_data is None or len(r_data) == 0: return "-"
                                 try:
                                     r_idx = list(r_data.keys()) if isinstance(r_data, dict) else list(r_data.index)
                                 except Exception:
