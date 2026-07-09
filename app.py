@@ -2848,27 +2848,51 @@ Be specific, data-driven, and actionable for a retail investor.
                         # ==========================================
                         # 📋 GOOGLE SHEET COLUMN DATA — shown below the Price Chart
                         # ==========================================
-                        def _sheet_val(row, *keys):
-                            """Fuzzy, case-insensitive lookup of a Google Sheet column value from sel_row."""
-                            try:
-                                row_idx = list(row.index)
-                            except Exception:
+                        
+                        # ── NEW: Fetch NSE Fundamentals as PRIMARY Data ──
+                        fund_primary_row = {}
+                        if selected_sheet != "NSE Fundamentals":
+                            fund_df = load_sheet_data_with_colors("NSE Fundamentals")
+                            if not fund_df.empty:
+                                fund_cols = [c for c in fund_df.columns if not c.startswith("_bg_") and not c.startswith("_txt_")]
+                                sym_col_fund = next((c for c in fund_cols if c.lower() in ["nse code", "symbol", "ticker", "stock symbol", "id", "stock"]), None)
+                                if sym_col_fund:
+                                    fund_match = fund_df[fund_df[sym_col_fund].astype(str).str.strip() == sym]
+                                    if not fund_match.empty:
+                                        fund_primary_row = fund_match.iloc[0].to_dict()
+
+                        def _sheet_val(row, primary_dict, *keys):
+                            """Fuzzy lookup: FIRST checks NSE Fundamentals, THEN falls back to the current sheet (Top 250)."""
+                            def _search_row(r_data):
+                                if not r_data: return "-"
+                                try:
+                                    r_idx = list(r_data.keys()) if isinstance(r_data, dict) else list(r_data.index)
+                                except Exception:
+                                    return "-"
+                                for key in keys:
+                                    k_low = key.lower().strip()
+                                    # exact match first
+                                    for c in r_idx:
+                                        if str(c).strip().lower() == k_low:
+                                            v = r_data.get(c, "")
+                                            v = "" if v is None else str(v).strip()
+                                            if v not in ("", "nan", "None", "N/A", "n/a", "-"): return v
+                                    # then substring match
+                                    for c in r_idx:
+                                        if k_low in str(c).strip().lower():
+                                            v = r_data.get(c, "")
+                                            v = "" if v is None else str(v).strip()
+                                            if v not in ("", "nan", "None", "N/A", "n/a", "-"): return v
                                 return "-"
-                            for key in keys:
-                                k_low = key.lower().strip()
-                                # exact match first
-                                for c in row_idx:
-                                    if str(c).strip().lower() == k_low:
-                                        v = row.get(c, "")
-                                        v = "" if v is None else str(v).strip()
-                                        return v if v not in ("", "nan", "None") else "-"
-                                # then substring match
-                                for c in row_idx:
-                                    if k_low in str(c).strip().lower():
-                                        v = row.get(c, "")
-                                        v = "" if v is None else str(v).strip()
-                                        return v if v not in ("", "nan", "None") else "-"
-                            return "-"
+
+                            # Priority 1: Check NSE Fundamentals data first
+                            val = _search_row(primary_dict)
+                            
+                            # Priority 2: If missing/N/A, fallback to the current sheet (Top 250)
+                            if val == "-":
+                                val = _search_row(row)
+                                
+                            return val
 
                         def _info_card_html(label, value):
                             return (
@@ -2882,7 +2906,7 @@ Be specific, data-driven, and actionable for a retail investor.
 
                         def _render_group(title, fields):
                             cards = "".join(
-                                _info_card_html(lbl, _sheet_val(sel_row, *keys)) for lbl, keys in fields
+                                _info_card_html(lbl, _sheet_val(sel_row, fund_primary_row, *keys)) for lbl, keys in fields
                             )
                             st.markdown(
                                 f"<div style='font-size:13px;font-weight:700;color:#1565C0;margin:14px 0 6px 0;'>{title}</div>"
