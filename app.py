@@ -1905,21 +1905,32 @@ if not raw_df.empty:
                 f'<div style="position:absolute; left:0; right:0; top:{gp}%; border-top:1px dashed rgba(0,0,0,0.08); height:0;">'
                 f'<span style="position:absolute; left:-2px; top:-8px; font-size:10px; color:#9aa0a6;">{label}</span></div>'
             )
-        html = f"""
-        <div style="font-weight:700; font-size:14px; margin-bottom:2px;">{title_text}</div>
-        <div style="font-size:11px; color:#9aa0a6; margin-bottom:8px;">Click any dot to open its NSE chart in a new tab</div>
-        <div style="position:relative; width:100%; height:{height}px; margin-left:26px; width:calc(100% - 26px);
-                    background:#fff; border:1px solid rgba(0,0,0,0.08); border-radius:6px; overflow:hidden;">
-            {gridlines}
-            {dots_html}
-        </div>
-        <div style="display:flex; justify-content:space-between; margin-left:26px; margin-top:4px;">
-            <span style="font-size:10px; color:#ea4335;">● low</span>
-            <span style="font-size:10px; color:#f9a825;">● mid</span>
-            <span style="font-size:10px; color:#0f9d58;">● high</span>
-        </div>
-        """
-        st.markdown(html, unsafe_allow_html=True)
+        html = (
+            f'<div style="font-family:\'Source Sans Pro\',sans-serif;">'
+            f'<div style="font-weight:700; font-size:14px; margin-bottom:2px;">{title_text}</div>'
+            f'<div style="font-size:11px; color:#9aa0a6; margin-bottom:8px;">Click any dot to open its NSE chart in a new tab</div>'
+            f'<div style="position:relative; width:calc(100% - 26px); height:{height}px; margin-left:26px; '
+            f'background:#fff; border:1px solid rgba(0,0,0,0.08); border-radius:6px; overflow:hidden;">'
+            f'{gridlines}'
+            f'{dots_html}'
+            f'</div>'
+            f'<div style="display:flex; justify-content:space-between; margin-left:26px; margin-top:4px;">'
+            f'<span style="font-size:10px; color:#ea4335;">\u25cf low</span>'
+            f'<span style="font-size:10px; color:#f9a825;">\u25cf mid</span>'
+            f'<span style="font-size:10px; color:#0f9d58;">\u25cf high</span>'
+            f'</div>'
+            f'</div>'
+        )
+        # NOTE: rendered via components.html (real iframe), NOT st.markdown().
+        # st.markdown() pipes the string through Streamlit's Python-Markdown
+        # parser first, and this HTML — a long single-line blob of many
+        # concatenated <a> tags plus multi-line <div> tags — was being
+        # mis-parsed as a code block and dumped out as literal tag text
+        # instead of being rendered (that's the raw-HTML error screenshot).
+        # components.html skips the markdown parser entirely and always
+        # renders real elements; real <a target="_blank"> anchors (unlike
+        # JS window.open() calls) work fine inside a sandboxed iframe.
+        components.html(html, height=height + 90, scrolling=False)
 
     # ---------- Chart row 1: Breadth / % change distribution / RSI distribution ----------
     dash_c1, dash_c2, dash_c3 = st.columns([1, 1.3, 1.3])
