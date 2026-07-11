@@ -1796,12 +1796,15 @@ if not raw_df.empty:
     declines = int((pct_series < 0).sum()) if not pct_series.empty else 0
     unchanged = int((pct_series == 0).sum()) if not pct_series.empty else 0
     avg_change = float(pct_series.mean()) if pct_series.notna().any() else 0.0
+    adv_decline_ratio = (advances / declines) if declines > 0 else None
     median_change = float(pct_series.median()) if pct_series.notna().any() else None
     total_volume = float(vol_series.sum()) if vol_series.notna().any() else 0.0
     total_mcap = float(mcap_series.sum()) if mcap_series.notna().any() else 0.0
     total_turnover = float(turnover_series.sum()) if turnover_series.notna().any() else 0.0
     avg_rsi = float(rsi_series.mean()) if rsi_series.notna().any() else None
+    avg_deliv = float(deliv_series.mean()) if deliv_series.notna().any() else None
     above_200dma_count = int((diff200_series > 0).sum()) if diff200_series.notna().any() else 0
+    below_200dma_count = int((diff200_series < 0).sum()) if diff200_series.notna().any() else 0
 
     breakout_count = 0
     if breakout_signal_target and breakout_signal_target in dash_df.columns:
@@ -1812,12 +1815,14 @@ if not raw_df.empty:
         buy_signal_count = int(dash_df[buy_signal_target].astype(str).str.contains("buy", case=False, na=False).sum())
 
     near_high_count, near_low_count = 0, 0
+    near_low_15_count = 0
     if cmp_series.notna().any() and high_series.notna().any():
         prox_high = (cmp_series / high_series.replace(0, np.nan)) * 100
         near_high_count = int((prox_high >= 95).sum())
     if cmp_series.notna().any() and low_series.notna().any():
         prox_low = (cmp_series / low_series.replace(0, np.nan)) * 100
         near_low_count = int((prox_low <= 105).sum())
+        near_low_15_count = int((prox_low <= 115).sum())
 
     # ---------- KPI cards ----------
     def _dash_kpi(container, label, value, bg="#f5f7fa", fg="#1a1a1a"):
@@ -1834,7 +1839,11 @@ if not raw_df.empty:
     _dash_kpi(kpi_row1[1], "🟢 ADVANCES", f"{advances:,}", bg="#e8f5e9", fg="#1b5e20")
     _dash_kpi(kpi_row1[2], "🔴 DECLINES", f"{declines:,}", bg="#ffebee", fg="#b71c1c")
     _dash_kpi(kpi_row1[3], "⚪ UNCHANGED", f"{unchanged:,}")
-    _dash_kpi(kpi_row1[4], "🏦 TOTAL TURNOVER", f"₹{total_turnover:,.0f} Cr" if turnover_series.notna().any() else "N/A", bg="#ede7f6", fg="#4527a0")
+    _dash_kpi(
+        kpi_row1[4], "🕳️ NEAR 52W LOW (≤15%)",
+        f"{near_low_15_count:,}" if (cmp_series.notna().any() and low_series.notna().any()) else "N/A",
+        bg="#ffebee", fg="#b71c1c",
+    )
     _dash_kpi(kpi_row1[5], "🚀 BREAKOUTS", f"{breakout_count:,}", bg="#fff8e1", fg="#e65100")
     _dash_kpi(kpi_row1[6], "✅ BUY SIGNALS", f"{buy_signal_count:,}", bg="#e3f2fd", fg="#0d47a1")
 
@@ -1843,7 +1852,7 @@ if not raw_df.empty:
     kpi_row2 = st.columns(4)
     _dash_kpi(kpi_row2[0], "🏔️ NEAR 52W HIGH (≥95%)", f"{near_high_count:,}", bg="#e8f5e9", fg="#1b5e20")
     _dash_kpi(kpi_row2[1], "🕳️ NEAR 52W LOW (≤5%)", f"{near_low_count:,}", bg="#ffebee", fg="#b71c1c")
-    _dash_kpi(kpi_row2[2], "📊 MEDIAN % CHANGE", f"{median_change:+.2f}%" if median_change is not None else "N/A", bg=("#e8f5e9" if median_change and median_change >= 0 else "#ffebee"), fg=("#1b5e20" if median_change and median_change >= 0 else "#b71c1c"))
+    _dash_kpi(kpi_row2[2], "📉 BELOW 200 DMA", f"{below_200dma_count:,}" if diff200_series.notna().any() else "N/A", bg="#ffebee", fg="#b71c1c")
     _dash_kpi(kpi_row2[3], "🎯 ABOVE 200 DMA", f"{above_200dma_count:,}" if diff200_series.notna().any() else "N/A", bg="#e8f5e9", fg="#1b5e20")
 
     st.markdown("<br>", unsafe_allow_html=True)
