@@ -3096,7 +3096,7 @@ Be specific, data-driven, and actionable for a retail investor.
                             # Priority 1: Check NSE Fundamentals data first
                             val = _search_row(primary_dict)
                             
-                            # Priority 2: If N/A, fallback to the current sheet (Top 250)
+                            # Priority 2: If missing/N/A, fallback to the current sheet (Top 250)
                             if val == "-":
                                 val = _search_row(row)
                                 
