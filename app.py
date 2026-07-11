@@ -274,7 +274,7 @@ for name, info in live_data.items():
 if info["price"] in ["No Data", "Loading...", "Error"]:
 continue
 valid_cards_count += 1
-bg_color = "
+bg_color = ""
 change_sign = "+" if info["change"] >= 0 else ""
 index_nse_url = "https://www.nseindia.com/market-data/live-market-indices"
 cards_html += f"<a href='{index_nse_url}' target='_blank' style='text-decoration:none;'>"
