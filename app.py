@@ -1789,13 +1789,17 @@ if not raw_df.empty:
     mcap_target = next((c for c in actual_cols if "market cap" in c.lower()), None)
     mcap_series = _dash_numify(dash_df[mcap_target]) if mcap_target and mcap_target in dash_df.columns else pd.Series(dtype=float)
     diff200_series = _dash_numify(dash_df[diff_200_target]) if diff_200_target and diff_200_target in dash_df.columns else pd.Series(dtype=float)
+    turnover_target = next((c for c in actual_cols if "turnover" in c.lower()), None)
+    turnover_series = _dash_numify(dash_df[turnover_target]) if turnover_target and turnover_target in dash_df.columns else pd.Series(dtype=float)
 
     advances = int((pct_series > 0).sum()) if not pct_series.empty else 0
     declines = int((pct_series < 0).sum()) if not pct_series.empty else 0
     unchanged = int((pct_series == 0).sum()) if not pct_series.empty else 0
     avg_change = float(pct_series.mean()) if pct_series.notna().any() else 0.0
+    median_change = float(pct_series.median()) if pct_series.notna().any() else None
     total_volume = float(vol_series.sum()) if vol_series.notna().any() else 0.0
     total_mcap = float(mcap_series.sum()) if mcap_series.notna().any() else 0.0
+    total_turnover = float(turnover_series.sum()) if turnover_series.notna().any() else 0.0
     avg_rsi = float(rsi_series.mean()) if rsi_series.notna().any() else None
     above_200dma_count = int((diff200_series > 0).sum()) if diff200_series.notna().any() else 0
 
@@ -1830,7 +1834,7 @@ if not raw_df.empty:
     _dash_kpi(kpi_row1[1], "🟢 ADVANCES", f"{advances:,}", bg="#e8f5e9", fg="#1b5e20")
     _dash_kpi(kpi_row1[2], "🔴 DECLINES", f"{declines:,}", bg="#ffebee", fg="#b71c1c")
     _dash_kpi(kpi_row1[3], "⚪ UNCHANGED", f"{unchanged:,}")
-    _dash_kpi(kpi_row1[4], "💰 TOTAL MARKET CAP", f"₹{total_mcap:,.0f} Cr" if mcap_series.notna().any() else "N/A", bg="#ede7f6", fg="#4527a0")
+    _dash_kpi(kpi_row1[4], "🏦 TOTAL TURNOVER", f"₹{total_turnover:,.0f} Cr" if turnover_series.notna().any() else "N/A", bg="#ede7f6", fg="#4527a0")
     _dash_kpi(kpi_row1[5], "🚀 BREAKOUTS", f"{breakout_count:,}", bg="#fff8e1", fg="#e65100")
     _dash_kpi(kpi_row1[6], "✅ BUY SIGNALS", f"{buy_signal_count:,}", bg="#e3f2fd", fg="#0d47a1")
 
@@ -1839,7 +1843,7 @@ if not raw_df.empty:
     kpi_row2 = st.columns(4)
     _dash_kpi(kpi_row2[0], "🏔️ NEAR 52W HIGH (≥95%)", f"{near_high_count:,}", bg="#e8f5e9", fg="#1b5e20")
     _dash_kpi(kpi_row2[1], "🕳️ NEAR 52W LOW (≤5%)", f"{near_low_count:,}", bg="#ffebee", fg="#b71c1c")
-    _dash_kpi(kpi_row2[2], "📈 AVG RSI(14)", f"{avg_rsi:.1f}" if avg_rsi is not None else "N/A", bg=("#fff3e0" if avg_rsi and avg_rsi >= 70 else ("#e0f7fa" if avg_rsi and avg_rsi <= 30 else "#f5f7fa")))
+    _dash_kpi(kpi_row2[2], "📊 MEDIAN % CHANGE", f"{median_change:+.2f}%" if median_change is not None else "N/A", bg=("#e8f5e9" if median_change and median_change >= 0 else "#ffebee"), fg=("#1b5e20" if median_change and median_change >= 0 else "#b71c1c"))
     _dash_kpi(kpi_row2[3], "🎯 ABOVE 200 DMA", f"{above_200dma_count:,}" if diff200_series.notna().any() else "N/A", bg="#e8f5e9", fg="#1b5e20")
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -1851,26 +1855,71 @@ if not raw_df.empty:
     # read and exported, not interactively explored.
     DASH_CHART_CONFIG = {"displaylogo": False, "modeBarButtons": [["toImage"]]}
 
-    def _render_clickable_scatter(fig, div_id, height=360):
-        """Renders a Plotly figure whose points open fig's customdata URL in a new
-        tab when clicked. Plain st.plotly_chart doesn't support clickable hyperlinks
-        on data points, so this renders raw HTML via components.html with a small
-        JS 'plotly_click' listener attached — this works in any Streamlit version."""
-        html_str = fig.to_html(include_plotlyjs="cdn", full_html=False, div_id=div_id, config=DASH_CHART_CONFIG)
-        html_str += f"""
-        <script>
-        var _el = document.getElementById('{div_id}');
-        if (_el) {{
-            _el.on('plotly_click', function(data) {{
-                if (data.points && data.points.length > 0) {{
-                    var url = data.points[0].customdata;
-                    if (url) {{ window.open(url, '_blank'); }}
-                }}
-            }});
-        }}
-        </script>
+    def _gradient_color(frac):
+        """Red -> Amber -> Green interpolation, same stops as the old Plotly colorscale."""
+        frac = max(0.0, min(1.0, frac))
+        stops = [(0.0, (234, 67, 53)), (0.5, (249, 168, 37)), (1.0, (15, 157, 88))]
+        for i in range(len(stops) - 1):
+            f0, c0 = stops[i]
+            f1, c1 = stops[i + 1]
+            if f0 <= frac <= f1:
+                t = (frac - f0) / (f1 - f0) if f1 > f0 else 0.0
+                r = int(c0[0] + (c1[0] - c0[0]) * t)
+                g = int(c0[1] + (c1[1] - c0[1]) * t)
+                b = int(c0[2] + (c1[2] - c0[2]) * t)
+                return f"#{r:02x}{g:02x}{b:02x}"
+        return "#999999"
+
+    def _render_dot_scatter_html(title_text, points, y_min, y_max, y_label, height=340):
+        """Pure HTML/CSS 'scatter' where every point is a REAL <a href target=_blank>
+        anchor tag — the exact same clickable-link technique already used (and
+        confirmed working) by the Top 10 Daily Badges further down this page.
+        We avoid embedding Plotly inside components.html here because that renders
+        in a sandboxed iframe where a JS-triggered window.open() can silently get
+        blocked by the browser — a real anchor tag never has that problem.
+        points: list of (symbol, value, url) tuples.
         """
-        components.html(html_str, height=height + 20)
+        if not points:
+            st.info("No data available for this chart.")
+            return
+        n = len(points)
+        span = (y_max - y_min) or 1.0
+        dots_html = ""
+        for i, (sym, val, url) in enumerate(points):
+            frac = (val - y_min) / span
+            frac_c = max(0.0, min(1.0, frac))
+            color = _gradient_color(frac_c)
+            left_pct = (i / max(n - 1, 1)) * 100
+            top_pct = (1 - frac_c) * 100
+            dots_html += (
+                f'<a href="{url}" target="_blank" title="{sym}: {val:.2f}{y_label}" '
+                f'style="position:absolute; left:{left_pct:.3f}%; top:{top_pct:.3f}%; '
+                f'width:11px; height:11px; margin:-6px 0 0 -6px; border-radius:50%; '
+                f'background:{color}; display:block; border:1px solid rgba(255,255,255,0.75); '
+                f'box-shadow:0 0 1px rgba(0,0,0,0.35); cursor:pointer;"></a>'
+            )
+        gridlines = ""
+        for gp, gv in [(0, y_max), (25, None), (50, (y_min + y_max) / 2), (75, None), (100, y_min)]:
+            label = f"{gv:.0f}" if gv is not None else ""
+            gridlines += (
+                f'<div style="position:absolute; left:0; right:0; top:{gp}%; border-top:1px dashed rgba(0,0,0,0.08); height:0;">'
+                f'<span style="position:absolute; left:-2px; top:-8px; font-size:10px; color:#9aa0a6;">{label}</span></div>'
+            )
+        html = f"""
+        <div style="font-weight:700; font-size:14px; margin-bottom:2px;">{title_text}</div>
+        <div style="font-size:11px; color:#9aa0a6; margin-bottom:8px;">Click any dot to open its NSE chart in a new tab</div>
+        <div style="position:relative; width:100%; height:{height}px; margin-left:26px; width:calc(100% - 26px);
+                    background:#fff; border:1px solid rgba(0,0,0,0.08); border-radius:6px; overflow:hidden;">
+            {gridlines}
+            {dots_html}
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-left:26px; margin-top:4px;">
+            <span style="font-size:10px; color:#ea4335;">● low</span>
+            <span style="font-size:10px; color:#f9a825;">● mid</span>
+            <span style="font-size:10px; color:#0f9d58;">● high</span>
+        </div>
+        """
+        st.markdown(html, unsafe_allow_html=True)
 
     # ---------- Chart row 1: Breadth / % change distribution / RSI distribution ----------
     dash_c1, dash_c2, dash_c3 = st.columns([1, 1.3, 1.3])
@@ -2011,23 +2060,15 @@ if not raw_df.empty:
             pos_in_range = ((cmp_series - low_series) / span * 100).clip(0, 100)
             valid_mask = pos_in_range.notna() & symbol_series.notna()
             syms_v = symbol_series[valid_mask].astype(str).str.strip()
-            urls_v = [f"https://charting.nseindia.com/?symbol={s}-EQ" for s in syms_v]
-            fig_range = go.Figure(go.Scatter(
-                x=syms_v.values, y=pos_in_range[valid_mask].values, mode="markers",
-                marker=dict(
-                    size=9, color=pos_in_range[valid_mask].values,
-                    colorscale=[[0, "#ea4335"], [0.5, "#f9a825"], [1, "#0f9d58"]],
-                    showscale=True, colorbar=dict(title="% of Range")
-                ),
-                customdata=urls_v,
-                hovertemplate="<b>%{x}</b><br>% of 52W Range: %{y:.1f}%<br><i>Click to open NSE chart ↗</i><extra></extra>",
-            ))
-            fig_range.update_layout(
-                title="📍 Position within 52-Week Range (0% = Low, 100% = High) — click a dot to open its NSE chart",
-                template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10),
-                xaxis=dict(showticklabels=False, title="Stocks"), yaxis_title="% of 52W Range"
+            vals_v = pos_in_range[valid_mask].values
+            points = [
+                (s, float(v), f"https://charting.nseindia.com/?symbol={s}-EQ")
+                for s, v in zip(syms_v.values, vals_v) if s
+            ]
+            _render_dot_scatter_html(
+                "📍 Position within 52-Week Range (0% = Low, 100% = High)",
+                points, y_min=0, y_max=100, y_label="%", height=340,
             )
-            _render_clickable_scatter(fig_range, div_id=f"dash_range_{selected_sheet}".replace(" ", "_"), height=340)
         else:
             st.info("52-Week High/Low columns not detected for this sheet.")
 
@@ -2035,28 +2076,16 @@ if not raw_df.empty:
         if diff200_series.notna().any() and symbol_series is not None:
             valid_mask2 = diff200_series.notna() & symbol_series.notna()
             syms_v2 = symbol_series[valid_mask2].astype(str).str.strip()
-            urls_v2 = [f"https://charting.nseindia.com/?symbol={s}-EQ" for s in syms_v2]
             diff_vals = diff200_series[valid_mask2].values
-            d_min, d_max = float(np.nanmin(diff_vals)), float(np.nanmax(diff_vals))
-            d_absmax = max(abs(d_min), abs(d_max), 1e-9)
-            fig_diff200 = go.Figure(go.Scatter(
-                x=syms_v2.values, y=diff_vals, mode="markers",
-                marker=dict(
-                    size=9, color=diff_vals,
-                    colorscale=[[0, "#ea4335"], [0.5, "#f9a825"], [1, "#0f9d58"]],
-                    cmin=-d_absmax, cmax=d_absmax,
-                    showscale=True, colorbar=dict(title="% Diff")
-                ),
-                customdata=urls_v2,
-                hovertemplate="<b>%{x}</b><br>Diff from 200 DMA: %{y:.2f}%<br><i>Click to open NSE chart ↗</i><extra></extra>",
-            ))
-            fig_diff200.add_hline(y=0, line_dash="dash", line_color="#888", line_width=1)
-            fig_diff200.update_layout(
-                title="📐 Difference from 200 DMA (0% = at 200 DMA) — click a dot to open its NSE chart",
-                template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10),
-                xaxis=dict(showticklabels=False, title="Stocks"), yaxis_title="% Diff from 200 DMA"
+            d_absmax = max(abs(float(np.nanmin(diff_vals))), abs(float(np.nanmax(diff_vals))), 1e-9)
+            points2 = [
+                (s, float(v), f"https://charting.nseindia.com/?symbol={s}-EQ")
+                for s, v in zip(syms_v2.values, diff_vals) if s
+            ]
+            _render_dot_scatter_html(
+                "📐 Difference from 200 DMA (0% = at 200 DMA)",
+                points2, y_min=-d_absmax, y_max=d_absmax, y_label="%", height=340,
             )
-            _render_clickable_scatter(fig_diff200, div_id=f"dash_diff200_{selected_sheet}".replace(" ", "_"), height=340)
         else:
             st.info("Difference from 200 DMA column not detected for this sheet.")
 
