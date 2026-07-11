@@ -1931,6 +1931,20 @@ if not raw_df.empty:
     else:
         symbol_series = dash_df.index.astype(str).to_series(index=dash_df.index)
 
+    # `selected_symbol_col` (the Symbol column shown in the main table) gets
+    # rewritten elsewhere in the app (process_hyperlinks) into full HTML anchor
+    # tags like <a href="...">IRFC</a> so the table's Symbol cells are clickable.
+    # That HTML string is NOT what we want feeding into the NSE chart URL — it's
+    # exactly what caused the mangled/broken link. `_raw_symbol_` is the one
+    # column that's guaranteed to still hold the plain ticker text, so the two
+    # clickable dot-scatter charts below always use THIS instead of symbol_series.
+    if "_raw_symbol_" in dash_df.columns:
+        clean_symbol_series = dash_df["_raw_symbol_"].astype(str).str.strip()
+    else:
+        # Safety net in case _raw_symbol_ isn't present: strip any HTML tags
+        # down to the plain visible text, e.g. '<a href=...>IRFC</a>' -> 'IRFC'.
+        clean_symbol_series = symbol_series.astype(str).str.replace(r"<[^>]+>", "", regex=True).str.strip()
+
     with dash_c4:
         if pct_series.notna().any():
             top_gain_idx = pct_series.dropna().sort_values(ascending=False).head(10).index
@@ -1977,8 +1991,8 @@ if not raw_df.empty:
         if cmp_series.notna().any() and high_series.notna().any() and low_series.notna().any():
             span = (high_series - low_series).replace(0, np.nan)
             pos_in_range = ((cmp_series - low_series) / span * 100).clip(0, 100)
-            valid_mask = pos_in_range.notna() & symbol_series.notna()
-            syms_v = symbol_series[valid_mask].astype(str).str.strip().values
+            valid_mask = pos_in_range.notna() & clean_symbol_series.notna()
+            syms_v = clean_symbol_series[valid_mask].str.strip().values
             vals_v = pos_in_range[valid_mask].values
             fig_range = go.Figure(go.Scatter(
                 x=syms_v, y=vals_v, mode="markers",
@@ -2019,9 +2033,9 @@ if not raw_df.empty:
     dash_c7b, _dash_c8b_spacer = st.columns([1.4, 1])
 
     with dash_c7b:
-        if diff200_series.notna().any() and symbol_series is not None:
-            valid_mask2 = diff200_series.notna() & symbol_series.notna()
-            syms_v2 = symbol_series[valid_mask2].astype(str).str.strip().values
+        if diff200_series.notna().any() and clean_symbol_series is not None:
+            valid_mask2 = diff200_series.notna() & clean_symbol_series.notna()
+            syms_v2 = clean_symbol_series[valid_mask2].str.strip().values
             diff_vals = diff200_series[valid_mask2].values
             d_absmax = max(abs(float(np.nanmin(diff_vals))), abs(float(np.nanmax(diff_vals))), 1e-9)
             fig_diff200 = go.Figure(go.Scatter(
