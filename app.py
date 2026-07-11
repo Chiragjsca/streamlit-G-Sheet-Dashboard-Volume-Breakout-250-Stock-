@@ -1785,75 +1785,23 @@ if not raw_df.empty:
     low_series = _dash_numify(dash_df[low_target]) if low_target and low_target in dash_df.columns else pd.Series(dtype=float)
     rsi_series = _dash_numify(dash_df[rsi_target]) if rsi_target and rsi_target in dash_df.columns else pd.Series(dtype=float)
     deliv_series = _dash_numify(dash_df[deliv_target]) if deliv_target and deliv_target in dash_df.columns else pd.Series(dtype=float)
+
+    mcap_target = next((c for c in actual_cols if "market cap" in c.lower()), None)
+    mcap_series = _dash_numify(dash_df[mcap_target]) if mcap_target and mcap_target in dash_df.columns else pd.Series(dtype=float)
     diff200_series = _dash_numify(dash_df[diff_200_target]) if diff_200_target and diff_200_target in dash_df.columns else pd.Series(dtype=float)
-
-    def _render_clickable_dot_scatter(fig, chart_key):
-        """
-        Renders a fully native Plotly chart — every modebar button (zoom, pan,
-        box/lasso select, autoscale, reset axes, camera/PNG download, fullscreen)
-        stays exactly as Plotly ships it; nothing is stripped.
-
-        Dots aren't real <a> hyperlinks (Plotly can't render its markers as
-        anchor tags), so clicking a dot uses Streamlit's native on_select click
-        event to detect which stock was clicked, then shows a real Streamlit
-        st.link_button (an actual <a target="_blank">, not custom markdown/HTML)
-        to open that stock's NSE chart in a new tab. This sidesteps the earlier
-        bug entirely, since nothing here is piped through st.markdown's HTML/
-        markdown parser.
-
-        NOTE: this needs Streamlit >= 1.35 (for the on_select click-event API on
-        st.plotly_chart). On older versions it falls back to a plain chart with
-        a note asking you to bump the `streamlit` version in requirements.txt.
-        """
-        fig.update_layout(clickmode="event+select")
-        try:
-            event = st.plotly_chart(fig, use_container_width=True, key=chart_key, on_select="rerun")
-        except TypeError:
-            st.plotly_chart(fig, use_container_width=True, key=chart_key)
-            st.caption("⚠️ Click-to-open needs Streamlit ≥ 1.35 — update `streamlit` in requirements.txt to enable it.")
-            return
-
-        clicked_symbol = None
-        sel = event.get("selection") if isinstance(event, dict) else getattr(event, "selection", None)
-        if sel:
-            pts = sel.get("points") if isinstance(sel, dict) else getattr(sel, "points", None)
-            if pts:
-                last_pt = pts[-1]
-                cd = last_pt.get("customdata") if isinstance(last_pt, dict) else getattr(last_pt, "customdata", None)
-                if cd:
-                    clicked_symbol = cd[0] if isinstance(cd, (list, tuple)) else cd
-
-        if clicked_symbol:
-            url = f"https://charting.nseindia.com/?symbol={clicked_symbol}-EQ"
-            cl1, cl2 = st.columns([3, 1])
-            with cl1:
-                st.success(f"Selected: **{clicked_symbol}**")
-            with cl2:
-                st.link_button(f"📈 Open on NSE", url, use_container_width=True)
-
-            # Same extra links (and same exact URL patterns) as the
-            # "⚡ SYMBOL Links" panel used elsewhere in this app — added here
-            # per your request, nothing else changed. These are plain markdown
-            # links, not raw HTML, so they render safely with no parser risk.
-            sym = clicked_symbol
-            st.markdown(
-                f"**🔗 More links for {sym}:** "
-                f"[Trading View (🔗)](https://www.tradingview.com/symbols/{sym}/) &nbsp;|&nbsp; "
-                f"[History Data (🔗)](https://www.equitypandit.com/historical-data/{sym}) &nbsp;|&nbsp; "
-                f"[Screener (🔗)](https://www.screener.in/company/{sym}) &nbsp;|&nbsp; "
-                f"[Zerodha (🔗)](https://zerodha.com/markets/stocks/NSE/{sym}) &nbsp;|&nbsp; "
-                f"[Chartlink (🔗)](https://chartink.com/stocks-new?load-snapshot=exponential-moving-average-simple-moving-average-simple-moving-average-moving-average-convergence-divergence-chart-snapshot-175&symbol={sym}) &nbsp;|&nbsp; "
-                f"[Market Smith (🔗)](https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp) &nbsp;|&nbsp; "
-                f"[NSE URL (🔗)](https://www.nseindia.com/get-quotes/equity?symbol={sym})"
-            )
-        else:
-            st.caption("Click any dot above, then use the link button that appears here to open its NSE chart.")
+    turnover_target = next((c for c in actual_cols if "turnover" in c.lower()), None)
+    turnover_series = _dash_numify(dash_df[turnover_target]) if turnover_target and turnover_target in dash_df.columns else pd.Series(dtype=float)
 
     advances = int((pct_series > 0).sum()) if not pct_series.empty else 0
     declines = int((pct_series < 0).sum()) if not pct_series.empty else 0
     unchanged = int((pct_series == 0).sum()) if not pct_series.empty else 0
     avg_change = float(pct_series.mean()) if pct_series.notna().any() else 0.0
+    median_change = float(pct_series.median()) if pct_series.notna().any() else None
     total_volume = float(vol_series.sum()) if vol_series.notna().any() else 0.0
+    total_mcap = float(mcap_series.sum()) if mcap_series.notna().any() else 0.0
+    total_turnover = float(turnover_series.sum()) if turnover_series.notna().any() else 0.0
+    avg_rsi = float(rsi_series.mean()) if rsi_series.notna().any() else None
+    above_200dma_count = int((diff200_series > 0).sum()) if diff200_series.notna().any() else 0
 
     breakout_count = 0
     if breakout_signal_target and breakout_signal_target in dash_df.columns:
@@ -1886,7 +1834,7 @@ if not raw_df.empty:
     _dash_kpi(kpi_row1[1], "🟢 ADVANCES", f"{advances:,}", bg="#e8f5e9", fg="#1b5e20")
     _dash_kpi(kpi_row1[2], "🔴 DECLINES", f"{declines:,}", bg="#ffebee", fg="#b71c1c")
     _dash_kpi(kpi_row1[3], "⚪ UNCHANGED", f"{unchanged:,}")
-    _dash_kpi(kpi_row1[4], "📊 AVG % CHANGE", f"{avg_change:+.2f}%", bg=("#e8f5e9" if avg_change >= 0 else "#ffebee"), fg=("#1b5e20" if avg_change >= 0 else "#b71c1c"))
+    _dash_kpi(kpi_row1[4], "🏦 TOTAL TURNOVER", f"₹{total_turnover:,.0f} Cr" if turnover_series.notna().any() else "N/A", bg="#ede7f6", fg="#4527a0")
     _dash_kpi(kpi_row1[5], "🚀 BREAKOUTS", f"{breakout_count:,}", bg="#fff8e1", fg="#e65100")
     _dash_kpi(kpi_row1[6], "✅ BUY SIGNALS", f"{buy_signal_count:,}", bg="#e3f2fd", fg="#0d47a1")
 
@@ -1895,10 +1843,94 @@ if not raw_df.empty:
     kpi_row2 = st.columns(4)
     _dash_kpi(kpi_row2[0], "🏔️ NEAR 52W HIGH (≥95%)", f"{near_high_count:,}", bg="#e8f5e9", fg="#1b5e20")
     _dash_kpi(kpi_row2[1], "🕳️ NEAR 52W LOW (≤5%)", f"{near_low_count:,}", bg="#ffebee", fg="#b71c1c")
-    _dash_kpi(kpi_row2[2], "📦 TOTAL VOLUME", f"{total_volume:,.0f}" if vol_series.notna().any() else "N/A")
-    _dash_kpi(kpi_row2[3], "🚚 AVG DELIVERY %", f"{deliv_series.mean():.1f}%" if deliv_series.notna().any() else "N/A")
+    _dash_kpi(kpi_row2[2], "📊 MEDIAN % CHANGE", f"{median_change:+.2f}%" if median_change is not None else "N/A", bg=("#e8f5e9" if median_change and median_change >= 0 else "#ffebee"), fg=("#1b5e20" if median_change and median_change >= 0 else "#b71c1c"))
+    _dash_kpi(kpi_row2[3], "🎯 ABOVE 200 DMA", f"{above_200dma_count:,}" if diff200_series.notna().any() else "N/A", bg="#e8f5e9", fg="#1b5e20")
 
     st.markdown("<br>", unsafe_allow_html=True)
+
+    # Every Executive Dashboard chart uses this config: it strips out the
+    # zoom/pan/select/lasso/autoscale/reset buttons and leaves ONLY the
+    # "Download plot as PNG" camera icon in the modebar. This stops accidental
+    # drag/zoom "movement" on these overview charts — they're meant to be
+    # read and exported, not interactively explored.
+    DASH_CHART_CONFIG = {"displaylogo": False, "modeBarButtons": [["toImage"]]}
+
+    def _gradient_color(frac):
+        """Red -> Amber -> Green interpolation, same stops as the old Plotly colorscale."""
+        frac = max(0.0, min(1.0, frac))
+        stops = [(0.0, (234, 67, 53)), (0.5, (249, 168, 37)), (1.0, (15, 157, 88))]
+        for i in range(len(stops) - 1):
+            f0, c0 = stops[i]
+            f1, c1 = stops[i + 1]
+            if f0 <= frac <= f1:
+                t = (frac - f0) / (f1 - f0) if f1 > f0 else 0.0
+                r = int(c0[0] + (c1[0] - c0[0]) * t)
+                g = int(c0[1] + (c1[1] - c0[1]) * t)
+                b = int(c0[2] + (c1[2] - c0[2]) * t)
+                return f"#{r:02x}{g:02x}{b:02x}"
+        return "#999999"
+
+    def _render_dot_scatter_html(title_text, points, y_min, y_max, y_label, height=340):
+        """Pure HTML/CSS 'scatter' where every point is a REAL <a href target=_blank>
+        anchor tag — the exact same clickable-link technique already used (and
+        confirmed working) by the Top 10 Daily Badges further down this page.
+        We avoid embedding Plotly inside components.html here because that renders
+        in a sandboxed iframe where a JS-triggered window.open() can silently get
+        blocked by the browser — a real anchor tag never has that problem.
+        points: list of (symbol, value, url) tuples.
+        """
+        if not points:
+            st.info("No data available for this chart.")
+            return
+        n = len(points)
+        span = (y_max - y_min) or 1.0
+        dots_html = ""
+        for i, (sym, val, url) in enumerate(points):
+            frac = (val - y_min) / span
+            frac_c = max(0.0, min(1.0, frac))
+            color = _gradient_color(frac_c)
+            left_pct = (i / max(n - 1, 1)) * 100
+            top_pct = (1 - frac_c) * 100
+            dots_html += (
+                f'<a href="{url}" target="_blank" title="{sym}: {val:.2f}{y_label}" '
+                f'style="position:absolute; left:{left_pct:.3f}%; top:{top_pct:.3f}%; '
+                f'width:11px; height:11px; margin:-6px 0 0 -6px; border-radius:50%; '
+                f'background:{color}; display:block; border:1px solid rgba(255,255,255,0.75); '
+                f'box-shadow:0 0 1px rgba(0,0,0,0.35); cursor:pointer;"></a>'
+            )
+        gridlines = ""
+        for gp, gv in [(0, y_max), (25, None), (50, (y_min + y_max) / 2), (75, None), (100, y_min)]:
+            label = f"{gv:.0f}" if gv is not None else ""
+            gridlines += (
+                f'<div style="position:absolute; left:0; right:0; top:{gp}%; border-top:1px dashed rgba(0,0,0,0.08); height:0;">'
+                f'<span style="position:absolute; left:-2px; top:-8px; font-size:10px; color:#9aa0a6;">{label}</span></div>'
+            )
+        html = (
+            f'<div style="font-family:\'Source Sans Pro\',sans-serif;">'
+            f'<div style="font-weight:700; font-size:14px; margin-bottom:2px;">{title_text}</div>'
+            f'<div style="font-size:11px; color:#9aa0a6; margin-bottom:8px;">Click any dot to open its NSE chart in a new tab</div>'
+            f'<div style="position:relative; width:calc(100% - 26px); height:{height}px; margin-left:26px; '
+            f'background:#fff; border:1px solid rgba(0,0,0,0.08); border-radius:6px; overflow:hidden;">'
+            f'{gridlines}'
+            f'{dots_html}'
+            f'</div>'
+            f'<div style="display:flex; justify-content:space-between; margin-left:26px; margin-top:4px;">'
+            f'<span style="font-size:10px; color:#ea4335;">\u25cf low</span>'
+            f'<span style="font-size:10px; color:#f9a825;">\u25cf mid</span>'
+            f'<span style="font-size:10px; color:#0f9d58;">\u25cf high</span>'
+            f'</div>'
+            f'</div>'
+        )
+        # NOTE: rendered via components.html (real iframe), NOT st.markdown().
+        # st.markdown() pipes the string through Streamlit's Python-Markdown
+        # parser first, and this HTML — a long single-line blob of many
+        # concatenated <a> tags plus multi-line <div> tags — was being
+        # mis-parsed as a code block and dumped out as literal tag text
+        # instead of being rendered (that's the raw-HTML error screenshot).
+        # components.html skips the markdown parser entirely and always
+        # renders real elements; real <a target="_blank"> anchors (unlike
+        # JS window.open() calls) work fine inside a sandboxed iframe.
+        components.html(html, height=height + 90, scrolling=False)
 
     # ---------- Chart row 1: Breadth / % change distribution / RSI distribution ----------
     dash_c1, dash_c2, dash_c3 = st.columns([1, 1.3, 1.3])
@@ -1913,7 +1945,7 @@ if not raw_df.empty:
             )])
             fig_breadth.update_layout(title="Market Breadth", template="plotly_white", height=300,
                                        margin=dict(t=40, b=10, l=10, r=10), showlegend=True)
-            st.plotly_chart(fig_breadth, use_container_width=True, key=f"dash_breadth_{selected_sheet}")
+            st.plotly_chart(fig_breadth, use_container_width=True, key=f"dash_breadth_{selected_sheet}", config=DASH_CHART_CONFIG)
         else:
             st.info("No % change column detected for breadth chart.")
 
@@ -1922,7 +1954,7 @@ if not raw_df.empty:
             fig_pcthist = go.Figure(data=[go.Histogram(x=pct_series.dropna(), nbinsx=30, marker_color="#1f77b4")])
             fig_pcthist.update_layout(title="% Change Distribution", template="plotly_white", height=300,
                                        margin=dict(t=40, b=10, l=10, r=10), xaxis_title="% Change", yaxis_title="Stocks")
-            st.plotly_chart(fig_pcthist, use_container_width=True, key=f"dash_pcthist_{selected_sheet}")
+            st.plotly_chart(fig_pcthist, use_container_width=True, key=f"dash_pcthist_{selected_sheet}", config=DASH_CHART_CONFIG)
         else:
             st.info("No % change column detected.")
 
@@ -1933,7 +1965,7 @@ if not raw_df.empty:
             fig_rsihist.add_vrect(x0=70, x1=100, fillcolor="#D50000", opacity=0.08, line_width=0, annotation_text="Overbought")
             fig_rsihist.update_layout(title="RSI(14) Distribution", template="plotly_white", height=300,
                                        margin=dict(t=40, b=10, l=10, r=10), xaxis_title="RSI")
-            st.plotly_chart(fig_rsihist, use_container_width=True, key=f"dash_rsihist_{selected_sheet}")
+            st.plotly_chart(fig_rsihist, use_container_width=True, key=f"dash_rsihist_{selected_sheet}", config=DASH_CHART_CONFIG)
         else:
             st.info("No RSI column detected for this sheet.")
 
@@ -1947,20 +1979,6 @@ if not raw_df.empty:
     else:
         symbol_series = dash_df.index.astype(str).to_series(index=dash_df.index)
 
-    # `selected_symbol_col` (the Symbol column shown in the main table) gets
-    # rewritten elsewhere in the app (process_hyperlinks) into full HTML anchor
-    # tags like <a href="...">IRFC</a> so the table's Symbol cells are clickable.
-    # That HTML string is NOT what we want feeding into the NSE chart URL — it's
-    # exactly what caused the mangled/broken link. `_raw_symbol_` is the one
-    # column that's guaranteed to still hold the plain ticker text, so the two
-    # clickable dot-scatter charts below always use THIS instead of symbol_series.
-    if "_raw_symbol_" in dash_df.columns:
-        clean_symbol_series = dash_df["_raw_symbol_"].astype(str).str.strip()
-    else:
-        # Safety net in case _raw_symbol_ isn't present: strip any HTML tags
-        # down to the plain visible text, e.g. '<a href=...>IRFC</a>' -> 'IRFC'.
-        clean_symbol_series = symbol_series.astype(str).str.replace(r"<[^>]+>", "", regex=True).str.strip()
-
     with dash_c4:
         if pct_series.notna().any():
             top_gain_idx = pct_series.dropna().sort_values(ascending=False).head(10).index
@@ -1970,7 +1988,7 @@ if not raw_df.empty:
             }).iloc[::-1]
             fig_g = go.Figure(go.Bar(x=top_g["Change %"], y=top_g["Symbol"], orientation='h', marker_color="#0f9d58"))
             fig_g.update_layout(title="🏆 Top 10 Gainers", template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10))
-            st.plotly_chart(fig_g, use_container_width=True, key=f"dash_topgain_{selected_sheet}")
+            st.plotly_chart(fig_g, use_container_width=True, key=f"dash_topgain_{selected_sheet}", config=DASH_CHART_CONFIG)
         else:
             st.info("No % change column detected.")
 
@@ -1983,7 +2001,7 @@ if not raw_df.empty:
             }).iloc[::-1]
             fig_l = go.Figure(go.Bar(x=top_l["Change %"], y=top_l["Symbol"], orientation='h', marker_color="#ea4335"))
             fig_l.update_layout(title="📉 Top 10 Losers", template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10))
-            st.plotly_chart(fig_l, use_container_width=True, key=f"dash_toplose_{selected_sheet}")
+            st.plotly_chart(fig_l, use_container_width=True, key=f"dash_toplose_{selected_sheet}", config=DASH_CHART_CONFIG)
         else:
             st.info("No % change column detected.")
 
@@ -1996,41 +2014,96 @@ if not raw_df.empty:
             }).iloc[::-1]
             fig_v = go.Figure(go.Bar(x=top_v["Volume"], y=top_v["Symbol"], orientation='h', marker_color="#f9a825"))
             fig_v.update_layout(title="🔥 Top 10 by Volume", template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10))
-            st.plotly_chart(fig_v, use_container_width=True, key=f"dash_topvol_{selected_sheet}")
+            st.plotly_chart(fig_v, use_container_width=True, key=f"dash_topvol_{selected_sheet}", config=DASH_CHART_CONFIG)
         else:
             st.info("No Volume column detected for this sheet.")
 
-    # ---------- Chart row 3: 52-week range positioning + Trend/Signal breakdown ----------
-    dash_c7, dash_c8 = st.columns([1.4, 1])
+    # ---------- Chart row 3: Top 10 nearest 52W High / nearest 52W Low / by Delivery % ----------
+    dash_n1, dash_n2, dash_n3 = st.columns(3)
+
+    with dash_n1:
+        if cmp_series.notna().any() and high_series.notna().any():
+            pct_from_high = ((high_series - cmp_series) / high_series.replace(0, np.nan) * 100)
+            near_high_idx = pct_from_high.dropna().sort_values(ascending=True).head(10).index
+            near_h = pd.DataFrame({
+                "Symbol": symbol_series.loc[near_high_idx].values,
+                "% Below 52W High": pct_from_high.loc[near_high_idx].values
+            }).iloc[::-1]
+            fig_nh = go.Figure(go.Bar(x=near_h["% Below 52W High"], y=near_h["Symbol"], orientation='h', marker_color="#0f9d58"))
+            fig_nh.update_layout(title="🏔️ Top 10 Nearest 52W High", template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10))
+            st.plotly_chart(fig_nh, use_container_width=True, key=f"dash_nearhigh_{selected_sheet}", config=DASH_CHART_CONFIG)
+        else:
+            st.info("52-Week High column not detected for this sheet.")
+
+    with dash_n2:
+        if cmp_series.notna().any() and low_series.notna().any():
+            pct_from_low = ((cmp_series - low_series) / low_series.replace(0, np.nan) * 100)
+            near_low_idx = pct_from_low.dropna().sort_values(ascending=True).head(10).index
+            near_l = pd.DataFrame({
+                "Symbol": symbol_series.loc[near_low_idx].values,
+                "% Above 52W Low": pct_from_low.loc[near_low_idx].values
+            }).iloc[::-1]
+            fig_nl = go.Figure(go.Bar(x=near_l["% Above 52W Low"], y=near_l["Symbol"], orientation='h', marker_color="#ea4335"))
+            fig_nl.update_layout(title="🕳️ Top 10 Nearest 52W Low", template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10))
+            st.plotly_chart(fig_nl, use_container_width=True, key=f"dash_nearlow_{selected_sheet}", config=DASH_CHART_CONFIG)
+        else:
+            st.info("52-Week Low column not detected for this sheet.")
+
+    with dash_n3:
+        if deliv_series.notna().any():
+            top_deliv_idx = deliv_series.dropna().sort_values(ascending=False).head(10).index
+            top_d = pd.DataFrame({
+                "Symbol": symbol_series.loc[top_deliv_idx].values,
+                "% Delivery": deliv_series.loc[top_deliv_idx].values
+            }).iloc[::-1]
+            fig_d = go.Figure(go.Bar(x=top_d["% Delivery"], y=top_d["Symbol"], orientation='h', marker_color="#5c6bc0"))
+            fig_d.update_layout(title="🚚 Top 10 by Delivery %", template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10))
+            st.plotly_chart(fig_d, use_container_width=True, key=f"dash_topdeliv_{selected_sheet}", config=DASH_CHART_CONFIG)
+        else:
+            st.info("No Delivery % column detected for this sheet.")
+
+    # ---------- Chart row 4: 52-week range positioning + Difference from 200 DMA positioning (both clickable → NSE chart) ----------
+    dash_c7, dash_c8 = st.columns(2)
 
     with dash_c7:
         if cmp_series.notna().any() and high_series.notna().any() and low_series.notna().any():
             span = (high_series - low_series).replace(0, np.nan)
             pos_in_range = ((cmp_series - low_series) / span * 100).clip(0, 100)
-            valid_mask = pos_in_range.notna() & clean_symbol_series.notna()
-            syms_v = clean_symbol_series[valid_mask].str.strip().values
+            valid_mask = pos_in_range.notna() & symbol_series.notna()
+            syms_v = symbol_series[valid_mask].astype(str).str.strip()
             vals_v = pos_in_range[valid_mask].values
-            fig_range = go.Figure(go.Scatter(
-                x=syms_v, y=vals_v, mode="markers",
-                marker=dict(
-                    size=9, color=vals_v,
-                    colorscale=[[0, "#ea4335"], [0.5, "#f9a825"], [1, "#0f9d58"]],
-                    cmin=0, cmax=100,
-                    showscale=True, colorbar=dict(title="% of Range")
-                ),
-                customdata=syms_v,
-                hovertemplate="%{customdata}: %{y:.2f}%<extra></extra>",
-            ))
-            fig_range.update_layout(
-                title="📍 Position within 52-Week Range (0% = Low, 100% = High)",
-                template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10),
-                xaxis=dict(showticklabels=False, title="Stocks"), yaxis_title="% of 52W Range"
+            points = [
+                (s, float(v), f"https://charting.nseindia.com/?symbol={s}-EQ")
+                for s, v in zip(syms_v.values, vals_v) if s
+            ]
+            _render_dot_scatter_html(
+                "📍 Position within 52-Week Range (0% = Low, 100% = High)",
+                points, y_min=0, y_max=100, y_label="%", height=340,
             )
-            _render_clickable_dot_scatter(fig_range, f"dash_range_{selected_sheet}")
         else:
             st.info("52-Week High/Low columns not detected for this sheet.")
 
     with dash_c8:
+        if diff200_series.notna().any() and symbol_series is not None:
+            valid_mask2 = diff200_series.notna() & symbol_series.notna()
+            syms_v2 = symbol_series[valid_mask2].astype(str).str.strip()
+            diff_vals = diff200_series[valid_mask2].values
+            d_absmax = max(abs(float(np.nanmin(diff_vals))), abs(float(np.nanmax(diff_vals))), 1e-9)
+            points2 = [
+                (s, float(v), f"https://charting.nseindia.com/?symbol={s}-EQ")
+                for s, v in zip(syms_v2.values, diff_vals) if s
+            ]
+            _render_dot_scatter_html(
+                "📐 Difference from 200 DMA (0% = at 200 DMA)",
+                points2, y_min=-d_absmax, y_max=d_absmax, y_label="%", height=340,
+            )
+        else:
+            st.info("Difference from 200 DMA column not detected for this sheet.")
+
+    # ---------- Chart row 5: Trend / Signal breakdown ----------
+    dash_c9, _dash_c10_spacer = st.columns([1, 1.4])
+
+    with dash_c9:
         signal_col = trend_target or buy_signal_target or breakout_signal_target
         if signal_col and signal_col in dash_df.columns:
             sig_counts = dash_df[signal_col].astype(str).str.strip()
@@ -2039,40 +2112,11 @@ if not raw_df.empty:
                 vc = sig_counts.value_counts().head(8)
                 fig_sig = go.Figure(go.Bar(x=vc.values, y=vc.index.astype(str), orientation='h', marker_color="#5c6bc0"))
                 fig_sig.update_layout(title=f"📶 {signal_col} Breakdown", template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10))
-                st.plotly_chart(fig_sig, use_container_width=True, key=f"dash_signal_{selected_sheet}")
+                st.plotly_chart(fig_sig, use_container_width=True, key=f"dash_signal_{selected_sheet}", config=DASH_CHART_CONFIG)
             else:
                 st.info("No signal data available.")
         else:
             st.info("No Trend/Signal column detected for this sheet.")
-
-    # ---------- Chart row 3b: Difference from 200 DMA positioning (clickable → NSE chart) ----------
-    dash_c7b, _dash_c8b_spacer = st.columns([1.4, 1])
-
-    with dash_c7b:
-        if diff200_series.notna().any() and clean_symbol_series is not None:
-            valid_mask2 = diff200_series.notna() & clean_symbol_series.notna()
-            syms_v2 = clean_symbol_series[valid_mask2].str.strip().values
-            diff_vals = diff200_series[valid_mask2].values
-            d_absmax = max(abs(float(np.nanmin(diff_vals))), abs(float(np.nanmax(diff_vals))), 1e-9)
-            fig_diff200 = go.Figure(go.Scatter(
-                x=syms_v2, y=diff_vals, mode="markers",
-                marker=dict(
-                    size=9, color=diff_vals,
-                    colorscale=[[0, "#ea4335"], [0.5, "#f9a825"], [1, "#0f9d58"]],
-                    cmin=-d_absmax, cmax=d_absmax,
-                    showscale=True, colorbar=dict(title="% Diff")
-                ),
-                customdata=syms_v2,
-                hovertemplate="%{customdata}: %{y:.2f}%<extra></extra>",
-            ))
-            fig_diff200.update_layout(
-                title="📐 Difference from 200 DMA (0% = at 200 DMA)",
-                template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10),
-                xaxis=dict(showticklabels=False, title="Stocks"), yaxis_title="% Diff from 200 DMA"
-            )
-            _render_clickable_dot_scatter(fig_diff200, f"dash_diff200_{selected_sheet}")
-        else:
-            st.info("Difference from 200 DMA column not detected for this sheet.")
 
     # ==========================================
     # 📌 TOP UI: ROWS COUNT, COLUMN WIDTH ADJUSTER & EXCEL DOWNLOAD
@@ -3179,7 +3223,11 @@ Be specific, data-driven, and actionable for a retail investor.
                                 if sym_col_fund:
                                     fund_match = fund_df[fund_df[sym_col_fund].astype(str).str.strip() == sym]
                                     if not fund_match.empty:
-                                        fund_primary_row = fund_match.iloc[0].to_dict()
+                                        _raw_fund_row = fund_match.iloc[0].to_dict()
+                                        fund_primary_row = {
+                                            k: v for k, v in _raw_fund_row.items()
+                                            if not str(k).startswith("_bg_") and not str(k).startswith("_txt_") and str(k) != "_raw_symbol_"
+                                        }
 
                         def _sheet_val(row, primary_dict, *keys):
                             """Fuzzy lookup: FIRST checks NSE Fundamentals, THEN falls back to the current sheet (Top 250)."""
@@ -3189,6 +3237,9 @@ Be specific, data-driven, and actionable for a retail investor.
                                     r_idx = list(r_data.keys()) if isinstance(r_data, dict) else list(r_data.index)
                                 except Exception:
                                     return "-"
+                                # Exclude internal formatting/meta columns (e.g. "_bg_Face Value") so they
+                                # can never be mistaken for the real data column during fuzzy matching.
+                                r_idx = [c for c in r_idx if not str(c).startswith("_bg_") and not str(c).startswith("_txt_") and str(c) != "_raw_symbol_"]
                                 for key in keys:
                                     k_low = key.lower().strip()
                                     # exact match first
@@ -3267,6 +3318,8 @@ Be specific, data-driven, and actionable for a retail investor.
                             ("% Delivery", ["% delivery", "delivery %", "delivery"]),
                             ("52W High Date", ["52w high date", "52 week high date"]),
                             ("52W Low Date", ["52w low date", "52 week low date"]),
+                            ("Volume", ["volume"]),
+                            ("Turnover", ["turnover"]),
                         ])
 
                         # ── Group 2: Signals / system output ──
@@ -3304,6 +3357,17 @@ Be specific, data-driven, and actionable for a retail investor.
                             ("Trade Payables (Cr)", ["trade payables"]),
                             ("Fixed Assets/Net PPE (Cr)", ["fixed assets", "net ppe"]),
                             ("Total Assets (Cr)", ["total assets"]),
+                            ("Open (₹)", ["open price", "open (", "open"]),
+                            ("High (₹)", ["day high", "high price", "high ("]),
+                            ("Low (₹)", ["day low", "low price", "low ("]),
+                            ("Prev Close (₹)", ["prev close", "previous close", "close price"]),
+                            ("Price Change (₹)", ["price change", "change (", "change in price"]),
+                            ("% Change", ["% change", "price %", "change %"]),
+                            ("Shares Outstanding (Cr)", ["shares outstanding"]),
+                            ("Book Value (₹/share)", ["book value"]),
+                            ("Public %", ["public %", "public holding"]),
+                            ("FII %", ["fii %", "fii holding", "fii"]),
+                            ("DII %", ["dii %", "dii holding", "dii"]),
                         ])
 
                     with rsi_tab:
@@ -3632,7 +3696,7 @@ Be specific, data-driven, and actionable for a retail investor.
                 display_perf_df["52W Low"] = display_perf_df["52W Low"].apply(lambda x: f"{x:,.2f}" if pd.notnull(x) else "-")
 
             perf_gb = GridOptionsBuilder.from_dataframe(display_perf_df)
-            perf_gb.configure_default_column(filter=True, sortable=True, resizable=True, floatingFilter=False)
+            perf_gb.configure_default_column(filter=True, sortable=True, resizable=True, floatingFilter=False, flex=0)
             perf_gb.configure_column("RANK", width=70, pinned="left")
             perf_gb.configure_column("STOCK NAME", width=140, pinned="left", cellRenderer=html_renderer)
 
@@ -3697,22 +3761,24 @@ Be specific, data-driven, and actionable for a retail investor.
                     }
                     dyn_width = default_widths.get(col, 130)
 
-                if col == "STOCK NAME":
-                    perf_gb.configure_column(col, width=dyn_width, pinned="left", cellRenderer=html_renderer)
-                elif col == "CURRENT PRICE":
-                    perf_gb.configure_column(col, width=dyn_width)
-                elif col == "🔬 BF Score":
-                    perf_gb.configure_column(col, width=dyn_width, cellStyle=bf_score_js)
-                elif col == "📊 BF Grade":
-                    perf_gb.configure_column(col, width=dyn_width, cellStyle=bf_grade_js)
-                elif col in ("Volume Trend", "Breakout Signal", "Trend", "MACD Crossover", "Buy Signal"):
-                    perf_gb.configure_column(col, width=dyn_width, cellStyle=trend_style_js)
-                elif col in detected_metric_map or col == "Diff. from 200 DMA":
-                    perf_gb.configure_column(col, width=dyn_width, cellStyle=color_code_js)
-                else:
-                    perf_gb.configure_column(col, width=dyn_width)
+                min_w = max(70, min(dyn_width, 90))
 
-            perf_gb.configure_grid_options(domLayout="normal", rowHeight=38, headerHeight=45, enableCellTextSelection=True)
+                if col == "STOCK NAME":
+                    perf_gb.configure_column(col, width=dyn_width, minWidth=min_w, pinned="left", cellRenderer=html_renderer)
+                elif col == "CURRENT PRICE":
+                    perf_gb.configure_column(col, width=dyn_width, minWidth=min_w)
+                elif col == "🔬 BF Score":
+                    perf_gb.configure_column(col, width=dyn_width, minWidth=min_w, cellStyle=bf_score_js)
+                elif col == "📊 BF Grade":
+                    perf_gb.configure_column(col, width=dyn_width, minWidth=min_w, cellStyle=bf_grade_js)
+                elif col in ("Volume Trend", "Breakout Signal", "Trend", "MACD Crossover", "Buy Signal"):
+                    perf_gb.configure_column(col, width=dyn_width, minWidth=min_w, cellStyle=trend_style_js)
+                elif col in detected_metric_map or col == "Diff. from 200 DMA":
+                    perf_gb.configure_column(col, width=dyn_width, minWidth=min_w, cellStyle=color_code_js)
+                else:
+                    perf_gb.configure_column(col, width=dyn_width, minWidth=min_w)
+
+            perf_gb.configure_grid_options(domLayout="normal", rowHeight=38, headerHeight=45, enableCellTextSelection=True, alwaysShowHorizontalScroll=True, suppressColumnVirtualisation=True)
             perf_grid_ops = perf_gb.build()
 
             AgGrid(display_perf_df, gridOptions=perf_grid_ops, theme="streamlit", allow_unsafe_jscode=True, fit_columns_on_grid_load=False, height=450, width='100%', key="horizon_perf_grid")
@@ -3805,7 +3871,7 @@ Be specific, data-driven, and actionable for a retail investor.
             bf_scan_df = pd.DataFrame(bf_results)
 
             bf_gb = GridOptionsBuilder.from_dataframe(bf_scan_df)
-            bf_gb.configure_default_column(filter=True, sortable=True, resizable=True, floatingFilter=False)
+            bf_gb.configure_default_column(filter=True, sortable=True, resizable=True, floatingFilter=False, flex=0)
 
             bf_score_style = JsCode("""
             function(params) {
@@ -3846,16 +3912,17 @@ Be specific, data-driven, and actionable for a retail investor.
                     dyn_w = bf_default_widths.get(col, 120)
 
                 pinned = "left" if col == "Symbol" else None
+                min_w = max(70, min(dyn_w, 90))
                 if col == "Score":
-                    bf_gb.configure_column(col, width=dyn_w, pinned=pinned, cellStyle=bf_score_style)
+                    bf_gb.configure_column(col, width=dyn_w, minWidth=min_w, pinned=pinned, cellStyle=bf_score_style)
                 elif col == "Symbol":
-                    bf_gb.configure_column(col, width=dyn_w, pinned=pinned, cellRenderer=html_renderer)
+                    bf_gb.configure_column(col, width=dyn_w, minWidth=min_w, pinned=pinned, cellRenderer=html_renderer)
                 elif col in ("Volume Trend", "Breakout Signal", "Trend", "MACD Crossover", "Buy Signal"):
-                    bf_gb.configure_column(col, width=dyn_w, pinned=pinned, cellStyle=trend_style_js)
+                    bf_gb.configure_column(col, width=dyn_w, minWidth=min_w, pinned=pinned, cellStyle=trend_style_js)
                 else:
-                    bf_gb.configure_column(col, width=dyn_w, pinned=pinned)
+                    bf_gb.configure_column(col, width=dyn_w, minWidth=min_w, pinned=pinned)
 
-            bf_gb.configure_grid_options(domLayout="normal", rowHeight=40, headerHeight=45)
+            bf_gb.configure_grid_options(domLayout="normal", rowHeight=40, headerHeight=45, alwaysShowHorizontalScroll=True, suppressColumnVirtualisation=True)
             bf_grid_ops = bf_gb.build()
 
             AgGrid(bf_scan_df, gridOptions=bf_grid_ops, theme="streamlit", allow_unsafe_jscode=True, fit_columns_on_grid_load=False, height=400, width='100%', key="bf_scanner_grid")
