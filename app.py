@@ -292,7 +292,7 @@ else:
 st.markdown(cards_html, unsafe_allow_html=True)
 st.write("---")
 def rgb_to_hex(color_dict):
-if not color_dict: return "
+if not color_dict: return ""
 r, g, b = int(color_dict.get('red', 0) * 255), int(color_dict.get('green', 0) * 255), int(color_dict.get('blue', 0) * 255)
 return f"
 @st.cache_data(ttl=300, show_spinner=False)
