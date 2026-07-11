@@ -1830,6 +1830,22 @@ if not raw_df.empty:
                 st.success(f"Selected: **{clicked_symbol}**")
             with cl2:
                 st.link_button(f"📈 Open on NSE", url, use_container_width=True)
+
+            # Same extra links (and same exact URL patterns) as the
+            # "⚡ SYMBOL Links" panel used elsewhere in this app — added here
+            # per your request, nothing else changed. These are plain markdown
+            # links, not raw HTML, so they render safely with no parser risk.
+            sym = clicked_symbol
+            st.markdown(
+                f"**🔗 More links for {sym}:** "
+                f"[Trading View (🔗)](https://www.tradingview.com/symbols/{sym}/) &nbsp;|&nbsp; "
+                f"[History Data (🔗)](https://www.equitypandit.com/historical-data/{sym}) &nbsp;|&nbsp; "
+                f"[Screener (🔗)](https://www.screener.in/company/{sym}) &nbsp;|&nbsp; "
+                f"[Zerodha (🔗)](https://zerodha.com/markets/stocks/NSE/{sym}) &nbsp;|&nbsp; "
+                f"[Chartlink (🔗)](https://chartink.com/stocks-new?load-snapshot=exponential-moving-average-simple-moving-average-simple-moving-average-moving-average-convergence-divergence-chart-snapshot-175&symbol={sym}) &nbsp;|&nbsp; "
+                f"[Market Smith (🔗)](https://marketsmithindia.com/mstool/eval/{sym}/evaluation.jsp) &nbsp;|&nbsp; "
+                f"[NSE URL (🔗)](https://www.nseindia.com/get-quotes/equity?symbol={sym})"
+            )
         else:
             st.caption("Click any dot above, then use the link button that appears here to open its NSE chart.")
 
