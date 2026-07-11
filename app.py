@@ -1785,6 +1785,53 @@ if not raw_df.empty:
     low_series = _dash_numify(dash_df[low_target]) if low_target and low_target in dash_df.columns else pd.Series(dtype=float)
     rsi_series = _dash_numify(dash_df[rsi_target]) if rsi_target and rsi_target in dash_df.columns else pd.Series(dtype=float)
     deliv_series = _dash_numify(dash_df[deliv_target]) if deliv_target and deliv_target in dash_df.columns else pd.Series(dtype=float)
+    diff200_series = _dash_numify(dash_df[diff_200_target]) if diff_200_target and diff_200_target in dash_df.columns else pd.Series(dtype=float)
+
+    def _render_clickable_dot_scatter(fig, chart_key):
+        """
+        Renders a fully native Plotly chart — every modebar button (zoom, pan,
+        box/lasso select, autoscale, reset axes, camera/PNG download, fullscreen)
+        stays exactly as Plotly ships it; nothing is stripped.
+
+        Dots aren't real <a> hyperlinks (Plotly can't render its markers as
+        anchor tags), so clicking a dot uses Streamlit's native on_select click
+        event to detect which stock was clicked, then shows a real Streamlit
+        st.link_button (an actual <a target="_blank">, not custom markdown/HTML)
+        to open that stock's NSE chart in a new tab. This sidesteps the earlier
+        bug entirely, since nothing here is piped through st.markdown's HTML/
+        markdown parser.
+
+        NOTE: this needs Streamlit >= 1.35 (for the on_select click-event API on
+        st.plotly_chart). On older versions it falls back to a plain chart with
+        a note asking you to bump the `streamlit` version in requirements.txt.
+        """
+        fig.update_layout(clickmode="event+select")
+        try:
+            event = st.plotly_chart(fig, use_container_width=True, key=chart_key, on_select="rerun")
+        except TypeError:
+            st.plotly_chart(fig, use_container_width=True, key=chart_key)
+            st.caption("⚠️ Click-to-open needs Streamlit ≥ 1.35 — update `streamlit` in requirements.txt to enable it.")
+            return
+
+        clicked_symbol = None
+        sel = event.get("selection") if isinstance(event, dict) else getattr(event, "selection", None)
+        if sel:
+            pts = sel.get("points") if isinstance(sel, dict) else getattr(sel, "points", None)
+            if pts:
+                last_pt = pts[-1]
+                cd = last_pt.get("customdata") if isinstance(last_pt, dict) else getattr(last_pt, "customdata", None)
+                if cd:
+                    clicked_symbol = cd[0] if isinstance(cd, (list, tuple)) else cd
+
+        if clicked_symbol:
+            url = f"https://charting.nseindia.com/?symbol={clicked_symbol}-EQ"
+            cl1, cl2 = st.columns([3, 1])
+            with cl1:
+                st.success(f"Selected: **{clicked_symbol}**")
+            with cl2:
+                st.link_button(f"📈 Open on NSE", url, use_container_width=True)
+        else:
+            st.caption("Click any dot above, then use the link button that appears here to open its NSE chart.")
 
     advances = int((pct_series > 0).sum()) if not pct_series.empty else 0
     declines = int((pct_series < 0).sum()) if not pct_series.empty else 0
@@ -1930,20 +1977,26 @@ if not raw_df.empty:
         if cmp_series.notna().any() and high_series.notna().any() and low_series.notna().any():
             span = (high_series - low_series).replace(0, np.nan)
             pos_in_range = ((cmp_series - low_series) / span * 100).clip(0, 100)
+            valid_mask = pos_in_range.notna() & symbol_series.notna()
+            syms_v = symbol_series[valid_mask].astype(str).str.strip().values
+            vals_v = pos_in_range[valid_mask].values
             fig_range = go.Figure(go.Scatter(
-                x=symbol_series.values, y=pos_in_range.values, mode="markers",
+                x=syms_v, y=vals_v, mode="markers",
                 marker=dict(
-                    size=9, color=pos_in_range.values,
+                    size=9, color=vals_v,
                     colorscale=[[0, "#ea4335"], [0.5, "#f9a825"], [1, "#0f9d58"]],
+                    cmin=0, cmax=100,
                     showscale=True, colorbar=dict(title="% of Range")
                 ),
+                customdata=syms_v,
+                hovertemplate="%{customdata}: %{y:.2f}%<extra></extra>",
             ))
             fig_range.update_layout(
                 title="📍 Position within 52-Week Range (0% = Low, 100% = High)",
                 template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10),
                 xaxis=dict(showticklabels=False, title="Stocks"), yaxis_title="% of 52W Range"
             )
-            st.plotly_chart(fig_range, use_container_width=True, key=f"dash_range_{selected_sheet}")
+            _render_clickable_dot_scatter(fig_range, f"dash_range_{selected_sheet}")
         else:
             st.info("52-Week High/Low columns not detected for this sheet.")
 
@@ -1961,6 +2014,35 @@ if not raw_df.empty:
                 st.info("No signal data available.")
         else:
             st.info("No Trend/Signal column detected for this sheet.")
+
+    # ---------- Chart row 3b: Difference from 200 DMA positioning (clickable → NSE chart) ----------
+    dash_c7b, _dash_c8b_spacer = st.columns([1.4, 1])
+
+    with dash_c7b:
+        if diff200_series.notna().any() and symbol_series is not None:
+            valid_mask2 = diff200_series.notna() & symbol_series.notna()
+            syms_v2 = symbol_series[valid_mask2].astype(str).str.strip().values
+            diff_vals = diff200_series[valid_mask2].values
+            d_absmax = max(abs(float(np.nanmin(diff_vals))), abs(float(np.nanmax(diff_vals))), 1e-9)
+            fig_diff200 = go.Figure(go.Scatter(
+                x=syms_v2, y=diff_vals, mode="markers",
+                marker=dict(
+                    size=9, color=diff_vals,
+                    colorscale=[[0, "#ea4335"], [0.5, "#f9a825"], [1, "#0f9d58"]],
+                    cmin=-d_absmax, cmax=d_absmax,
+                    showscale=True, colorbar=dict(title="% Diff")
+                ),
+                customdata=syms_v2,
+                hovertemplate="%{customdata}: %{y:.2f}%<extra></extra>",
+            ))
+            fig_diff200.update_layout(
+                title="📐 Difference from 200 DMA (0% = at 200 DMA)",
+                template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10),
+                xaxis=dict(showticklabels=False, title="Stocks"), yaxis_title="% Diff from 200 DMA"
+            )
+            _render_clickable_dot_scatter(fig_diff200, f"dash_diff200_{selected_sheet}")
+        else:
+            st.info("Difference from 200 DMA column not detected for this sheet.")
 
     # ==========================================
     # 📌 TOP UI: ROWS COUNT, COLUMN WIDTH ADJUSTER & EXCEL DOWNLOAD
