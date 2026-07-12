@@ -3508,9 +3508,9 @@ Be specific, data-driven, and actionable for a retail investor.
                                         pad=30, thickness=18,
                                         line=dict(color="rgba(0,0,0,0.2)", width=0.5),
                                         label=[
-                                            f"Net Sales<br>₹{_sankey_sales:,.2f} Cr",
-                                            f"Net Profit<br>₹{_sankey_profit:,.2f} Cr",
-                                            f"Total Expenses<br>₹{_sankey_expenses:,.2f} Cr",
+                                            f"Net Sales<br>₹{_sankey_sales:,.2f} Cr (100%)",
+                                            f"Net Profit<br>₹{_sankey_profit:,.2f} Cr ({_margin_pct:.1f}%)",
+                                            f"Total Expenses<br>₹{_sankey_expenses:,.2f} Cr ({100 - _margin_pct:.1f}%)",
                                         ],
                                         color=["#1565C0", "#0f9d58", "#ea4335"],
                                     ),
@@ -3569,7 +3569,7 @@ Be specific, data-driven, and actionable for a retail investor.
                                     node=dict(
                                         pad=30, thickness=18,
                                         line=dict(color="rgba(0,0,0,0.2)", width=0.5),
-                                        label=[f"Total Financing<br>₹{_cs_total:,.2f} Cr"] + [f"{n}<br>₹{v:,.2f} Cr" for n, v, _ in _cs_valid],
+                                        label=[f"Total Financing<br>₹{_cs_total:,.2f} Cr (100%)"] + [f"{n}<br>₹{v:,.2f} Cr ({(v/_cs_total)*100:.1f}%)" for n, v, _ in _cs_valid],
                                         color=["#5c6bc0"] + [c for _, _, c in _cs_valid],
                                     ),
                                     link=dict(
@@ -3614,7 +3614,7 @@ Be specific, data-driven, and actionable for a retail investor.
                                         node=dict(
                                             pad=30, thickness=18,
                                             line=dict(color="rgba(0,0,0,0.2)", width=0.5),
-                                            label=[f"Total Assets<br>₹{_ad_total_assets:,.2f} Cr"] + [f"{n}<br>₹{v:,.2f} Cr" for n, v, _ in _ad_nodes],
+                                            label=[f"Total Assets<br>₹{_ad_total_assets:,.2f} Cr (100%)"] + [f"{n}<br>₹{v:,.2f} Cr ({(v/_ad_total_assets)*100:.1f}%)" for n, v, _ in _ad_nodes],
                                             color=["#37474f"] + [c for _, _, c in _ad_nodes],
                                         ),
                                         link=dict(
@@ -3675,9 +3675,9 @@ Be specific, data-driven, and actionable for a retail investor.
                             _mg_fin_idx = None
                             if _mg_has_financing:
                                 _mg_fin_total = sum(v for _, v, _ in _mg_cs_valid)
-                                _mg_fin_idx = _mg_add(f"Total Financing<br>₹{_mg_fin_total:,.2f} Cr", "#5c6bc0", _COL_FIN)
+                                _mg_fin_idx = _mg_add(f"Total Financing<br>₹{_mg_fin_total:,.2f} Cr (100%)", "#5c6bc0", _COL_FIN)
                                 for n, v, c in _mg_cs_valid:
-                                    idx = _mg_add(f"{n}<br>₹{v:,.2f} Cr", c, _COL_SOURCES)
+                                    idx = _mg_add(f"{n}<br>₹{v:,.2f} Cr ({(v/_mg_fin_total)*100:.1f}%)", c, _COL_SOURCES)
                                     _mg_src.append(idx); _mg_tgt.append(_mg_fin_idx); _mg_val.append(v)
                                     _mg_lcolor.append(_hex2rgba(c))
 
@@ -3699,12 +3699,13 @@ Be specific, data-driven, and actionable for a retail investor.
                                 _mg_has_assets = _mg_residual >= 0
                             if _mg_has_assets:
                                 _mg_ad_nodes = _mg_ad_valid + ([("Other Assets (unspecified)", _mg_residual, "#9e9e9e")] if _mg_residual > 0 else [])
-                                _mg_assets_idx = _mg_add(f"Total Assets<br>₹{_mg_total_assets:,.2f} Cr", "#37474f", _COL_MID)
+                                _mg_assets_pct = f" ({(_mg_total_assets/_mg_fin_total)*100:.1f}%)" if _mg_fin_idx is not None else " (100%)"
+                                _mg_assets_idx = _mg_add(f"Total Assets<br>₹{_mg_total_assets:,.2f} Cr{_mg_assets_pct}", "#37474f", _COL_MID)
                                 if _mg_fin_idx is not None:
                                     _mg_src.append(_mg_fin_idx); _mg_tgt.append(_mg_assets_idx); _mg_val.append(_mg_total_assets)
                                     _mg_lcolor.append(_hex2rgba("#37474f"))
                                 for n, v, c in _mg_ad_nodes:
-                                    idx = _mg_add(f"{n}<br>₹{v:,.2f} Cr", c, _COL_LEAF)
+                                    idx = _mg_add(f"{n}<br>₹{v:,.2f} Cr ({(v/_mg_total_assets)*100:.1f}%)", c, _COL_LEAF)
                                     _mg_src.append(_mg_assets_idx); _mg_tgt.append(idx); _mg_val.append(v)
                                     _mg_lcolor.append(_hex2rgba(c))
 
@@ -3716,12 +3717,14 @@ Be specific, data-driven, and actionable for a retail investor.
                             _mg_has_revenue = _mg_sales is not None and _mg_profit is not None and 0 < _mg_profit < _mg_sales
                             if _mg_has_revenue:
                                 _mg_exp = _mg_sales - _mg_profit
-                                _mg_sales_idx = _mg_add(f"Net Sales<br>₹{_mg_sales:,.2f} Cr", "#1565C0", _COL_MID)
+                                _mg_sales_pct = f" ({(_mg_sales/_mg_fin_total)*100:.1f}%)" if _mg_fin_idx is not None else " (100%)"
+                                _mg_sales_idx = _mg_add(f"Net Sales<br>₹{_mg_sales:,.2f} Cr{_mg_sales_pct}", "#1565C0", _COL_MID)
                                 if _mg_fin_idx is not None:
                                     _mg_src.append(_mg_fin_idx); _mg_tgt.append(_mg_sales_idx); _mg_val.append(_mg_sales)
                                     _mg_lcolor.append(_hex2rgba("#1565C0"))
-                                _mg_profit_idx = _mg_add(f"Net Profit<br>₹{_mg_profit:,.2f} Cr", "#0f9d58", _COL_LEAF)
-                                _mg_exp_idx = _mg_add(f"Total Expenses<br>₹{_mg_exp:,.2f} Cr", "#ea4335", _COL_LEAF)
+                                _mg_profit_pct = (_mg_profit/_mg_sales)*100
+                                _mg_profit_idx = _mg_add(f"Net Profit<br>₹{_mg_profit:,.2f} Cr ({_mg_profit_pct:.1f}%)", "#0f9d58", _COL_LEAF)
+                                _mg_exp_idx = _mg_add(f"Total Expenses<br>₹{_mg_exp:,.2f} Cr ({100 - _mg_profit_pct:.1f}%)", "#ea4335", _COL_LEAF)
                                 _mg_src += [_mg_sales_idx, _mg_sales_idx]
                                 _mg_tgt += [_mg_profit_idx, _mg_exp_idx]
                                 _mg_val += [_mg_profit, _mg_exp]
