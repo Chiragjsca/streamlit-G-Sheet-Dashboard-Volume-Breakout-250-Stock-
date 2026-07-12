@@ -1941,43 +1941,6 @@ if not raw_df.empty:
             # JS window.open() calls) work fine inside a sandboxed iframe.
             components.html(html, height=height + 90, scrolling=False)
 
-        # ---------- Chart row 1: Breadth / % change distribution / RSI distribution ----------
-        dash_c1, dash_c2, dash_c3 = st.columns([1, 1.3, 1.3])
-
-        with dash_c1:
-            if advances or declines or unchanged:
-                fig_breadth = go.Figure(data=[go.Pie(
-                    labels=["Advances", "Declines", "Unchanged"],
-                    values=[advances, declines, unchanged],
-                    hole=0.55,
-                    marker=dict(colors=["#0f9d58", "#ea4335", "#bdbdbd"])
-                )])
-                fig_breadth.update_layout(title="Market Breadth", template="plotly_white", height=300,
-                                           margin=dict(t=40, b=10, l=10, r=10), showlegend=True)
-                st.plotly_chart(fig_breadth, use_container_width=True, key=f"dash_breadth_{selected_sheet}", config=DASH_CHART_CONFIG)
-            else:
-                st.info("No % change column detected for breadth chart.")
-
-        with dash_c2:
-            if pct_series.notna().any():
-                fig_pcthist = go.Figure(data=[go.Histogram(x=pct_series.dropna(), nbinsx=30, marker_color="#1f77b4")])
-                fig_pcthist.update_layout(title="% Change Distribution", template="plotly_white", height=300,
-                                           margin=dict(t=40, b=10, l=10, r=10), xaxis_title="% Change", yaxis_title="Stocks")
-                st.plotly_chart(fig_pcthist, use_container_width=True, key=f"dash_pcthist_{selected_sheet}", config=DASH_CHART_CONFIG)
-            else:
-                st.info("No % change column detected.")
-
-        with dash_c3:
-            if rsi_series.notna().any():
-                fig_rsihist = go.Figure(data=[go.Histogram(x=rsi_series.dropna(), nbinsx=25, marker_color="#AB47BC")])
-                fig_rsihist.add_vrect(x0=0, x1=30, fillcolor="#00C853", opacity=0.08, line_width=0, annotation_text="Oversold")
-                fig_rsihist.add_vrect(x0=70, x1=100, fillcolor="#D50000", opacity=0.08, line_width=0, annotation_text="Overbought")
-                fig_rsihist.update_layout(title="RSI(14) Distribution", template="plotly_white", height=300,
-                                           margin=dict(t=40, b=10, l=10, r=10), xaxis_title="RSI")
-                st.plotly_chart(fig_rsihist, use_container_width=True, key=f"dash_rsihist_{selected_sheet}", config=DASH_CHART_CONFIG)
-            else:
-                st.info("No RSI column detected for this sheet.")
-
         if selected_symbol_col in dash_df.columns:
             symbol_series = dash_df[selected_symbol_col].astype(str)
         elif "_raw_symbol_" in dash_df.columns:
@@ -2056,7 +2019,7 @@ if not raw_df.empty:
             else:
                 st.caption("Click any dot above to select a stock — its NSE chart button and quick-links will appear here.")
 
-        # ---------- Chart row 3: Top 10 nearest 52W High / nearest 52W Low ----------
+        # ---------- Chart row 3: Top 20 nearest 52W High / nearest 52W Low ----------
         dash_n1, dash_n2 = st.columns(2)
 
         with dash_n1:
@@ -2068,7 +2031,7 @@ if not raw_df.empty:
                     "% Below 52W High": pct_from_high.loc[near_high_idx].values
                 }).iloc[::-1]
                 fig_nh = go.Figure(go.Bar(x=near_h["% Below 52W High"], y=near_h["Symbol"], orientation='h', marker_color="#0f9d58"))
-                fig_nh.update_layout(title="🏔️ Top 10 Nearest 52W High", template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10))
+                fig_nh.update_layout(title="🏔️ Top 20 Nearest 52W High", template="plotly_white", height=560, margin=dict(t=40, b=10, l=10, r=10))
                 st.plotly_chart(fig_nh, use_container_width=True, key=f"dash_nearhigh_{selected_sheet}", config=DASH_CHART_CONFIG)
             else:
                 st.info("52-Week High column not detected for this sheet.")
@@ -2082,7 +2045,7 @@ if not raw_df.empty:
                     "% Above 52W Low": pct_from_low.loc[near_low_idx].values
                 }).iloc[::-1]
                 fig_nl = go.Figure(go.Bar(x=near_l["% Above 52W Low"], y=near_l["Symbol"], orientation='h', marker_color="#ea4335"))
-                fig_nl.update_layout(title="🕳️ Top 10 Nearest 52W Low", template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10))
+                fig_nl.update_layout(title="🕳️ Top 20 Nearest 52W Low", template="plotly_white", height=560, margin=dict(t=40, b=10, l=10, r=10))
                 st.plotly_chart(fig_nl, use_container_width=True, key=f"dash_nearlow_{selected_sheet}", config=DASH_CHART_CONFIG)
             else:
                 st.info("52-Week Low column not detected for this sheet.")
@@ -2142,24 +2105,6 @@ if not raw_df.empty:
                 _render_clickable_dot_scatter(fig_diff200, f"dash_diff200_{selected_sheet}")
             else:
                 st.info("Difference from 200 DMA column not detected for this sheet.")
-
-        # ---------- Chart row 5: Trend / Signal breakdown ----------
-        dash_c9, _dash_c10_spacer = st.columns([1, 1.4])
-
-        with dash_c9:
-            signal_col = trend_target or buy_signal_target or breakout_signal_target
-            if signal_col and signal_col in dash_df.columns:
-                sig_counts = dash_df[signal_col].astype(str).str.strip()
-                sig_counts = sig_counts[(sig_counts != "") & (sig_counts.str.lower() != "nan")]
-                if not sig_counts.empty:
-                    vc = sig_counts.value_counts().head(8)
-                    fig_sig = go.Figure(go.Bar(x=vc.values, y=vc.index.astype(str), orientation='h', marker_color="#5c6bc0"))
-                    fig_sig.update_layout(title=f"📶 {signal_col} Breakdown", template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10))
-                    st.plotly_chart(fig_sig, use_container_width=True, key=f"dash_signal_{selected_sheet}", config=DASH_CHART_CONFIG)
-                else:
-                    st.info("No signal data available.")
-            else:
-                st.info("No Trend/Signal column detected for this sheet.")
 
     # ==========================================
     # 📌 TOP UI: ROWS COUNT, COLUMN WIDTH ADJUSTER & EXCEL DOWNLOAD
