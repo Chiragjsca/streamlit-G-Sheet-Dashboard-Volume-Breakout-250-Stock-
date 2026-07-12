@@ -3059,8 +3059,11 @@ Be specific, data-driven, and actionable for a retail investor.
                         st.info(f"No recent news found for {sym}.")
 
             with ws_tabs[0]:
-                
+                # 1. Open the expander
                 with st.expander("🏆 Click to view Price Chart", expanded=False):
+                    
+                    # 2. EVERYTHING below this line is indented 4 spaces further to the right
+                    # so that it stays INSIDE the expander block.
                     st.markdown(f"### 🕯️ Price Chart & Technical Indicators — {sym}")
 
                 hist_period = st.select_slider(
@@ -3316,7 +3319,9 @@ Be specific, data-driven, and actionable for a retail investor.
                                 "**H-M panel:** Green fill = RSI above 50. Red fill = RSI below 50 (pullback zone). "
                                 "🟢 circles = RSI(9) cross above 50 (entry). For informational purposes only."
                             )
-
+                            # Render the chart at the very end
+                            st.plotly_chart(fig, use_container_width=True)
+                            
                         # ==========================================
                         # 📋 GOOGLE SHEET COLUMN DATA — shown below the Price Chart
                         # ==========================================
