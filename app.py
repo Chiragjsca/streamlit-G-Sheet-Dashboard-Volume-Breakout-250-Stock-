@@ -3363,7 +3363,6 @@ Be specific, data-driven, and actionable for a retail investor.
                     ])
 
                         # ── Group 1: Company / classification info ──
-                        _render_group("🏢 Company Info", [
                             ("Company Name", ["company name", "stock name"]),
                             ("Sector", ["sector", "industry"]),
                             ("% Delivery", ["% delivery", "delivery %", "delivery"]),
@@ -3374,7 +3373,6 @@ Be specific, data-driven, and actionable for a retail investor.
                         ])
 
                         # ── Group 2: Signals / system output ──
-                        _render_group("📡 Signals & System Output", [
                             ("Output", ["output"]),
                             ("Difference from 200 DMA", ["difference from 200 dma", "differance from 200 dma"]),
                             ("CAR Rating", ["cumulative average rule (car) rating", "car rating"]),
@@ -3388,7 +3386,7 @@ Be specific, data-driven, and actionable for a retail investor.
 
                         with st.expander("📋 Company Price Dashboard", expanded=False):
                         # ── Group 3: Fundamentals ──
-                        _render_group("💰 Fundamentals", [
+                        _render_group("🏢 Company Info", [
                             ("Face Value", ["face value"]),
                             ("Total Equity Capital", ["total equity capital"]),
                             ("Market Cap", ["market cap"]),
