@@ -3490,6 +3490,17 @@ Be specific, data-driven, and actionable for a retail investor.
                             ("DII %", ["dii %", "dii holding", "dii"]),
                         ])
 
+                    def _to_cr_float(raw):
+                        if raw in (None, "-", "", "nan", "None"):
+                            return None
+                        try:
+                            return float(str(raw).replace(",", "").replace("₹", "").strip())
+                        except (ValueError, TypeError):
+                            return None
+
+                    def _hex2rgba(h, alpha=0.35):
+                        return f"rgba({int(h[1:3],16)},{int(h[3:5],16)},{int(h[5:7],16)},{alpha})"
+
                     # ── Price Change bridge (Waterfall — NOT a Sankey) ──
                     # A price move can be negative, and Sankey flows can't be negative, so
                     # this uses a proper Waterfall/bridge chart instead — the correct tool
@@ -3691,17 +3702,6 @@ Be specific, data-driven, and actionable for a retail investor.
                     # Also: your data is a single latest snapshot, not a quarterly time
                     # series, so there's no quarter slider here (that would need
                     # historical figures your sheet doesn't have).
-                    def _to_cr_float(raw):
-                        if raw in (None, "-", "", "nan", "None"):
-                            return None
-                        try:
-                            return float(str(raw).replace(",", "").replace("₹", "").strip())
-                        except (ValueError, TypeError):
-                            return None
-
-                    def _hex2rgba(h, alpha=0.35):
-                        return f"rgba({int(h[1:3],16)},{int(h[3:5],16)},{int(h[5:7],16)},{alpha})"
-
                     _sankey_sales = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "net sales"))
                     _sankey_profit = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "net profit"))
 
