@@ -3321,6 +3321,7 @@ Be specific, data-driven, and actionable for a retail investor.
                 # Everything below this line is out of the expander box and back on the main page.
                 
                 st.markdown(f"### 📋 {sym} — Google Sheet Data")
+                
 
                         # ==========================================
                         # 📋 GOOGLE SHEET COLUMN DATA — shown below the Price Chart
