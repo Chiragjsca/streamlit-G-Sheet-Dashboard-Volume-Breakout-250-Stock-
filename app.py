@@ -3059,7 +3059,7 @@ Be specific, data-driven, and actionable for a retail investor.
                         st.info(f"No recent news found for {sym}.")
 
             with ws_tabs[0]:
-                with st.expander(f"🕯️ Price Chart & Technical Indicators — {sym}", expanded=False):
+                with st.expander(f"🕯️ Price Chart & Technical Indicators — {sym}", expanded=True):
 
                     hist_period = st.select_slider(
                         "History range:", options=["3mo", "6mo", "1y", "2y", "5y"],
@@ -3392,7 +3392,7 @@ Be specific, data-driven, and actionable for a retail investor.
                                 )
 
                             st.markdown("<hr style='margin:16px 0 4px 0;opacity:0.25;'>", unsafe_allow_html=True)
-                            with st.expander(f"📋 {sym} — Google Sheet Data", expanded=False):
+                            with st.expander(f"📋 {sym} — Google Sheet Data", expanded=True):
 
                                 def _render_group_direct(title, items):
                                     """Like _render_group but takes ready-made (label, value) pairs instead of sheet-column keys."""
