@@ -3328,7 +3328,7 @@ Be specific, data-driven, and actionable for a retail investor.
                         # ==========================================
                         
                         # ── NEW: Fetch NSE Fundamentals as PRIMARY Data ──
-                        fund_primary_row = {}
+                        fund_primary_row = {}  # ✅ Perfectly lined up
                         if selected_sheet != "NSE Fundamentals":
                             fund_df = load_sheet_data_with_colors("NSE Fundamentals")
                             if not fund_df.empty:
