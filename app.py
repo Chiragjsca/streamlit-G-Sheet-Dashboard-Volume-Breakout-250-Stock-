@@ -1978,9 +1978,6 @@ if not raw_df.empty:
             else:
                 st.info("No RSI column detected for this sheet.")
 
-        # ---------- Chart row 2: Top gainers / top losers / volume leaders ----------
-        dash_c4, dash_c5, dash_c6 = st.columns(3)
-
         if selected_symbol_col in dash_df.columns:
             symbol_series = dash_df[selected_symbol_col].astype(str)
         elif "_raw_symbol_" in dash_df.columns:
@@ -2059,47 +2056,8 @@ if not raw_df.empty:
             else:
                 st.caption("Click any dot above to select a stock — its NSE chart button and quick-links will appear here.")
 
-        with dash_c4:
-            if pct_series.notna().any():
-                top_gain_idx = pct_series.dropna().sort_values(ascending=False).head(10).index
-                top_g = pd.DataFrame({
-                    "Symbol": symbol_series.loc[top_gain_idx].values,
-                    "Change %": pct_series.loc[top_gain_idx].values
-                }).iloc[::-1]
-                fig_g = go.Figure(go.Bar(x=top_g["Change %"], y=top_g["Symbol"], orientation='h', marker_color="#0f9d58"))
-                fig_g.update_layout(title="🏆 Top 10 Gainers", template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10))
-                st.plotly_chart(fig_g, use_container_width=True, key=f"dash_topgain_{selected_sheet}", config=DASH_CHART_CONFIG)
-            else:
-                st.info("No % change column detected.")
-
-        with dash_c5:
-            if pct_series.notna().any():
-                top_lose_idx = pct_series.dropna().sort_values(ascending=True).head(10).index
-                top_l = pd.DataFrame({
-                    "Symbol": symbol_series.loc[top_lose_idx].values,
-                    "Change %": pct_series.loc[top_lose_idx].values
-                }).iloc[::-1]
-                fig_l = go.Figure(go.Bar(x=top_l["Change %"], y=top_l["Symbol"], orientation='h', marker_color="#ea4335"))
-                fig_l.update_layout(title="📉 Top 10 Losers", template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10))
-                st.plotly_chart(fig_l, use_container_width=True, key=f"dash_toplose_{selected_sheet}", config=DASH_CHART_CONFIG)
-            else:
-                st.info("No % change column detected.")
-
-        with dash_c6:
-            if vol_series.notna().any():
-                top_vol_idx = vol_series.dropna().sort_values(ascending=False).head(10).index
-                top_v = pd.DataFrame({
-                    "Symbol": symbol_series.loc[top_vol_idx].values,
-                    "Volume": vol_series.loc[top_vol_idx].values
-                }).iloc[::-1]
-                fig_v = go.Figure(go.Bar(x=top_v["Volume"], y=top_v["Symbol"], orientation='h', marker_color="#f9a825"))
-                fig_v.update_layout(title="🔥 Top 10 by Volume", template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10))
-                st.plotly_chart(fig_v, use_container_width=True, key=f"dash_topvol_{selected_sheet}", config=DASH_CHART_CONFIG)
-            else:
-                st.info("No Volume column detected for this sheet.")
-
-        # ---------- Chart row 3: Top 10 nearest 52W High / nearest 52W Low / by Delivery % ----------
-        dash_n1, dash_n2, dash_n3 = st.columns(3)
+        # ---------- Chart row 3: Top 10 nearest 52W High / nearest 52W Low ----------
+        dash_n1, dash_n2 = st.columns(2)
 
         with dash_n1:
             if cmp_series.notna().any() and high_series.notna().any():
@@ -2128,19 +2086,6 @@ if not raw_df.empty:
                 st.plotly_chart(fig_nl, use_container_width=True, key=f"dash_nearlow_{selected_sheet}", config=DASH_CHART_CONFIG)
             else:
                 st.info("52-Week Low column not detected for this sheet.")
-
-        with dash_n3:
-            if deliv_series.notna().any():
-                top_deliv_idx = deliv_series.dropna().sort_values(ascending=False).head(10).index
-                top_d = pd.DataFrame({
-                    "Symbol": symbol_series.loc[top_deliv_idx].values,
-                    "% Delivery": deliv_series.loc[top_deliv_idx].values
-                }).iloc[::-1]
-                fig_d = go.Figure(go.Bar(x=top_d["% Delivery"], y=top_d["Symbol"], orientation='h', marker_color="#5c6bc0"))
-                fig_d.update_layout(title="🚚 Top 10 by Delivery %", template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10))
-                st.plotly_chart(fig_d, use_container_width=True, key=f"dash_topdeliv_{selected_sheet}", config=DASH_CHART_CONFIG)
-            else:
-                st.info("No Delivery % column detected for this sheet.")
 
         # ---------- Chart row 4: 52-week range positioning + Difference from 200 DMA positioning (both clickable → NSE chart + quick-links) ----------
         dash_c7, dash_c8 = st.columns(2)
