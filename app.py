@@ -2020,47 +2020,41 @@ if not raw_df.empty:
                 st.caption("Click any dot above to select a stock — its NSE chart button and quick-links will appear here.")
 
         # ---------- Chart row 3: Top 30 nearest 52W High / nearest 52W Low ----------
-        def _render_top30_market_lists(key_prefix, wrap_nearest_in_expander=True):
+        def _render_top30_market_lists(key_prefix):
             """Renders the Top 30 Nearest 52W High / Nearest 52W Low and the
             Top 30 Below 200 DMA / Above 200 DMA bar charts. Reused both in the
             Executive Dashboard and inside the Company Price Dashboard expander,
             using the same universe-level series computed above (cmp_series,
-            high_series, low_series, diff200_series, symbol_series).
-            The Nearest 52W High/Low pair is wrapped in its own
-            "📋 Company Price Dashboard" expander when wrap_nearest_in_expander
-            is True; pass False when this is already called from inside that
-            expander, since Streamlit doesn't allow nested expanders."""
-            nearest_ctx = st.expander("📋 Company Price Dashboard", expanded=False) if wrap_nearest_in_expander else st.container()
-            with nearest_ctx:
-                r1c1, r1c2 = st.columns(2)
+            high_series, low_series, diff200_series, symbol_series)."""
+            r1c1, r1c2 = st.columns(2)
 
-                with r1c1:
-                    if cmp_series.notna().any() and high_series.notna().any():
-                        pct_from_high = ((high_series - cmp_series) / high_series.replace(0, np.nan) * 100)
-                        near_high_idx = pct_from_high.dropna().sort_values(ascending=True).head(30).index
-                        near_h = pd.DataFrame({
-                            "Symbol": symbol_series.loc[near_high_idx].values,
-                            "% Below 52W High": pct_from_high.loc[near_high_idx].values
-                        }).iloc[::-1]
-                        fig_nh = go.Figure(go.Bar(x=near_h["% Below 52W High"], y=near_h["Symbol"], orientation='h', marker_color="#0f9d58"))
-                        fig_nh.update_layout(title="🏔️ Top 30 Nearest 52W High", template="plotly_white", height=780, margin=dict(t=40, b=10, l=10, r=10))
-                        st.plotly_chart(fig_nh, use_container_width=True, key=f"{key_prefix}_nearhigh_{selected_sheet}", config=DASH_CHART_CONFIG)
-                    else:
-                        st.info("52-Week High column not detected for this sheet.")
+            with r1c1:
+                if cmp_series.notna().any() and high_series.notna().any():
+                    pct_from_high = ((high_series - cmp_series) / high_series.replace(0, np.nan) * 100)
+                    near_high_idx = pct_from_high.dropna().sort_values(ascending=True).head(30).index
+                    near_h = pd.DataFrame({
+                        "Symbol": symbol_series.loc[near_high_idx].values,
+                        "% Below 52W High": pct_from_high.loc[near_high_idx].values
+                    }).iloc[::-1]
+                    fig_nh = go.Figure(go.Bar(x=near_h["% Below 52W High"], y=near_h["Symbol"], orientation='h', marker_color="#0f9d58"))
+                    fig_nh.update_layout(title="🏔️ Top 30 Nearest 52W High", template="plotly_white", height=780, margin=dict(t=40, b=10, l=10, r=10))
+                    st.plotly_chart(fig_nh, use_container_width=True, key=f"{key_prefix}_nearhigh_{selected_sheet}", config=DASH_CHART_CONFIG)
+                else:
+                    st.info("52-Week High column not detected for this sheet.")
 
-                with r1c2:
-                    if cmp_series.notna().any() and low_series.notna().any():
-                        pct_from_low = ((cmp_series - low_series) / low_series.replace(0, np.nan) * 100)
-                        near_low_idx = pct_from_low.dropna().sort_values(ascending=True).head(30).index
-                        near_l = pd.DataFrame({
-                            "Symbol": symbol_series.loc[near_low_idx].values,
-                            "% Above 52W Low": pct_from_low.loc[near_low_idx].values
-                        }).iloc[::-1]
-                        fig_nl = go.Figure(go.Bar(x=near_l["% Above 52W Low"], y=near_l["Symbol"], orientation='h', marker_color="#ea4335"))
-                        fig_nl.update_layout(title="🕳️ Top 30 Nearest 52W Low", template="plotly_white", height=780, margin=dict(t=40, b=10, l=10, r=10))
-                        st.plotly_chart(fig_nl, use_container_width=True, key=f"{key_prefix}_nearlow_{selected_sheet}", config=DASH_CHART_CONFIG)
-                    else:
-                        st.info("52-Week Low column not detected for this sheet.")
+            with r1c2:
+                if cmp_series.notna().any() and low_series.notna().any():
+                    pct_from_low = ((cmp_series - low_series) / low_series.replace(0, np.nan) * 100)
+                    near_low_idx = pct_from_low.dropna().sort_values(ascending=True).head(30).index
+                    near_l = pd.DataFrame({
+                        "Symbol": symbol_series.loc[near_low_idx].values,
+                        "% Above 52W Low": pct_from_low.loc[near_low_idx].values
+                    }).iloc[::-1]
+                    fig_nl = go.Figure(go.Bar(x=near_l["% Above 52W Low"], y=near_l["Symbol"], orientation='h', marker_color="#ea4335"))
+                    fig_nl.update_layout(title="🕳️ Top 30 Nearest 52W Low", template="plotly_white", height=780, margin=dict(t=40, b=10, l=10, r=10))
+                    st.plotly_chart(fig_nl, use_container_width=True, key=f"{key_prefix}_nearlow_{selected_sheet}", config=DASH_CHART_CONFIG)
+                else:
+                    st.info("52-Week Low column not detected for this sheet.")
 
             r2c1, r2c2 = st.columns(2)
 
@@ -2096,10 +2090,7 @@ if not raw_df.empty:
                 else:
                     st.info("Difference from 200 DMA column not detected for this sheet.")
 
-        # NOTE: wrap_nearest_in_expander=False here because this call already sits
-        # inside the outer "🚀 Executive Dashboard" expander — Streamlit does not
-        # allow an expander to be nested inside another expander.
-        _render_top30_market_lists("dash", wrap_nearest_in_expander=False)
+        _render_top30_market_lists("dash")
 
         # ---------- Chart row 4: 52-week range positioning + Difference from 200 DMA positioning (both clickable → NSE chart + quick-links) ----------
         dash_c7, dash_c8 = st.columns(2)
@@ -3372,12 +3363,6 @@ Be specific, data-driven, and actionable for a retail investor.
                     ])
 
                     with st.expander("📋 Company Price Dashboard", expanded=False):
-                        # ── Top 30 Nearest 52W High/Low + Top 30 Below/Above 200 DMA (same universe lists as Executive Dashboard) ──
-                        # NOTE: wrap_nearest_in_expander=False here too — this call already
-                        # sits inside the "📋 Company Price Dashboard" expander itself.
-                        _render_top30_market_lists("cpd", wrap_nearest_in_expander=False)
-                        st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
-
                         # ── Group 1: Company / classification info ──
                         _render_group("🏢 Company Info", [
                             ("Company Name", ["company name", "stock name"]),
