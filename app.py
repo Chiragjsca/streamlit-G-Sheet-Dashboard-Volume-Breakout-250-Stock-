@@ -2062,7 +2062,7 @@ if not raw_df.empty:
         with dash_n1:
             if cmp_series.notna().any() and high_series.notna().any():
                 pct_from_high = ((high_series - cmp_series) / high_series.replace(0, np.nan) * 100)
-                near_high_idx = pct_from_high.dropna().sort_values(ascending=True).head(10).index
+                near_high_idx = pct_from_high.dropna().sort_values(ascending=True).head(20).index
                 near_h = pd.DataFrame({
                     "Symbol": symbol_series.loc[near_high_idx].values,
                     "% Below 52W High": pct_from_high.loc[near_high_idx].values
@@ -2076,7 +2076,7 @@ if not raw_df.empty:
         with dash_n2:
             if cmp_series.notna().any() and low_series.notna().any():
                 pct_from_low = ((cmp_series - low_series) / low_series.replace(0, np.nan) * 100)
-                near_low_idx = pct_from_low.dropna().sort_values(ascending=True).head(10).index
+                near_low_idx = pct_from_low.dropna().sort_values(ascending=True).head(20).index
                 near_l = pd.DataFrame({
                     "Symbol": symbol_series.loc[near_low_idx].values,
                     "% Above 52W Low": pct_from_low.loc[near_low_idx].values
