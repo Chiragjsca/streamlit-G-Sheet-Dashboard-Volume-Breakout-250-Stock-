@@ -3322,13 +3322,12 @@ Be specific, data-driven, and actionable for a retail investor.
                 
                 st.markdown(f"### 📋 {sym} — Google Sheet Data")
                 
-
-                        # ==========================================
-                        # 📋 GOOGLE SHEET COLUMN DATA — shown below the Price Chart
-                        # ==========================================
-                        
-                        # ── NEW: Fetch NSE Fundamentals as PRIMARY Data ──
-                        fund_primary_row = {}
+                # ==========================================
+                # 📋 GOOGLE SHEET COLUMN DATA — shown below the Price Chart
+                # ==========================================
+                
+                # ── NEW: Fetch NSE Fundamentals as PRIMARY Data ──
+                fund_primary_row = {}
                         if selected_sheet != "NSE Fundamentals":
                             fund_df = load_sheet_data_with_colors("NSE Fundamentals")
                             if not fund_df.empty:
