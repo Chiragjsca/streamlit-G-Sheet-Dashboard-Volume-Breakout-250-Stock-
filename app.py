@@ -1978,8 +1978,128 @@ if not raw_df.empty:
             else:
                 st.info("No RSI column detected for this sheet.")
 
-        # ---------- Chart row 3: Top 10 nearest 52W High / nearest 52W Low ----------
-        dash_n1, dash_n2 = st.columns(3)
+        # ---------- Chart row 2: Top gainers / top losers / volume leaders ----------
+        dash_c4, dash_c5, dash_c6 = st.columns(3)
+
+        if selected_symbol_col in dash_df.columns:
+            symbol_series = dash_df[selected_symbol_col].astype(str)
+        elif "_raw_symbol_" in dash_df.columns:
+            symbol_series = dash_df["_raw_symbol_"].astype(str)
+        else:
+            symbol_series = dash_df.index.astype(str).to_series(index=dash_df.index)
+
+        # `selected_symbol_col` (the Symbol column shown in the main table) gets
+        # rewritten elsewhere in the app (process_hyperlinks) into full HTML anchor
+        # tags like <a href="...">IRFC</a> so the table's Symbol cells are clickable.
+        # That HTML string is NOT what we want feeding into the NSE chart URL. The
+        # `_raw_symbol_` column is guaranteed to still hold the plain ticker text,
+        # so the two clickable dot-scatter charts below always use THIS instead of
+        # symbol_series.
+        if "_raw_symbol_" in dash_df.columns:
+            clean_symbol_series = dash_df["_raw_symbol_"].astype(str).str.strip()
+        else:
+            clean_symbol_series = symbol_series.astype(str).str.replace(r"<[^>]+>", "", regex=True).str.strip()
+
+        def _render_clickable_dot_scatter(fig, chart_key):
+            """
+            Renders a fully native Plotly chart — every modebar button (zoom, pan,
+            box/lasso select, autoscale, reset axes, camera/PNG download, fullscreen)
+            stays exactly as Plotly ships it; nothing is stripped.
+
+            Dots aren't real <a> hyperlinks (Plotly can't render its markers as
+            anchor tags), so clicking a dot uses Streamlit's native on_select click
+            event to detect which stock was clicked, then shows:
+              - a real st.link_button (actual <a target="_blank">) to open that
+                stock's NSE chart in a new tab, and
+              - a "More links for {symbol}" row with the same 7 quick-links
+                (Trading View / History Data / Screener / Zerodha / Chartlink /
+                Market Smith / NSE URL) already used elsewhere in this app's
+                Selection Workspace panel, so the exact same destinations are one
+                click away right under the chart too.
+
+            NOTE: needs Streamlit >= 1.35 (on_select click-event API). Falls back
+            to a plain chart + note on older versions.
+            """
+            fig.update_layout(clickmode="event+select")
+            try:
+                event = st.plotly_chart(fig, use_container_width=True, key=chart_key, on_select="rerun")
+            except TypeError:
+                st.plotly_chart(fig, use_container_width=True, key=chart_key)
+                st.caption("⚠️ Click-to-open needs Streamlit ≥ 1.35 — update `streamlit` in requirements.txt to enable it.")
+                return
+
+            clicked_symbol = None
+            sel = event.get("selection") if isinstance(event, dict) else getattr(event, "selection", None)
+            if sel:
+                pts = sel.get("points") if isinstance(sel, dict) else getattr(sel, "points", None)
+                if pts:
+                    last_pt = pts[-1]
+                    cd = last_pt.get("customdata") if isinstance(last_pt, dict) else getattr(last_pt, "customdata", None)
+                    if cd:
+                        clicked_symbol = cd[0] if isinstance(cd, (list, tuple)) else cd
+
+            if clicked_symbol:
+                nse_chart_url = f"https://charting.nseindia.com/?symbol={clicked_symbol}-EQ"
+                cl1, cl2 = st.columns([3, 1])
+                with cl1:
+                    st.success(f"Selected: **{clicked_symbol}**")
+                with cl2:
+                    st.link_button("📈 Open on NSE", nse_chart_url, use_container_width=True)
+
+                st.markdown(
+                    f"🔗 **More links for {clicked_symbol}:** "
+                    f"[Trading View (🔗)](https://www.tradingview.com/symbols/{clicked_symbol}/) &nbsp;|&nbsp; "
+                    f"[History Data (🔗)](https://www.equitypandit.com/historical-data/{clicked_symbol}) &nbsp;|&nbsp; "
+                    f"[Screener (🔗)](https://www.screener.in/company/{clicked_symbol}) &nbsp;|&nbsp; "
+                    f"[Zerodha (🔗)](https://zerodha.com/markets/stocks/NSE/{clicked_symbol}) &nbsp;|&nbsp; "
+                    f"[Chartlink (🔗)](https://chartink.com/stocks-new?load-snapshot=exponential-moving-average-simple-moving-average-simple-moving-average-moving-average-convergence-divergence-chart-snapshot-175&symbol={clicked_symbol}) &nbsp;|&nbsp; "
+                    f"[Market Smith (🔗)](https://marketsmithindia.com/mstool/eval/{clicked_symbol}/evaluation.jsp) &nbsp;|&nbsp; "
+                    f"[NSE URL (🔗)](https://www.nseindia.com/get-quotes/equity?symbol={clicked_symbol})"
+                )
+            else:
+                st.caption("Click any dot above to select a stock — its NSE chart button and quick-links will appear here.")
+
+        with dash_c4:
+            if pct_series.notna().any():
+                top_gain_idx = pct_series.dropna().sort_values(ascending=False).head(10).index
+                top_g = pd.DataFrame({
+                    "Symbol": symbol_series.loc[top_gain_idx].values,
+                    "Change %": pct_series.loc[top_gain_idx].values
+                }).iloc[::-1]
+                fig_g = go.Figure(go.Bar(x=top_g["Change %"], y=top_g["Symbol"], orientation='h', marker_color="#0f9d58"))
+                fig_g.update_layout(title="🏆 Top 10 Gainers", template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10))
+                st.plotly_chart(fig_g, use_container_width=True, key=f"dash_topgain_{selected_sheet}", config=DASH_CHART_CONFIG)
+            else:
+                st.info("No % change column detected.")
+
+        with dash_c5:
+            if pct_series.notna().any():
+                top_lose_idx = pct_series.dropna().sort_values(ascending=True).head(10).index
+                top_l = pd.DataFrame({
+                    "Symbol": symbol_series.loc[top_lose_idx].values,
+                    "Change %": pct_series.loc[top_lose_idx].values
+                }).iloc[::-1]
+                fig_l = go.Figure(go.Bar(x=top_l["Change %"], y=top_l["Symbol"], orientation='h', marker_color="#ea4335"))
+                fig_l.update_layout(title="📉 Top 10 Losers", template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10))
+                st.plotly_chart(fig_l, use_container_width=True, key=f"dash_toplose_{selected_sheet}", config=DASH_CHART_CONFIG)
+            else:
+                st.info("No % change column detected.")
+
+        with dash_c6:
+            if vol_series.notna().any():
+                top_vol_idx = vol_series.dropna().sort_values(ascending=False).head(10).index
+                top_v = pd.DataFrame({
+                    "Symbol": symbol_series.loc[top_vol_idx].values,
+                    "Volume": vol_series.loc[top_vol_idx].values
+                }).iloc[::-1]
+                fig_v = go.Figure(go.Bar(x=top_v["Volume"], y=top_v["Symbol"], orientation='h', marker_color="#f9a825"))
+                fig_v.update_layout(title="🔥 Top 10 by Volume", template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10))
+                st.plotly_chart(fig_v, use_container_width=True, key=f"dash_topvol_{selected_sheet}", config=DASH_CHART_CONFIG)
+            else:
+                st.info("No Volume column detected for this sheet.")
+
+        # ---------- Chart row 3: Top 10 nearest 52W High / nearest 52W Low / by Delivery % ----------
+        dash_n1, dash_n2, dash_n3 = st.columns(3)
 
         with dash_n1:
             if cmp_series.notna().any() and high_series.notna().any():
@@ -2008,6 +2128,19 @@ if not raw_df.empty:
                 st.plotly_chart(fig_nl, use_container_width=True, key=f"dash_nearlow_{selected_sheet}", config=DASH_CHART_CONFIG)
             else:
                 st.info("52-Week Low column not detected for this sheet.")
+
+        with dash_n3:
+            if deliv_series.notna().any():
+                top_deliv_idx = deliv_series.dropna().sort_values(ascending=False).head(10).index
+                top_d = pd.DataFrame({
+                    "Symbol": symbol_series.loc[top_deliv_idx].values,
+                    "% Delivery": deliv_series.loc[top_deliv_idx].values
+                }).iloc[::-1]
+                fig_d = go.Figure(go.Bar(x=top_d["% Delivery"], y=top_d["Symbol"], orientation='h', marker_color="#5c6bc0"))
+                fig_d.update_layout(title="🚚 Top 10 by Delivery %", template="plotly_white", height=340, margin=dict(t=40, b=10, l=10, r=10))
+                st.plotly_chart(fig_d, use_container_width=True, key=f"dash_topdeliv_{selected_sheet}", config=DASH_CHART_CONFIG)
+            else:
+                st.info("No Delivery % column detected for this sheet.")
 
         # ---------- Chart row 4: 52-week range positioning + Difference from 200 DMA positioning (both clickable → NSE chart + quick-links) ----------
         dash_c7, dash_c8 = st.columns(2)
