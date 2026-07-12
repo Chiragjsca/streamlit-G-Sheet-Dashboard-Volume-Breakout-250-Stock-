@@ -3391,637 +3391,6 @@ Be specific, data-driven, and actionable for a retail investor.
                                     unsafe_allow_html=True,
                                 )
 
-                            st.markdown("<hr style='margin:16px 0 4px 0;opacity:0.25;'>", unsafe_allow_html=True)
-                            with st.expander(f"📋 {sym} — Google Sheet Data", expanded=True):
-
-                                def _render_group_direct(title, items):
-                                    """Like _render_group but takes ready-made (label, value) pairs instead of sheet-column keys."""
-                                    cards = "".join(_info_card_html(lbl, val) for lbl, val in items)
-                                    st.markdown(
-                                        f"<div style='font-size:13px;font-weight:700;color:#1565C0;margin:14px 0 6px 0;'>{title}</div>"
-                                        f"<div style='display:flex;flex-wrap:wrap;gap:8px;'>{cards}</div>",
-                                        unsafe_allow_html=True,
-                                    )
-
-                                # ── Group 0: Price snapshot (moved here from above the chart) ──
-                                _chg_arrow = "▲" if day_chg >= 0 else "▼"
-                                _chg_color = "#00A152" if day_chg >= 0 else "#D32F2F"
-                                _render_group_direct("📊 Price Snapshot", [
-                                    ("Last Close", f"₹{last_close:,.2f} "
-                                                   f"<span style='color:{_chg_color};font-size:12px;'>{_chg_arrow} {day_chg:+.2f}%</span>"),
-                                    ("52W High", f"₹{float(chart_df['High'].max()):,.2f}"),
-                                    ("52W Low", f"₹{float(chart_df['Low'].min()):,.2f}"),
-                                    ("RSI(14)", f"{last_rsi14:.1f}" if last_rsi14 is not None else "–"),
-                                ])
-
-                                with st.expander("📋 Company Price Dashboard", expanded=False):
-                                    # ── Group 1: Company / classification info ──
-                                    _render_group("🏢 Company Info", [
-                                        ("Company Name", ["company name", "stock name"]),
-                                        ("Sector", ["sector", "industry"]),
-                                        ("% Delivery", ["% delivery", "delivery %", "delivery"]),
-                                        ("52W High Date", ["52w high date", "52 week high date"]),
-                                        ("52W Low Date", ["52w low date", "52 week low date"]),
-                                        ("Volume", ["volume"]),
-                                        ("Turnover", ["turnover"]),
-                                    ])
-
-                                    # ── Group 2: Signals / system output ──
-                                    _render_group("📡 Signals & System Output", [
-                                        ("Output", ["output"]),
-                                        ("Difference from 200 DMA", ["difference from 200 dma", "differance from 200 dma"]),
-                                        ("CAR Rating", ["cumulative average rule (car) rating", "car rating"]),
-                                        ("Start GTT Order", ["start gtt order", "gtt order"]),
-                                        ("Volume Trend", ["volume trend"]),
-                                        ("Breakout Signal", ["breakout signal"]),
-                                        ("Trend", ["trend"]),
-                                        ("MACD Crossover", ["macd crossover"]),
-                                        ("Buy Signal", ["buy signal"]),
-                                    ])
-
-                                    # ── Group 3: Fundamentals ──
-                                    _render_group("💰 Fundamentals", [
-                                        ("Face Value", ["face value"]),
-                                        ("Total Equity Capital", ["total equity capital"]),
-                                        ("Market Cap", ["market cap"]),
-                                        ("EPS", ["eps"]),
-                                        ("RONW %", ["ronw"]),
-                                        ("Promoters %", ["promoters %", "promoter"]),
-                                        ("Institutional %", ["institutional %", "institutional"]),
-                                        ("Pledged %", ["pledged %", "pledged"]),
-                                        ("D/E Ratio", ["d/e ratio", "de ratio"]),
-                                        ("Net Sales (Cr)", ["net sales"]),
-                                        ("Net Profit (Cr.)", ["net profit"]),
-                                        ("Reserves (Cr)", ["reserves"]),
-                                        ("Total Debt (Cr)", ["total debt"]),
-                                        ("Inventory (Cr)", ["inventory"]),
-                                        ("Cash & Equiv (Cr)", ["cash & equiv", "cash and equiv", "cash equivalent"]),
-                                        ("Operating Cash Flow (Cr)", ["operating cash flow"]),
-                                        ("Trade Receivables (Cr)", ["trade receivables"]),
-                                        ("Trade Payables (Cr)", ["trade payables"]),
-                                        ("Fixed Assets/Net PPE (Cr)", ["fixed assets", "net ppe"]),
-                                        ("Total Assets (Cr)", ["total assets"]),
-                                        ("Open (₹)", ["open price", "open (", "open"]),
-                                        ("High (₹)", ["day high", "high price", "high ("]),
-                                        ("Low (₹)", ["day low", "low price", "low ("]),
-                                        ("Prev Close (₹)", ["prev close", "previous close", "close price"]),
-                                        ("Price Change (₹)", ["price change", "change (", "change in price"]),
-                                        ("% Change", ["% change", "price %", "change %"]),
-                                        ("Shares Outstanding (Cr)", ["shares outstanding"]),
-                                        ("Book Value (₹/share)", ["book value"]),
-                                        ("Public %", ["public %", "public holding"]),
-                                        ("FII %", ["fii %", "fii holding", "fii"]),
-                                        ("DII %", ["dii %", "dii holding", "dii"]),
-                                    ])
-
-                                # ── Revenue & Expenses flow (Sankey) ──
-                                # Built ONLY from real fields your sheet actually has: Net Sales and
-                                # Net Profit. Your sheet has no Cost-of-Revenue / SG&A / R&D / Opex
-                                # line items, so — unlike the reference screenshots — this can't be
-                                # broken into Gross Profit → Operating Profit → SG&A/R&D stages
-                                # without inventing numbers. What's shown is real and derived simply:
-                                # Total Expenses = Net Sales − Net Profit.
-                                # Also: your data is a single latest snapshot, not a quarterly time
-                                # series, so there's no quarter slider here (that would need
-                                # historical figures your sheet doesn't have).
-                                def _to_cr_float(raw):
-                                    if raw in (None, "-", "", "nan", "None"):
-                                        return None
-                                    try:
-                                        return float(str(raw).replace(",", "").replace("₹", "").strip())
-                                    except (ValueError, TypeError):
-                                        return None
-
-                                def _hex2rgba(h, alpha=0.35):
-                                    return f"rgba({int(h[1:3],16)},{int(h[3:5],16)},{int(h[5:7],16)},{alpha})"
-
-                                _sankey_sales = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "net sales"))
-                                _sankey_profit = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "net profit"))
-
-                                if _sankey_sales is not None and _sankey_profit is not None and 0 < _sankey_profit < _sankey_sales:
-                                    _sankey_expenses = _sankey_sales - _sankey_profit
-                                    _margin_pct = (_sankey_profit / _sankey_sales) * 100
-                                    fig_sankey = go.Figure(go.Sankey(
-                                        arrangement="snap",
-                                        textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
-                                        node=dict(
-                                            pad=30, thickness=18,
-                                            line=dict(color="rgba(0,0,0,0.2)", width=0.5),
-                                            label=[
-                                                f"Net Sales<br>₹{_sankey_sales:,.2f} Cr (100%)",
-                                                f"Net Profit<br>₹{_sankey_profit:,.2f} Cr ({_margin_pct:.1f}%)",
-                                                f"Total Expenses<br>₹{_sankey_expenses:,.2f} Cr ({100 - _margin_pct:.1f}%)",
-                                            ],
-                                            color=["#1565C0", "#0f9d58", "#ea4335"],
-                                        ),
-                                        link=dict(
-                                            source=[0, 0],
-                                            target=[1, 2],
-                                            value=[_sankey_profit, _sankey_expenses],
-                                            color=["rgba(15,157,88,0.35)", "rgba(234,67,53,0.35)"],
-                                        ),
-                                    ))
-                                    fig_sankey.update_layout(
-                                        title=f"💰 Revenue & Expenses Flow — {sym} (Net Margin {_margin_pct:.1f}%)",
-                                        template="plotly_white", height=320,
-                                        margin=dict(t=45, b=10, l=10, r=10),
-                                        font=dict(size=12),
-                                    )
-                                    st.plotly_chart(fig_sankey, use_container_width=True, key=f"sankey_{sym}")
-                                    st.caption(
-                                        "Based on Net Sales / Net Profit from the Fundamentals data above. "
-                                        "\"Total Expenses\" is the remainder (Net Sales − Net Profit) — your sheet "
-                                        "doesn't carry a Cost-of-Revenue/Opex breakdown, so a multi-stage flow "
-                                        "(Gross → Operating → Net) isn't available for this stock."
-                                    )
-                                elif _sankey_sales is not None and _sankey_profit is not None:
-                                    st.info(
-                                        f"Revenue & Expenses flow needs a normal profitable split (0 < Net Profit < Net Sales). "
-                                        f"{sym} currently shows Net Sales ₹{_sankey_sales:,.2f} Cr and Net Profit ₹{_sankey_profit:,.2f} Cr, "
-                                        "which doesn't fit a simple flow diagram (e.g. a net loss)."
-                                    )
-                                else:
-                                    st.info("Net Sales / Net Profit not available for this stock, so the Revenue & Expenses flow can't be built.")
-
-                                # ── Capital Structure flow (Sankey) ──
-                                # How the company is financed: Total Equity Capital + Reserves + Total
-                                # Debt. Note: this total won't necessarily equal "Total Assets" below —
-                                # they come from different rows/sources in your sheet and often don't
-                                # reconcile exactly, so each diagram is kept internally self-consistent
-                                # rather than forcing a false match between two independently-sourced
-                                # numbers.
-                                _cs_equity = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "total equity capital"))
-                                _cs_reserves = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "reserves"))
-                                _cs_debt = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "total debt"))
-                                _cs_payables = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "trade payables"))
-                                _cs_parts = [
-                                    ("Equity Capital", _cs_equity, "#1565C0"),
-                                    ("Reserves", _cs_reserves, "#0f9d58"),
-                                    ("Total Debt", _cs_debt, "#ea4335"),
-                                    ("Trade Payables", _cs_payables, "#8d6e63"),
-                                ]
-                                _cs_valid = [(n, v, c) for n, v, c in _cs_parts if v is not None and v > 0]
-                                if len(_cs_valid) >= 2:
-                                    _cs_total = sum(v for _, v, _ in _cs_valid)
-                                    fig_cs = go.Figure(go.Sankey(
-                                        arrangement="snap",
-                                        textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
-                                        node=dict(
-                                            pad=30, thickness=18,
-                                            line=dict(color="rgba(0,0,0,0.2)", width=0.5),
-                                            label=[f"Total Financing<br>₹{_cs_total:,.2f} Cr (100%)"] + [f"{n}<br>₹{v:,.2f} Cr ({(v/_cs_total)*100:.1f}%)" for n, v, _ in _cs_valid],
-                                            color=["#5c6bc0"] + [c for _, _, c in _cs_valid],
-                                        ),
-                                        link=dict(
-                                            source=[0] * len(_cs_valid),
-                                            target=list(range(1, len(_cs_valid) + 1)),
-                                            value=[v for _, v, _ in _cs_valid],
-                                            color=[_hex2rgba(c) for _, _, c in _cs_valid],
-                                        ),
-                                    ))
-                                    fig_cs.update_layout(
-                                        title=f"🏗️ Capital Structure — How {sym} Is Financed",
-                                        template="plotly_white", height=300,
-                                        margin=dict(t=45, b=10, l=10, r=10),
-                                        font=dict(size=12),
-                                    )
-                                    st.plotly_chart(fig_cs, use_container_width=True, key=f"sankey_capstruct_{sym}")
-                                    st.caption("Equity Capital + Reserves + Total Debt + Trade Payables, from the Fundamentals data above.")
-                                else:
-                                    st.info("Not enough of Total Equity Capital / Reserves / Total Debt / Trade Payables available to build a Capital Structure flow.")
-
-                                # ── Asset Deployment flow (Sankey) ──
-                                # Total Assets (the real reported figure) broken into the asset
-                                # categories your sheet has. Any gap between Total Assets and the sum
-                                # of known categories is shown honestly as "Other Assets (unspecified)"
-                                # rather than silently dropped or hidden.
-                                _ad_total_assets = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "total assets"))
-                                _ad_parts = [
-                                    ("Fixed Assets / Net PPE", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "fixed assets", "net ppe")), "#5e35b1"),
-                                    ("Inventory", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "inventory")), "#f9a825"),
-                                    ("Trade Receivables", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "trade receivables")), "#00897b"),
-                                    ("Cash & Equivalents", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "cash & equiv", "cash and equiv", "cash equivalent")), "#1565C0"),
-                                ]
-                                _ad_valid = [(n, v, c) for n, v, c in _ad_parts if v is not None and v >= 0]
-                                if _ad_total_assets is not None and _ad_total_assets > 0 and _ad_valid:
-                                    _ad_known_sum = sum(v for _, v, _ in _ad_valid)
-                                    _ad_residual = _ad_total_assets - _ad_known_sum
-                                    if _ad_residual >= 0:
-                                        _ad_nodes = _ad_valid + ([("Other Assets (unspecified)", _ad_residual, "#9e9e9e")] if _ad_residual > 0 else [])
-                                        fig_ad = go.Figure(go.Sankey(
-                                            arrangement="snap",
-                                            textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
-                                            node=dict(
-                                                pad=30, thickness=18,
-                                                line=dict(color="rgba(0,0,0,0.2)", width=0.5),
-                                                label=[f"Total Assets<br>₹{_ad_total_assets:,.2f} Cr (100%)"] + [f"{n}<br>₹{v:,.2f} Cr ({(v/_ad_total_assets)*100:.1f}%)" for n, v, _ in _ad_nodes],
-                                                color=["#37474f"] + [c for _, _, c in _ad_nodes],
-                                            ),
-                                            link=dict(
-                                                source=[0] * len(_ad_nodes),
-                                                target=list(range(1, len(_ad_nodes) + 1)),
-                                                value=[v for _, v, _ in _ad_nodes],
-                                                color=[_hex2rgba(c) for _, _, c in _ad_nodes],
-                                            ),
-                                        ))
-                                        fig_ad.update_layout(
-                                            title=f"📦 Asset Deployment — Where {sym}'s Assets Sit",
-                                            template="plotly_white", height=340,
-                                            margin=dict(t=45, b=10, l=10, r=10),
-                                            font=dict(size=12),
-                                        )
-                                        st.plotly_chart(fig_ad, use_container_width=True, key=f"sankey_assets_{sym}")
-                                        st.caption(
-                                            "Fixed Assets, Inventory, Trade Receivables and Cash & Equivalents from the Fundamentals "
-                                            "data above. \"Other Assets\" is the gap versus reported Total Assets (e.g. intangibles, "
-                                            "investments, or other items your sheet doesn't itemize)."
-                                        )
-                                    else:
-                                        st.info(
-                                            f"{sym}'s itemized asset categories (₹{_ad_known_sum:,.2f} Cr) add up to more than the "
-                                            f"reported Total Assets (₹{_ad_total_assets:,.2f} Cr) — likely a data mismatch between "
-                                            "sheet rows, so the Asset Deployment flow isn't shown to avoid a misleading chart."
-                                        )
-                                else:
-                                    st.info("Total Assets / asset-category data not available for this stock, so the Asset Deployment flow can't be built.")
-
-                                # ── 💎 Combined Money Flow (Merged Sankey) ──
-                                # Redesigned for clarity: Total Financing splits into TWO parallel branches
-                                # (Total Assets, and Net Sales) — the same shape as a standard financial
-                                # Sankey where one hub fans out into a couple of paths that each cascade to
-                                # their own end categories. Each node is also pinned to a fixed left-to-right
-                                # column (via node x-position) so nothing collapses on top of another node,
-                                # which is what made the previous version look like one big overlapping blob.
-                                _mg_labels, _mg_colors, _mg_x = [], [], []
-                                _mg_src, _mg_tgt, _mg_val, _mg_lcolor = [], [], [], []
-
-                                def _mg_add(label, color, col_x):
-                                    _mg_labels.append(label)
-                                    _mg_colors.append(color)
-                                    _mg_x.append(col_x)
-                                    return len(_mg_labels) - 1
-
-                                _COL_SOURCES, _COL_FIN, _COL_MID, _COL_LEAF = 0.001, 0.24, 0.5, 0.999
-
-                                # Stage 1 — Financing sources → Total Financing (incl. Trade Payables)
-                                _mg_cs_parts = [
-                                    ("Equity Capital", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "total equity capital")), "#1565C0"),
-                                    ("Reserves", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "reserves")), "#0f9d58"),
-                                    ("Total Debt", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "total debt")), "#ea4335"),
-                                    ("Trade Payables", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "trade payables")), "#8d6e63"),
-                                ]
-                                _mg_cs_valid = [(n, v, c) for n, v, c in _mg_cs_parts if v is not None and v > 0]
-                                _mg_has_financing = len(_mg_cs_valid) >= 2
-                                _mg_fin_idx = None
-                                if _mg_has_financing:
-                                    _mg_fin_total = sum(v for _, v, _ in _mg_cs_valid)
-                                    _mg_fin_idx = _mg_add(f"Total Financing<br>₹{_mg_fin_total:,.2f} Cr (100%)", "#5c6bc0", _COL_FIN)
-                                    for n, v, c in _mg_cs_valid:
-                                        idx = _mg_add(f"{n}<br>₹{v:,.2f} Cr ({(v/_mg_fin_total)*100:.1f}%)", c, _COL_SOURCES)
-                                        _mg_src.append(idx); _mg_tgt.append(_mg_fin_idx); _mg_val.append(v)
-                                        _mg_lcolor.append(_hex2rgba(c))
-
-                                # Stage 2a — Total Financing → Total Assets → asset categories (incl. Trade
-                                # Receivables). A parallel branch off Total Financing, not a further link off
-                                # a leaf node, so it stays in its own clean column.
-                                _mg_total_assets = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "total assets"))
-                                _mg_ad_parts = [
-                                    ("Fixed Assets / Net PPE", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "fixed assets", "net ppe")), "#5e35b1"),
-                                    ("Inventory", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "inventory")), "#f9a825"),
-                                    ("Trade Receivables", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "trade receivables")), "#00897b"),
-                                    ("Cash & Equivalents", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "cash & equiv", "cash and equiv", "cash equivalent")), "#1565C0"),
-                                ]
-                                _mg_ad_valid = [(n, v, c) for n, v, c in _mg_ad_parts if v is not None and v >= 0]
-                                _mg_has_assets = _mg_total_assets is not None and _mg_total_assets > 0 and bool(_mg_ad_valid)
-                                if _mg_has_assets:
-                                    _mg_known_sum = sum(v for _, v, _ in _mg_ad_valid)
-                                    _mg_residual = _mg_total_assets - _mg_known_sum
-                                    _mg_has_assets = _mg_residual >= 0
-                                if _mg_has_assets:
-                                    _mg_ad_nodes = _mg_ad_valid + ([("Other Assets (unspecified)", _mg_residual, "#9e9e9e")] if _mg_residual > 0 else [])
-                                    _mg_assets_pct = f" ({(_mg_total_assets/_mg_fin_total)*100:.1f}%)" if _mg_fin_idx is not None else " (100%)"
-                                    _mg_assets_idx = _mg_add(f"Total Assets<br>₹{_mg_total_assets:,.2f} Cr{_mg_assets_pct}", "#37474f", _COL_MID)
-                                    if _mg_fin_idx is not None:
-                                        _mg_src.append(_mg_fin_idx); _mg_tgt.append(_mg_assets_idx); _mg_val.append(_mg_total_assets)
-                                        _mg_lcolor.append(_hex2rgba("#37474f"))
-                                    for n, v, c in _mg_ad_nodes:
-                                        idx = _mg_add(f"{n}<br>₹{v:,.2f} Cr ({(v/_mg_total_assets)*100:.1f}%)", c, _COL_LEAF)
-                                        _mg_src.append(_mg_assets_idx); _mg_tgt.append(idx); _mg_val.append(v)
-                                        _mg_lcolor.append(_hex2rgba(c))
-
-                                # Stage 2b — Total Financing → Net Sales → Net Profit / Total Expenses. The
-                                # second parallel branch, kept separate from the Assets branch above so the
-                                # two don't tangle together in the same column.
-                                _mg_sales = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "net sales"))
-                                _mg_profit = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "net profit"))
-                                _mg_has_revenue = _mg_sales is not None and _mg_profit is not None and 0 < _mg_profit < _mg_sales
-                                if _mg_has_revenue:
-                                    _mg_exp = _mg_sales - _mg_profit
-                                    _mg_sales_pct = f" ({(_mg_sales/_mg_fin_total)*100:.1f}%)" if _mg_fin_idx is not None else " (100%)"
-                                    _mg_sales_idx = _mg_add(f"Net Sales<br>₹{_mg_sales:,.2f} Cr{_mg_sales_pct}", "#1565C0", _COL_MID)
-                                    if _mg_fin_idx is not None:
-                                        _mg_src.append(_mg_fin_idx); _mg_tgt.append(_mg_sales_idx); _mg_val.append(_mg_sales)
-                                        _mg_lcolor.append(_hex2rgba("#1565C0"))
-                                    _mg_profit_pct = (_mg_profit/_mg_sales)*100
-                                    _mg_profit_idx = _mg_add(f"Net Profit<br>₹{_mg_profit:,.2f} Cr ({_mg_profit_pct:.1f}%)", "#0f9d58", _COL_LEAF)
-                                    _mg_exp_idx = _mg_add(f"Total Expenses<br>₹{_mg_exp:,.2f} Cr ({100 - _mg_profit_pct:.1f}%)", "#ea4335", _COL_LEAF)
-                                    _mg_src += [_mg_sales_idx, _mg_sales_idx]
-                                    _mg_tgt += [_mg_profit_idx, _mg_exp_idx]
-                                    _mg_val += [_mg_profit, _mg_exp]
-                                    _mg_lcolor += [_hex2rgba("#0f9d58"), _hex2rgba("#ea4335")]
-
-                                _mg_groups_shown = sum([_mg_has_financing, _mg_has_assets, _mg_has_revenue])
-                                if _mg_groups_shown > 0:
-                                    # Even y-spread per column keeps Plotly's auto-layout from bunching nodes;
-                                    # "snap" then nudges them apart further to avoid any residual overlap.
-                                    from collections import defaultdict
-                                    _mg_col_counts = defaultdict(int)
-                                    for x in _mg_x:
-                                        _mg_col_counts[x] += 1
-                                    _mg_col_seen = defaultdict(int)
-                                    _mg_y = []
-                                    for x in _mg_x:
-                                        n = _mg_col_counts[x]
-                                        i = _mg_col_seen[x]
-                                        _mg_col_seen[x] += 1
-                                        _mg_y.append(round((i + 0.5) / n, 4) if n > 1 else 0.5)
-
-                                    fig_merged = go.Figure(go.Sankey(
-                                        arrangement="snap",
-                                        textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
-                                        node=dict(
-                                            pad=22, thickness=18,
-                                            line=dict(color="rgba(0,0,0,0.2)", width=0.5),
-                                            label=_mg_labels, color=_mg_colors,
-                                            x=_mg_x, y=_mg_y,
-                                        ),
-                                        link=dict(source=_mg_src, target=_mg_tgt, value=_mg_val, color=_mg_lcolor),
-                                    ))
-                                    fig_merged.update_layout(
-                                        title=f"💎 Combined Money Flow — {sym} (Financing → Assets / Revenue, merged)",
-                                        template="plotly_white", height=560,
-                                        margin=dict(t=45, b=10, l=10, r=10),
-                                        font=dict(size=12),
-                                    )
-                                    st.plotly_chart(fig_merged, use_container_width=True, key=f"sankey_merged_{sym}")
-                                    st.caption(
-                                        "All money-related flows merged into one chart: financing sources (Equity + "
-                                        "Reserves + Debt + Trade Payables) feed Total Financing, which splits into two "
-                                        "parallel paths — Total Assets (incl. Trade Receivables) and Net Sales → Net "
-                                        "Profit / Total Expenses. It's drawn as two branches off one hub, rather than "
-                                        "one long chain, because Total Assets and Net Sales are different kinds of "
-                                        "totals (balance sheet vs. P&L) that don't feed into each other. Trade Payables "
-                                        "now also appears in the 🏗️ Capital Structure chart above."
-                                    )
-                                else:
-                                    st.info("Not enough financing / assets / revenue data available for this stock to build the Combined Money Flow chart.")
-
-                                # ── Shareholding Pattern flow (Sankey) ──
-                                # Market Cap × holding % → real ₹ value held by each category.
-                                # Pledged % is, by standard convention, a share OF the promoters'
-                                # holding (not a separate slice of the total) — so it's modeled as a
-                                # second-level split under Promoters, not a sibling of Institutional/Other.
-                                _sh_mcap = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "market cap"))
-                                _sh_prom_pct = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "promoters %", "promoter"))
-                                _sh_inst_pct = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "institutional %", "institutional"))
-                                _sh_pledged_pct = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "pledged %", "pledged"))
-
-                                if _sh_mcap is not None and _sh_mcap > 0 and (_sh_prom_pct is not None or _sh_inst_pct is not None):
-                                    _sh_prom_pct = _sh_prom_pct or 0.0
-                                    _sh_inst_pct = _sh_inst_pct or 0.0
-                                    _sh_other_pct = max(0.0, 100.0 - _sh_prom_pct - _sh_inst_pct)
-                                    _sh_prom_val = _sh_mcap * _sh_prom_pct / 100
-                                    _sh_inst_val = _sh_mcap * _sh_inst_pct / 100
-                                    _sh_other_val = _sh_mcap * _sh_other_pct / 100
-
-                                    _sh_labels = [
-                                        f"Market Cap<br>₹{_sh_mcap:,.2f} Cr",
-                                        f"Promoters<br>₹{_sh_prom_val:,.2f} Cr ({_sh_prom_pct:.1f}%)",
-                                        f"Institutional<br>₹{_sh_inst_val:,.2f} Cr ({_sh_inst_pct:.1f}%)",
-                                        f"Public / Other<br>₹{_sh_other_val:,.2f} Cr ({_sh_other_pct:.1f}%)",
-                                    ]
-                                    _sh_colors = ["#37474f", "#1565C0", "#0f9d58", "#9e9e9e"]
-                                    _sh_src = [0, 0, 0]
-                                    _sh_tgt = [1, 2, 3]
-                                    _sh_val = [_sh_prom_val, _sh_inst_val, _sh_other_val]
-                                    _sh_link_colors = [_hex2rgba(c) for c in ["#1565C0", "#0f9d58", "#9e9e9e"]]
-
-                                    # Second level: split Promoters holding into Pledged vs Free, only if
-                                    # a real Pledged % was found for this stock.
-                                    _sh_caption_extra = ""
-                                    if _sh_pledged_pct is not None and _sh_prom_val > 0:
-                                        _sh_pledged_val = _sh_prom_val * _sh_pledged_pct / 100
-                                        _sh_free_val = _sh_prom_val - _sh_pledged_val
-                                        _sh_labels += [
-                                            f"Pledged (of Promoters)<br>₹{_sh_pledged_val:,.2f} Cr ({_sh_pledged_pct:.1f}%)",
-                                            f"Free / Unpledged<br>₹{_sh_free_val:,.2f} Cr",
-                                        ]
-                                        _sh_colors += ["#c62828", "#66bb6a"]
-                                        _sh_src += [1, 1]
-                                        _sh_tgt += [4, 5]
-                                        _sh_val += [_sh_pledged_val, _sh_free_val]
-                                        _sh_link_colors += [_hex2rgba("#c62828"), _hex2rgba("#66bb6a")]
-                                        _sh_caption_extra = " Promoters' holding is further split into Pledged vs Free based on Pledged %."
-
-                                    fig_sh = go.Figure(go.Sankey(
-                                        arrangement="snap",
-                                        textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
-                                        node=dict(
-                                            pad=30, thickness=18,
-                                            line=dict(color="rgba(0,0,0,0.2)", width=0.5),
-                                            label=_sh_labels, color=_sh_colors,
-                                        ),
-                                        link=dict(source=_sh_src, target=_sh_tgt, value=_sh_val, color=_sh_link_colors),
-                                    ))
-                                    fig_sh.update_layout(
-                                        title=f"🧾 Shareholding Pattern — Who Owns {sym}",
-                                        template="plotly_white", height=380,
-                                        margin=dict(t=45, b=10, l=10, r=10),
-                                        font=dict(size=12),
-                                    )
-                                    st.plotly_chart(fig_sh, use_container_width=True, key=f"sankey_shareholding_{sym}")
-                                    st.caption(
-                                        "Market Cap × holding % from the Fundamentals data above. \"Public / Other\" absorbs "
-                                        "whatever isn't reported as Promoters/Institutional (Public %, FII %, DII % show \"-\" "
-                                        f"for stocks where your sheet doesn't break those out separately).{_sh_caption_extra}"
-                                    )
-                                else:
-                                    st.info("Market Cap / shareholding % data not available for this stock, so the Shareholding Pattern flow can't be built.")
-
-                                # ── Volume Delivery Split (Sankey) ──
-                                # Volume genuinely splits into two real parts: shares that were
-                                # delivered (taken into demat, i.e. genuine buying) vs. shares traded
-                                # intraday (squared off same day, no delivery). % Delivery is exactly
-                                # that split ratio, so this is a real flow, not a fabricated one.
-                                _vol_raw = _sheet_val(sel_row, fund_primary_row, "volume")
-                                _deliv_pct = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "% delivery", "delivery %", "delivery"))
-                                _vol_val = _to_cr_float(_vol_raw)
-                                if _vol_val is not None and _deliv_pct is not None and 0 <= _deliv_pct <= 100:
-                                    _delivered_qty = _vol_val * _deliv_pct / 100
-                                    _nondeliv_qty = _vol_val - _delivered_qty
-                                    fig_vol = go.Figure(go.Sankey(
-                                        arrangement="snap",
-                                        textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
-                                        node=dict(
-                                            pad=30, thickness=18,
-                                            line=dict(color="rgba(0,0,0,0.2)", width=0.5),
-                                            label=[
-                                                f"Volume<br>{_vol_val:,.0f} shares",
-                                                f"Delivered<br>{_delivered_qty:,.0f} shares ({_deliv_pct:.1f}%)",
-                                                f"Intraday / Non-Delivery<br>{_nondeliv_qty:,.0f} shares ({100 - _deliv_pct:.1f}%)",
-                                            ],
-                                            color=["#37474f", "#0f9d58", "#f9a825"],
-                                        ),
-                                        link=dict(
-                                            source=[0, 0], target=[1, 2],
-                                            value=[_delivered_qty, _nondeliv_qty],
-                                            color=[_hex2rgba("#0f9d58"), _hex2rgba("#f9a825")],
-                                        ),
-                                    ))
-                                    fig_vol.update_layout(
-                                        title=f"📦 Volume → Delivery Split — {sym}",
-                                        template="plotly_white", height=300,
-                                        margin=dict(t=45, b=10, l=10, r=10),
-                                    )
-                                    st.plotly_chart(fig_vol, use_container_width=True, key=f"sankey_volume_{sym}")
-                                    st.caption(
-                                        "Total Volume split by % Delivery into shares actually delivered (genuine buying/holding) "
-                                        "vs. shares traded intraday and squared off same day."
-                                    )
-                                else:
-                                    st.info("Volume / % Delivery not available for this stock, so the Volume → Delivery split can't be built.")
-
-                                # ── Turnover Delivery Split (Sankey) ──
-                                # Same split, in ₹ value terms. If your sheet's Turnover is blank
-                                # (as it is for some stocks), this falls back to an estimated turnover
-                                # = Volume × Last Close — the same fallback convention already used
-                                # elsewhere in this app when a real Turnover column is missing.
-                                _turnover_raw = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "turnover"))
-                                _turnover_is_estimated = False
-                                if _turnover_raw is None and _vol_val is not None and last_close:
-                                    _turnover_raw = (_vol_val * last_close) / 1e7  # ₹ → Cr
-                                    _turnover_is_estimated = True
-                                if _turnover_raw is not None and _deliv_pct is not None and 0 <= _deliv_pct <= 100:
-                                    _delivered_val = _turnover_raw * _deliv_pct / 100
-                                    _nondeliv_val = _turnover_raw - _delivered_val
-                                    fig_turn = go.Figure(go.Sankey(
-                                        arrangement="snap",
-                                        textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
-                                        node=dict(
-                                            pad=30, thickness=18,
-                                            line=dict(color="rgba(0,0,0,0.2)", width=0.5),
-                                            label=[
-                                                f"{'Est. ' if _turnover_is_estimated else ''}Turnover<br>₹{_turnover_raw:,.2f} Cr",
-                                                f"Delivered Value<br>₹{_delivered_val:,.2f} Cr ({_deliv_pct:.1f}%)",
-                                                f"Intraday Value<br>₹{_nondeliv_val:,.2f} Cr ({100 - _deliv_pct:.1f}%)",
-                                            ],
-                                            color=["#37474f", "#0f9d58", "#f9a825"],
-                                        ),
-                                        link=dict(
-                                            source=[0, 0], target=[1, 2],
-                                            value=[_delivered_val, _nondeliv_val],
-                                            color=[_hex2rgba("#0f9d58"), _hex2rgba("#f9a825")],
-                                        ),
-                                    ))
-                                    fig_turn.update_layout(
-                                        title=f"💵 Turnover → Delivery Split — {sym}",
-                                        template="plotly_white", height=300,
-                                        margin=dict(t=45, b=10, l=10, r=10),
-                                    )
-                                    st.plotly_chart(fig_turn, use_container_width=True, key=f"sankey_turnover_{sym}")
-                                    _turn_note = (
-                                        " Your sheet's Turnover field is blank for this stock, so this uses an estimate "
-                                        "(Volume × Last Close) — the same fallback this app already uses elsewhere."
-                                        if _turnover_is_estimated else ""
-                                    )
-                                    st.caption(f"Turnover split by % Delivery, mirroring the Volume split above in ₹ terms.{_turn_note}")
-                                else:
-                                    st.info("Turnover / % Delivery / Volume not available for this stock, so the Turnover → Delivery split can't be built.")
-
-                                # ── Price Change bridge (Waterfall — NOT a Sankey) ──
-                                # A price move can be negative, and Sankey flows can't be negative, so
-                                # this uses a proper Waterfall/bridge chart instead — the correct tool
-                                # for "start value → step → end value" with either sign.
-                                if prev_close and last_close is not None:
-                                    _price_delta = last_close - prev_close
-                                    fig_wf = go.Figure(go.Waterfall(
-                                        orientation="v",
-                                        measure=["absolute", "relative", "total"],
-                                        x=["Prev Close", "Change", "Last Close"],
-                                        y=[prev_close, _price_delta, last_close],
-                                        text=[f"₹{prev_close:,.2f}", f"{_price_delta:+.2f}", f"₹{last_close:,.2f}"],
-                                        textposition="outside",
-                                        textfont=dict(color="#0a1758", size=13),
-                                        increasing=dict(marker=dict(color="#0f9d58")),
-                                        decreasing=dict(marker=dict(color="#ea4335")),
-                                        totals=dict(marker=dict(color="#1565C0")),
-                                        connector=dict(line=dict(color="rgba(0,0,0,0.3)")),
-                                    ))
-                                    fig_wf.update_layout(
-                                        title=f"📈 Price Change Bridge — {sym} ({day_chg:+.2f}%)",
-                                        template="plotly_white", height=300, showlegend=False,
-                                        margin=dict(t=45, b=10, l=10, r=10),
-                                    )
-                                    st.plotly_chart(fig_wf, use_container_width=True, key=f"waterfall_price_{sym}")
-                                    st.caption("Prev Close → today's Price Change → Last Close. Shown as a Waterfall, not a Sankey, since a price drop can't be a negative flow.")
-                                else:
-                                    st.info("Prev Close / Last Close not available for this stock, so the Price Change bridge can't be built.")
-
-                                # ── RSI(14) Gauge (NOT a Sankey) ──
-                                # RSI is an oscillator, not a splittable amount — a gauge is the
-                                # honest way to show it, with the standard oversold/neutral/overbought zones.
-                                if last_rsi14 is not None:
-                                    fig_rsi_gauge = go.Figure(go.Indicator(
-                                        mode="gauge+number",
-                                        value=float(last_rsi14),
-                                        number=dict(font=dict(color="#0a1758", size=28)),
-                                        title=dict(text=f"RSI(14) — {sym}", font=dict(size=14)),
-                                        gauge=dict(
-                                            axis=dict(range=[0, 100]),
-                                            bar=dict(color="#1565C0"),
-                                            steps=[
-                                                dict(range=[0, 30], color="#e3f2fd"),
-                                                dict(range=[30, 70], color="#f5f5f5"),
-                                                dict(range=[70, 100], color="#ffebee"),
-                                            ],
-                                            threshold=dict(line=dict(color="#c62828", width=3), value=float(last_rsi14)),
-                                        ),
-                                    ))
-                                    fig_rsi_gauge.update_layout(template="plotly_white", height=260, margin=dict(t=50, b=10, l=30, r=30))
-                                    st.plotly_chart(fig_rsi_gauge, use_container_width=True, key=f"gauge_rsi_{sym}")
-                                    st.caption("Below 30 = oversold, above 70 = overbought. A gauge, not a Sankey — RSI doesn't split into parts.")
-                                else:
-                                    st.info("RSI(14) not available for this stock.")
-
-                                # ── 52-Week Range position Gauge (NOT a Sankey) ──
-                                # Where today's price sits between its 52W Low and High. Price levels
-                                # don't sum to anything, so — like RSI — this is a gauge, not a Sankey.
-                                _wk52_high = float(chart_df["High"].max()) if not chart_df.empty else None
-                                _wk52_low = float(chart_df["Low"].min()) if not chart_df.empty else None
-                                if _wk52_high and _wk52_low is not None and _wk52_high > _wk52_low and last_close is not None:
-                                    _pos_pct = max(0.0, min(100.0, (last_close - _wk52_low) / (_wk52_high - _wk52_low) * 100))
-                                    fig_range_gauge = go.Figure(go.Indicator(
-                                        mode="gauge+number",
-                                        value=_pos_pct,
-                                        number=dict(suffix="%", font=dict(color="#0a1758", size=28)),
-                                        title=dict(text=f"52W Range Position — {sym}<br><span style='font-size:11px'>Low ₹{_wk52_low:,.2f} · Last ₹{last_close:,.2f} · High ₹{_wk52_high:,.2f}</span>", font=dict(size=14)),
-                                        gauge=dict(
-                                            axis=dict(range=[0, 100]),
-                                            bar=dict(color="#1565C0"),
-                                            steps=[
-                                                dict(range=[0, 33], color="#ffebee"),
-                                                dict(range=[33, 66], color="#fff8e1"),
-                                                dict(range=[66, 100], color="#e8f5e9"),
-                                            ],
-                                            threshold=dict(line=dict(color="#c62828", width=3), value=_pos_pct),
-                                        ),
-                                    ))
-                                    fig_range_gauge.update_layout(template="plotly_white", height=280, margin=dict(t=65, b=10, l=30, r=30))
-                                    st.plotly_chart(fig_range_gauge, use_container_width=True, key=f"gauge_52wrange_{sym}")
-                                    st.caption("0% = at the 52-week low, 100% = at the 52-week high. A gauge, not a Sankey — price levels aren't a splittable quantity.")
-                                else:
-                                    st.info("52-week High/Low/Last Close not available for this stock.")
-
                         with rsi_tab:
                             idx_rsi = list(chart_df.index)
                             fig2 = go.Figure()
@@ -4037,6 +3406,637 @@ Be specific, data-driven, and actionable for a retail investor.
                             fig2.update_xaxes(gridcolor="rgba(0,0,0,0.08)")
                             fig2.update_yaxes(gridcolor="rgba(0,0,0,0.08)")
                             st.plotly_chart(fig2, use_container_width=True, key=f"rsi14_chart_{sym}")
+
+                st.markdown("<hr style='margin:16px 0 4px 0;opacity:0.25;'>", unsafe_allow_html=True)
+                with st.expander(f"📋 {sym} — Google Sheet Data", expanded=True):
+
+                    def _render_group_direct(title, items):
+                        """Like _render_group but takes ready-made (label, value) pairs instead of sheet-column keys."""
+                        cards = "".join(_info_card_html(lbl, val) for lbl, val in items)
+                        st.markdown(
+                            f"<div style='font-size:13px;font-weight:700;color:#1565C0;margin:14px 0 6px 0;'>{title}</div>"
+                            f"<div style='display:flex;flex-wrap:wrap;gap:8px;'>{cards}</div>",
+                            unsafe_allow_html=True,
+                        )
+
+                    # ── Group 0: Price snapshot (moved here from above the chart) ──
+                    _chg_arrow = "▲" if day_chg >= 0 else "▼"
+                    _chg_color = "#00A152" if day_chg >= 0 else "#D32F2F"
+                    _render_group_direct("📊 Price Snapshot", [
+                        ("Last Close", f"₹{last_close:,.2f} "
+                                       f"<span style='color:{_chg_color};font-size:12px;'>{_chg_arrow} {day_chg:+.2f}%</span>"),
+                        ("52W High", f"₹{float(chart_df['High'].max()):,.2f}"),
+                        ("52W Low", f"₹{float(chart_df['Low'].min()):,.2f}"),
+                        ("RSI(14)", f"{last_rsi14:.1f}" if last_rsi14 is not None else "–"),
+                    ])
+
+                    with st.expander("📋 Company Price Dashboard", expanded=False):
+                        # ── Group 1: Company / classification info ──
+                        _render_group("🏢 Company Info", [
+                            ("Company Name", ["company name", "stock name"]),
+                            ("Sector", ["sector", "industry"]),
+                            ("% Delivery", ["% delivery", "delivery %", "delivery"]),
+                            ("52W High Date", ["52w high date", "52 week high date"]),
+                            ("52W Low Date", ["52w low date", "52 week low date"]),
+                            ("Volume", ["volume"]),
+                            ("Turnover", ["turnover"]),
+                        ])
+
+                        # ── Group 2: Signals / system output ──
+                        _render_group("📡 Signals & System Output", [
+                            ("Output", ["output"]),
+                            ("Difference from 200 DMA", ["difference from 200 dma", "differance from 200 dma"]),
+                            ("CAR Rating", ["cumulative average rule (car) rating", "car rating"]),
+                            ("Start GTT Order", ["start gtt order", "gtt order"]),
+                            ("Volume Trend", ["volume trend"]),
+                            ("Breakout Signal", ["breakout signal"]),
+                            ("Trend", ["trend"]),
+                            ("MACD Crossover", ["macd crossover"]),
+                            ("Buy Signal", ["buy signal"]),
+                        ])
+
+                        # ── Group 3: Fundamentals ──
+                        _render_group("💰 Fundamentals", [
+                            ("Face Value", ["face value"]),
+                            ("Total Equity Capital", ["total equity capital"]),
+                            ("Market Cap", ["market cap"]),
+                            ("EPS", ["eps"]),
+                            ("RONW %", ["ronw"]),
+                            ("Promoters %", ["promoters %", "promoter"]),
+                            ("Institutional %", ["institutional %", "institutional"]),
+                            ("Pledged %", ["pledged %", "pledged"]),
+                            ("D/E Ratio", ["d/e ratio", "de ratio"]),
+                            ("Net Sales (Cr)", ["net sales"]),
+                            ("Net Profit (Cr.)", ["net profit"]),
+                            ("Reserves (Cr)", ["reserves"]),
+                            ("Total Debt (Cr)", ["total debt"]),
+                            ("Inventory (Cr)", ["inventory"]),
+                            ("Cash & Equiv (Cr)", ["cash & equiv", "cash and equiv", "cash equivalent"]),
+                            ("Operating Cash Flow (Cr)", ["operating cash flow"]),
+                            ("Trade Receivables (Cr)", ["trade receivables"]),
+                            ("Trade Payables (Cr)", ["trade payables"]),
+                            ("Fixed Assets/Net PPE (Cr)", ["fixed assets", "net ppe"]),
+                            ("Total Assets (Cr)", ["total assets"]),
+                            ("Open (₹)", ["open price", "open (", "open"]),
+                            ("High (₹)", ["day high", "high price", "high ("]),
+                            ("Low (₹)", ["day low", "low price", "low ("]),
+                            ("Prev Close (₹)", ["prev close", "previous close", "close price"]),
+                            ("Price Change (₹)", ["price change", "change (", "change in price"]),
+                            ("% Change", ["% change", "price %", "change %"]),
+                            ("Shares Outstanding (Cr)", ["shares outstanding"]),
+                            ("Book Value (₹/share)", ["book value"]),
+                            ("Public %", ["public %", "public holding"]),
+                            ("FII %", ["fii %", "fii holding", "fii"]),
+                            ("DII %", ["dii %", "dii holding", "dii"]),
+                        ])
+
+                    # ── Revenue & Expenses flow (Sankey) ──
+                    # Built ONLY from real fields your sheet actually has: Net Sales and
+                    # Net Profit. Your sheet has no Cost-of-Revenue / SG&A / R&D / Opex
+                    # line items, so — unlike the reference screenshots — this can't be
+                    # broken into Gross Profit → Operating Profit → SG&A/R&D stages
+                    # without inventing numbers. What's shown is real and derived simply:
+                    # Total Expenses = Net Sales − Net Profit.
+                    # Also: your data is a single latest snapshot, not a quarterly time
+                    # series, so there's no quarter slider here (that would need
+                    # historical figures your sheet doesn't have).
+                    def _to_cr_float(raw):
+                        if raw in (None, "-", "", "nan", "None"):
+                            return None
+                        try:
+                            return float(str(raw).replace(",", "").replace("₹", "").strip())
+                        except (ValueError, TypeError):
+                            return None
+
+                    def _hex2rgba(h, alpha=0.35):
+                        return f"rgba({int(h[1:3],16)},{int(h[3:5],16)},{int(h[5:7],16)},{alpha})"
+
+                    _sankey_sales = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "net sales"))
+                    _sankey_profit = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "net profit"))
+
+                    if _sankey_sales is not None and _sankey_profit is not None and 0 < _sankey_profit < _sankey_sales:
+                        _sankey_expenses = _sankey_sales - _sankey_profit
+                        _margin_pct = (_sankey_profit / _sankey_sales) * 100
+                        fig_sankey = go.Figure(go.Sankey(
+                            arrangement="snap",
+                            textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
+                            node=dict(
+                                pad=30, thickness=18,
+                                line=dict(color="rgba(0,0,0,0.2)", width=0.5),
+                                label=[
+                                    f"Net Sales<br>₹{_sankey_sales:,.2f} Cr (100%)",
+                                    f"Net Profit<br>₹{_sankey_profit:,.2f} Cr ({_margin_pct:.1f}%)",
+                                    f"Total Expenses<br>₹{_sankey_expenses:,.2f} Cr ({100 - _margin_pct:.1f}%)",
+                                ],
+                                color=["#1565C0", "#0f9d58", "#ea4335"],
+                            ),
+                            link=dict(
+                                source=[0, 0],
+                                target=[1, 2],
+                                value=[_sankey_profit, _sankey_expenses],
+                                color=["rgba(15,157,88,0.35)", "rgba(234,67,53,0.35)"],
+                            ),
+                        ))
+                        fig_sankey.update_layout(
+                            title=f"💰 Revenue & Expenses Flow — {sym} (Net Margin {_margin_pct:.1f}%)",
+                            template="plotly_white", height=320,
+                            margin=dict(t=45, b=10, l=10, r=10),
+                            font=dict(size=12),
+                        )
+                        st.plotly_chart(fig_sankey, use_container_width=True, key=f"sankey_{sym}")
+                        st.caption(
+                            "Based on Net Sales / Net Profit from the Fundamentals data above. "
+                            "\"Total Expenses\" is the remainder (Net Sales − Net Profit) — your sheet "
+                            "doesn't carry a Cost-of-Revenue/Opex breakdown, so a multi-stage flow "
+                            "(Gross → Operating → Net) isn't available for this stock."
+                        )
+                    elif _sankey_sales is not None and _sankey_profit is not None:
+                        st.info(
+                            f"Revenue & Expenses flow needs a normal profitable split (0 < Net Profit < Net Sales). "
+                            f"{sym} currently shows Net Sales ₹{_sankey_sales:,.2f} Cr and Net Profit ₹{_sankey_profit:,.2f} Cr, "
+                            "which doesn't fit a simple flow diagram (e.g. a net loss)."
+                        )
+                    else:
+                        st.info("Net Sales / Net Profit not available for this stock, so the Revenue & Expenses flow can't be built.")
+
+                    # ── Capital Structure flow (Sankey) ──
+                    # How the company is financed: Total Equity Capital + Reserves + Total
+                    # Debt. Note: this total won't necessarily equal "Total Assets" below —
+                    # they come from different rows/sources in your sheet and often don't
+                    # reconcile exactly, so each diagram is kept internally self-consistent
+                    # rather than forcing a false match between two independently-sourced
+                    # numbers.
+                    _cs_equity = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "total equity capital"))
+                    _cs_reserves = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "reserves"))
+                    _cs_debt = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "total debt"))
+                    _cs_payables = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "trade payables"))
+                    _cs_parts = [
+                        ("Equity Capital", _cs_equity, "#1565C0"),
+                        ("Reserves", _cs_reserves, "#0f9d58"),
+                        ("Total Debt", _cs_debt, "#ea4335"),
+                        ("Trade Payables", _cs_payables, "#8d6e63"),
+                    ]
+                    _cs_valid = [(n, v, c) for n, v, c in _cs_parts if v is not None and v > 0]
+                    if len(_cs_valid) >= 2:
+                        _cs_total = sum(v for _, v, _ in _cs_valid)
+                        fig_cs = go.Figure(go.Sankey(
+                            arrangement="snap",
+                            textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
+                            node=dict(
+                                pad=30, thickness=18,
+                                line=dict(color="rgba(0,0,0,0.2)", width=0.5),
+                                label=[f"Total Financing<br>₹{_cs_total:,.2f} Cr (100%)"] + [f"{n}<br>₹{v:,.2f} Cr ({(v/_cs_total)*100:.1f}%)" for n, v, _ in _cs_valid],
+                                color=["#5c6bc0"] + [c for _, _, c in _cs_valid],
+                            ),
+                            link=dict(
+                                source=[0] * len(_cs_valid),
+                                target=list(range(1, len(_cs_valid) + 1)),
+                                value=[v for _, v, _ in _cs_valid],
+                                color=[_hex2rgba(c) for _, _, c in _cs_valid],
+                            ),
+                        ))
+                        fig_cs.update_layout(
+                            title=f"🏗️ Capital Structure — How {sym} Is Financed",
+                            template="plotly_white", height=300,
+                            margin=dict(t=45, b=10, l=10, r=10),
+                            font=dict(size=12),
+                        )
+                        st.plotly_chart(fig_cs, use_container_width=True, key=f"sankey_capstruct_{sym}")
+                        st.caption("Equity Capital + Reserves + Total Debt + Trade Payables, from the Fundamentals data above.")
+                    else:
+                        st.info("Not enough of Total Equity Capital / Reserves / Total Debt / Trade Payables available to build a Capital Structure flow.")
+
+                    # ── Asset Deployment flow (Sankey) ──
+                    # Total Assets (the real reported figure) broken into the asset
+                    # categories your sheet has. Any gap between Total Assets and the sum
+                    # of known categories is shown honestly as "Other Assets (unspecified)"
+                    # rather than silently dropped or hidden.
+                    _ad_total_assets = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "total assets"))
+                    _ad_parts = [
+                        ("Fixed Assets / Net PPE", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "fixed assets", "net ppe")), "#5e35b1"),
+                        ("Inventory", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "inventory")), "#f9a825"),
+                        ("Trade Receivables", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "trade receivables")), "#00897b"),
+                        ("Cash & Equivalents", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "cash & equiv", "cash and equiv", "cash equivalent")), "#1565C0"),
+                    ]
+                    _ad_valid = [(n, v, c) for n, v, c in _ad_parts if v is not None and v >= 0]
+                    if _ad_total_assets is not None and _ad_total_assets > 0 and _ad_valid:
+                        _ad_known_sum = sum(v for _, v, _ in _ad_valid)
+                        _ad_residual = _ad_total_assets - _ad_known_sum
+                        if _ad_residual >= 0:
+                            _ad_nodes = _ad_valid + ([("Other Assets (unspecified)", _ad_residual, "#9e9e9e")] if _ad_residual > 0 else [])
+                            fig_ad = go.Figure(go.Sankey(
+                                arrangement="snap",
+                                textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
+                                node=dict(
+                                    pad=30, thickness=18,
+                                    line=dict(color="rgba(0,0,0,0.2)", width=0.5),
+                                    label=[f"Total Assets<br>₹{_ad_total_assets:,.2f} Cr (100%)"] + [f"{n}<br>₹{v:,.2f} Cr ({(v/_ad_total_assets)*100:.1f}%)" for n, v, _ in _ad_nodes],
+                                    color=["#37474f"] + [c for _, _, c in _ad_nodes],
+                                ),
+                                link=dict(
+                                    source=[0] * len(_ad_nodes),
+                                    target=list(range(1, len(_ad_nodes) + 1)),
+                                    value=[v for _, v, _ in _ad_nodes],
+                                    color=[_hex2rgba(c) for _, _, c in _ad_nodes],
+                                ),
+                            ))
+                            fig_ad.update_layout(
+                                title=f"📦 Asset Deployment — Where {sym}'s Assets Sit",
+                                template="plotly_white", height=340,
+                                margin=dict(t=45, b=10, l=10, r=10),
+                                font=dict(size=12),
+                            )
+                            st.plotly_chart(fig_ad, use_container_width=True, key=f"sankey_assets_{sym}")
+                            st.caption(
+                                "Fixed Assets, Inventory, Trade Receivables and Cash & Equivalents from the Fundamentals "
+                                "data above. \"Other Assets\" is the gap versus reported Total Assets (e.g. intangibles, "
+                                "investments, or other items your sheet doesn't itemize)."
+                            )
+                        else:
+                            st.info(
+                                f"{sym}'s itemized asset categories (₹{_ad_known_sum:,.2f} Cr) add up to more than the "
+                                f"reported Total Assets (₹{_ad_total_assets:,.2f} Cr) — likely a data mismatch between "
+                                "sheet rows, so the Asset Deployment flow isn't shown to avoid a misleading chart."
+                            )
+                    else:
+                        st.info("Total Assets / asset-category data not available for this stock, so the Asset Deployment flow can't be built.")
+
+                    # ── 💎 Combined Money Flow (Merged Sankey) ──
+                    # Redesigned for clarity: Total Financing splits into TWO parallel branches
+                    # (Total Assets, and Net Sales) — the same shape as a standard financial
+                    # Sankey where one hub fans out into a couple of paths that each cascade to
+                    # their own end categories. Each node is also pinned to a fixed left-to-right
+                    # column (via node x-position) so nothing collapses on top of another node,
+                    # which is what made the previous version look like one big overlapping blob.
+                    _mg_labels, _mg_colors, _mg_x = [], [], []
+                    _mg_src, _mg_tgt, _mg_val, _mg_lcolor = [], [], [], []
+
+                    def _mg_add(label, color, col_x):
+                        _mg_labels.append(label)
+                        _mg_colors.append(color)
+                        _mg_x.append(col_x)
+                        return len(_mg_labels) - 1
+
+                    _COL_SOURCES, _COL_FIN, _COL_MID, _COL_LEAF = 0.001, 0.24, 0.5, 0.999
+
+                    # Stage 1 — Financing sources → Total Financing (incl. Trade Payables)
+                    _mg_cs_parts = [
+                        ("Equity Capital", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "total equity capital")), "#1565C0"),
+                        ("Reserves", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "reserves")), "#0f9d58"),
+                        ("Total Debt", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "total debt")), "#ea4335"),
+                        ("Trade Payables", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "trade payables")), "#8d6e63"),
+                    ]
+                    _mg_cs_valid = [(n, v, c) for n, v, c in _mg_cs_parts if v is not None and v > 0]
+                    _mg_has_financing = len(_mg_cs_valid) >= 2
+                    _mg_fin_idx = None
+                    if _mg_has_financing:
+                        _mg_fin_total = sum(v for _, v, _ in _mg_cs_valid)
+                        _mg_fin_idx = _mg_add(f"Total Financing<br>₹{_mg_fin_total:,.2f} Cr (100%)", "#5c6bc0", _COL_FIN)
+                        for n, v, c in _mg_cs_valid:
+                            idx = _mg_add(f"{n}<br>₹{v:,.2f} Cr ({(v/_mg_fin_total)*100:.1f}%)", c, _COL_SOURCES)
+                            _mg_src.append(idx); _mg_tgt.append(_mg_fin_idx); _mg_val.append(v)
+                            _mg_lcolor.append(_hex2rgba(c))
+
+                    # Stage 2a — Total Financing → Total Assets → asset categories (incl. Trade
+                    # Receivables). A parallel branch off Total Financing, not a further link off
+                    # a leaf node, so it stays in its own clean column.
+                    _mg_total_assets = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "total assets"))
+                    _mg_ad_parts = [
+                        ("Fixed Assets / Net PPE", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "fixed assets", "net ppe")), "#5e35b1"),
+                        ("Inventory", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "inventory")), "#f9a825"),
+                        ("Trade Receivables", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "trade receivables")), "#00897b"),
+                        ("Cash & Equivalents", _to_cr_float(_sheet_val(sel_row, fund_primary_row, "cash & equiv", "cash and equiv", "cash equivalent")), "#1565C0"),
+                    ]
+                    _mg_ad_valid = [(n, v, c) for n, v, c in _mg_ad_parts if v is not None and v >= 0]
+                    _mg_has_assets = _mg_total_assets is not None and _mg_total_assets > 0 and bool(_mg_ad_valid)
+                    if _mg_has_assets:
+                        _mg_known_sum = sum(v for _, v, _ in _mg_ad_valid)
+                        _mg_residual = _mg_total_assets - _mg_known_sum
+                        _mg_has_assets = _mg_residual >= 0
+                    if _mg_has_assets:
+                        _mg_ad_nodes = _mg_ad_valid + ([("Other Assets (unspecified)", _mg_residual, "#9e9e9e")] if _mg_residual > 0 else [])
+                        _mg_assets_pct = f" ({(_mg_total_assets/_mg_fin_total)*100:.1f}%)" if _mg_fin_idx is not None else " (100%)"
+                        _mg_assets_idx = _mg_add(f"Total Assets<br>₹{_mg_total_assets:,.2f} Cr{_mg_assets_pct}", "#37474f", _COL_MID)
+                        if _mg_fin_idx is not None:
+                            _mg_src.append(_mg_fin_idx); _mg_tgt.append(_mg_assets_idx); _mg_val.append(_mg_total_assets)
+                            _mg_lcolor.append(_hex2rgba("#37474f"))
+                        for n, v, c in _mg_ad_nodes:
+                            idx = _mg_add(f"{n}<br>₹{v:,.2f} Cr ({(v/_mg_total_assets)*100:.1f}%)", c, _COL_LEAF)
+                            _mg_src.append(_mg_assets_idx); _mg_tgt.append(idx); _mg_val.append(v)
+                            _mg_lcolor.append(_hex2rgba(c))
+
+                    # Stage 2b — Total Financing → Net Sales → Net Profit / Total Expenses. The
+                    # second parallel branch, kept separate from the Assets branch above so the
+                    # two don't tangle together in the same column.
+                    _mg_sales = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "net sales"))
+                    _mg_profit = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "net profit"))
+                    _mg_has_revenue = _mg_sales is not None and _mg_profit is not None and 0 < _mg_profit < _mg_sales
+                    if _mg_has_revenue:
+                        _mg_exp = _mg_sales - _mg_profit
+                        _mg_sales_pct = f" ({(_mg_sales/_mg_fin_total)*100:.1f}%)" if _mg_fin_idx is not None else " (100%)"
+                        _mg_sales_idx = _mg_add(f"Net Sales<br>₹{_mg_sales:,.2f} Cr{_mg_sales_pct}", "#1565C0", _COL_MID)
+                        if _mg_fin_idx is not None:
+                            _mg_src.append(_mg_fin_idx); _mg_tgt.append(_mg_sales_idx); _mg_val.append(_mg_sales)
+                            _mg_lcolor.append(_hex2rgba("#1565C0"))
+                        _mg_profit_pct = (_mg_profit/_mg_sales)*100
+                        _mg_profit_idx = _mg_add(f"Net Profit<br>₹{_mg_profit:,.2f} Cr ({_mg_profit_pct:.1f}%)", "#0f9d58", _COL_LEAF)
+                        _mg_exp_idx = _mg_add(f"Total Expenses<br>₹{_mg_exp:,.2f} Cr ({100 - _mg_profit_pct:.1f}%)", "#ea4335", _COL_LEAF)
+                        _mg_src += [_mg_sales_idx, _mg_sales_idx]
+                        _mg_tgt += [_mg_profit_idx, _mg_exp_idx]
+                        _mg_val += [_mg_profit, _mg_exp]
+                        _mg_lcolor += [_hex2rgba("#0f9d58"), _hex2rgba("#ea4335")]
+
+                    _mg_groups_shown = sum([_mg_has_financing, _mg_has_assets, _mg_has_revenue])
+                    if _mg_groups_shown > 0:
+                        # Even y-spread per column keeps Plotly's auto-layout from bunching nodes;
+                        # "snap" then nudges them apart further to avoid any residual overlap.
+                        from collections import defaultdict
+                        _mg_col_counts = defaultdict(int)
+                        for x in _mg_x:
+                            _mg_col_counts[x] += 1
+                        _mg_col_seen = defaultdict(int)
+                        _mg_y = []
+                        for x in _mg_x:
+                            n = _mg_col_counts[x]
+                            i = _mg_col_seen[x]
+                            _mg_col_seen[x] += 1
+                            _mg_y.append(round((i + 0.5) / n, 4) if n > 1 else 0.5)
+
+                        fig_merged = go.Figure(go.Sankey(
+                            arrangement="snap",
+                            textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
+                            node=dict(
+                                pad=22, thickness=18,
+                                line=dict(color="rgba(0,0,0,0.2)", width=0.5),
+                                label=_mg_labels, color=_mg_colors,
+                                x=_mg_x, y=_mg_y,
+                            ),
+                            link=dict(source=_mg_src, target=_mg_tgt, value=_mg_val, color=_mg_lcolor),
+                        ))
+                        fig_merged.update_layout(
+                            title=f"💎 Combined Money Flow — {sym} (Financing → Assets / Revenue, merged)",
+                            template="plotly_white", height=560,
+                            margin=dict(t=45, b=10, l=10, r=10),
+                            font=dict(size=12),
+                        )
+                        st.plotly_chart(fig_merged, use_container_width=True, key=f"sankey_merged_{sym}")
+                        st.caption(
+                            "All money-related flows merged into one chart: financing sources (Equity + "
+                            "Reserves + Debt + Trade Payables) feed Total Financing, which splits into two "
+                            "parallel paths — Total Assets (incl. Trade Receivables) and Net Sales → Net "
+                            "Profit / Total Expenses. It's drawn as two branches off one hub, rather than "
+                            "one long chain, because Total Assets and Net Sales are different kinds of "
+                            "totals (balance sheet vs. P&L) that don't feed into each other. Trade Payables "
+                            "now also appears in the 🏗️ Capital Structure chart above."
+                        )
+                    else:
+                        st.info("Not enough financing / assets / revenue data available for this stock to build the Combined Money Flow chart.")
+
+                    # ── Shareholding Pattern flow (Sankey) ──
+                    # Market Cap × holding % → real ₹ value held by each category.
+                    # Pledged % is, by standard convention, a share OF the promoters'
+                    # holding (not a separate slice of the total) — so it's modeled as a
+                    # second-level split under Promoters, not a sibling of Institutional/Other.
+                    _sh_mcap = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "market cap"))
+                    _sh_prom_pct = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "promoters %", "promoter"))
+                    _sh_inst_pct = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "institutional %", "institutional"))
+                    _sh_pledged_pct = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "pledged %", "pledged"))
+
+                    if _sh_mcap is not None and _sh_mcap > 0 and (_sh_prom_pct is not None or _sh_inst_pct is not None):
+                        _sh_prom_pct = _sh_prom_pct or 0.0
+                        _sh_inst_pct = _sh_inst_pct or 0.0
+                        _sh_other_pct = max(0.0, 100.0 - _sh_prom_pct - _sh_inst_pct)
+                        _sh_prom_val = _sh_mcap * _sh_prom_pct / 100
+                        _sh_inst_val = _sh_mcap * _sh_inst_pct / 100
+                        _sh_other_val = _sh_mcap * _sh_other_pct / 100
+
+                        _sh_labels = [
+                            f"Market Cap<br>₹{_sh_mcap:,.2f} Cr",
+                            f"Promoters<br>₹{_sh_prom_val:,.2f} Cr ({_sh_prom_pct:.1f}%)",
+                            f"Institutional<br>₹{_sh_inst_val:,.2f} Cr ({_sh_inst_pct:.1f}%)",
+                            f"Public / Other<br>₹{_sh_other_val:,.2f} Cr ({_sh_other_pct:.1f}%)",
+                        ]
+                        _sh_colors = ["#37474f", "#1565C0", "#0f9d58", "#9e9e9e"]
+                        _sh_src = [0, 0, 0]
+                        _sh_tgt = [1, 2, 3]
+                        _sh_val = [_sh_prom_val, _sh_inst_val, _sh_other_val]
+                        _sh_link_colors = [_hex2rgba(c) for c in ["#1565C0", "#0f9d58", "#9e9e9e"]]
+
+                        # Second level: split Promoters holding into Pledged vs Free, only if
+                        # a real Pledged % was found for this stock.
+                        _sh_caption_extra = ""
+                        if _sh_pledged_pct is not None and _sh_prom_val > 0:
+                            _sh_pledged_val = _sh_prom_val * _sh_pledged_pct / 100
+                            _sh_free_val = _sh_prom_val - _sh_pledged_val
+                            _sh_labels += [
+                                f"Pledged (of Promoters)<br>₹{_sh_pledged_val:,.2f} Cr ({_sh_pledged_pct:.1f}%)",
+                                f"Free / Unpledged<br>₹{_sh_free_val:,.2f} Cr",
+                            ]
+                            _sh_colors += ["#c62828", "#66bb6a"]
+                            _sh_src += [1, 1]
+                            _sh_tgt += [4, 5]
+                            _sh_val += [_sh_pledged_val, _sh_free_val]
+                            _sh_link_colors += [_hex2rgba("#c62828"), _hex2rgba("#66bb6a")]
+                            _sh_caption_extra = " Promoters' holding is further split into Pledged vs Free based on Pledged %."
+
+                        fig_sh = go.Figure(go.Sankey(
+                            arrangement="snap",
+                            textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
+                            node=dict(
+                                pad=30, thickness=18,
+                                line=dict(color="rgba(0,0,0,0.2)", width=0.5),
+                                label=_sh_labels, color=_sh_colors,
+                            ),
+                            link=dict(source=_sh_src, target=_sh_tgt, value=_sh_val, color=_sh_link_colors),
+                        ))
+                        fig_sh.update_layout(
+                            title=f"🧾 Shareholding Pattern — Who Owns {sym}",
+                            template="plotly_white", height=380,
+                            margin=dict(t=45, b=10, l=10, r=10),
+                            font=dict(size=12),
+                        )
+                        st.plotly_chart(fig_sh, use_container_width=True, key=f"sankey_shareholding_{sym}")
+                        st.caption(
+                            "Market Cap × holding % from the Fundamentals data above. \"Public / Other\" absorbs "
+                            "whatever isn't reported as Promoters/Institutional (Public %, FII %, DII % show \"-\" "
+                            f"for stocks where your sheet doesn't break those out separately).{_sh_caption_extra}"
+                        )
+                    else:
+                        st.info("Market Cap / shareholding % data not available for this stock, so the Shareholding Pattern flow can't be built.")
+
+                    # ── Volume Delivery Split (Sankey) ──
+                    # Volume genuinely splits into two real parts: shares that were
+                    # delivered (taken into demat, i.e. genuine buying) vs. shares traded
+                    # intraday (squared off same day, no delivery). % Delivery is exactly
+                    # that split ratio, so this is a real flow, not a fabricated one.
+                    _vol_raw = _sheet_val(sel_row, fund_primary_row, "volume")
+                    _deliv_pct = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "% delivery", "delivery %", "delivery"))
+                    _vol_val = _to_cr_float(_vol_raw)
+                    if _vol_val is not None and _deliv_pct is not None and 0 <= _deliv_pct <= 100:
+                        _delivered_qty = _vol_val * _deliv_pct / 100
+                        _nondeliv_qty = _vol_val - _delivered_qty
+                        fig_vol = go.Figure(go.Sankey(
+                            arrangement="snap",
+                            textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
+                            node=dict(
+                                pad=30, thickness=18,
+                                line=dict(color="rgba(0,0,0,0.2)", width=0.5),
+                                label=[
+                                    f"Volume<br>{_vol_val:,.0f} shares",
+                                    f"Delivered<br>{_delivered_qty:,.0f} shares ({_deliv_pct:.1f}%)",
+                                    f"Intraday / Non-Delivery<br>{_nondeliv_qty:,.0f} shares ({100 - _deliv_pct:.1f}%)",
+                                ],
+                                color=["#37474f", "#0f9d58", "#f9a825"],
+                            ),
+                            link=dict(
+                                source=[0, 0], target=[1, 2],
+                                value=[_delivered_qty, _nondeliv_qty],
+                                color=[_hex2rgba("#0f9d58"), _hex2rgba("#f9a825")],
+                            ),
+                        ))
+                        fig_vol.update_layout(
+                            title=f"📦 Volume → Delivery Split — {sym}",
+                            template="plotly_white", height=300,
+                            margin=dict(t=45, b=10, l=10, r=10),
+                        )
+                        st.plotly_chart(fig_vol, use_container_width=True, key=f"sankey_volume_{sym}")
+                        st.caption(
+                            "Total Volume split by % Delivery into shares actually delivered (genuine buying/holding) "
+                            "vs. shares traded intraday and squared off same day."
+                        )
+                    else:
+                        st.info("Volume / % Delivery not available for this stock, so the Volume → Delivery split can't be built.")
+
+                    # ── Turnover Delivery Split (Sankey) ──
+                    # Same split, in ₹ value terms. If your sheet's Turnover is blank
+                    # (as it is for some stocks), this falls back to an estimated turnover
+                    # = Volume × Last Close — the same fallback convention already used
+                    # elsewhere in this app when a real Turnover column is missing.
+                    _turnover_raw = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "turnover"))
+                    _turnover_is_estimated = False
+                    if _turnover_raw is None and _vol_val is not None and last_close:
+                        _turnover_raw = (_vol_val * last_close) / 1e7  # ₹ → Cr
+                        _turnover_is_estimated = True
+                    if _turnover_raw is not None and _deliv_pct is not None and 0 <= _deliv_pct <= 100:
+                        _delivered_val = _turnover_raw * _deliv_pct / 100
+                        _nondeliv_val = _turnover_raw - _delivered_val
+                        fig_turn = go.Figure(go.Sankey(
+                            arrangement="snap",
+                            textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
+                            node=dict(
+                                pad=30, thickness=18,
+                                line=dict(color="rgba(0,0,0,0.2)", width=0.5),
+                                label=[
+                                    f"{'Est. ' if _turnover_is_estimated else ''}Turnover<br>₹{_turnover_raw:,.2f} Cr",
+                                    f"Delivered Value<br>₹{_delivered_val:,.2f} Cr ({_deliv_pct:.1f}%)",
+                                    f"Intraday Value<br>₹{_nondeliv_val:,.2f} Cr ({100 - _deliv_pct:.1f}%)",
+                                ],
+                                color=["#37474f", "#0f9d58", "#f9a825"],
+                            ),
+                            link=dict(
+                                source=[0, 0], target=[1, 2],
+                                value=[_delivered_val, _nondeliv_val],
+                                color=[_hex2rgba("#0f9d58"), _hex2rgba("#f9a825")],
+                            ),
+                        ))
+                        fig_turn.update_layout(
+                            title=f"💵 Turnover → Delivery Split — {sym}",
+                            template="plotly_white", height=300,
+                            margin=dict(t=45, b=10, l=10, r=10),
+                        )
+                        st.plotly_chart(fig_turn, use_container_width=True, key=f"sankey_turnover_{sym}")
+                        _turn_note = (
+                            " Your sheet's Turnover field is blank for this stock, so this uses an estimate "
+                            "(Volume × Last Close) — the same fallback this app already uses elsewhere."
+                            if _turnover_is_estimated else ""
+                        )
+                        st.caption(f"Turnover split by % Delivery, mirroring the Volume split above in ₹ terms.{_turn_note}")
+                    else:
+                        st.info("Turnover / % Delivery / Volume not available for this stock, so the Turnover → Delivery split can't be built.")
+
+                    # ── Price Change bridge (Waterfall — NOT a Sankey) ──
+                    # A price move can be negative, and Sankey flows can't be negative, so
+                    # this uses a proper Waterfall/bridge chart instead — the correct tool
+                    # for "start value → step → end value" with either sign.
+                    if prev_close and last_close is not None:
+                        _price_delta = last_close - prev_close
+                        fig_wf = go.Figure(go.Waterfall(
+                            orientation="v",
+                            measure=["absolute", "relative", "total"],
+                            x=["Prev Close", "Change", "Last Close"],
+                            y=[prev_close, _price_delta, last_close],
+                            text=[f"₹{prev_close:,.2f}", f"{_price_delta:+.2f}", f"₹{last_close:,.2f}"],
+                            textposition="outside",
+                            textfont=dict(color="#0a1758", size=13),
+                            increasing=dict(marker=dict(color="#0f9d58")),
+                            decreasing=dict(marker=dict(color="#ea4335")),
+                            totals=dict(marker=dict(color="#1565C0")),
+                            connector=dict(line=dict(color="rgba(0,0,0,0.3)")),
+                        ))
+                        fig_wf.update_layout(
+                            title=f"📈 Price Change Bridge — {sym} ({day_chg:+.2f}%)",
+                            template="plotly_white", height=300, showlegend=False,
+                            margin=dict(t=45, b=10, l=10, r=10),
+                        )
+                        st.plotly_chart(fig_wf, use_container_width=True, key=f"waterfall_price_{sym}")
+                        st.caption("Prev Close → today's Price Change → Last Close. Shown as a Waterfall, not a Sankey, since a price drop can't be a negative flow.")
+                    else:
+                        st.info("Prev Close / Last Close not available for this stock, so the Price Change bridge can't be built.")
+
+                    # ── RSI(14) Gauge (NOT a Sankey) ──
+                    # RSI is an oscillator, not a splittable amount — a gauge is the
+                    # honest way to show it, with the standard oversold/neutral/overbought zones.
+                    if last_rsi14 is not None:
+                        fig_rsi_gauge = go.Figure(go.Indicator(
+                            mode="gauge+number",
+                            value=float(last_rsi14),
+                            number=dict(font=dict(color="#0a1758", size=28)),
+                            title=dict(text=f"RSI(14) — {sym}", font=dict(size=14)),
+                            gauge=dict(
+                                axis=dict(range=[0, 100]),
+                                bar=dict(color="#1565C0"),
+                                steps=[
+                                    dict(range=[0, 30], color="#e3f2fd"),
+                                    dict(range=[30, 70], color="#f5f5f5"),
+                                    dict(range=[70, 100], color="#ffebee"),
+                                ],
+                                threshold=dict(line=dict(color="#c62828", width=3), value=float(last_rsi14)),
+                            ),
+                        ))
+                        fig_rsi_gauge.update_layout(template="plotly_white", height=260, margin=dict(t=50, b=10, l=30, r=30))
+                        st.plotly_chart(fig_rsi_gauge, use_container_width=True, key=f"gauge_rsi_{sym}")
+                        st.caption("Below 30 = oversold, above 70 = overbought. A gauge, not a Sankey — RSI doesn't split into parts.")
+                    else:
+                        st.info("RSI(14) not available for this stock.")
+
+                    # ── 52-Week Range position Gauge (NOT a Sankey) ──
+                    # Where today's price sits between its 52W Low and High. Price levels
+                    # don't sum to anything, so — like RSI — this is a gauge, not a Sankey.
+                    _wk52_high = float(chart_df["High"].max()) if not chart_df.empty else None
+                    _wk52_low = float(chart_df["Low"].min()) if not chart_df.empty else None
+                    if _wk52_high and _wk52_low is not None and _wk52_high > _wk52_low and last_close is not None:
+                        _pos_pct = max(0.0, min(100.0, (last_close - _wk52_low) / (_wk52_high - _wk52_low) * 100))
+                        fig_range_gauge = go.Figure(go.Indicator(
+                            mode="gauge+number",
+                            value=_pos_pct,
+                            number=dict(suffix="%", font=dict(color="#0a1758", size=28)),
+                            title=dict(text=f"52W Range Position — {sym}<br><span style='font-size:11px'>Low ₹{_wk52_low:,.2f} · Last ₹{last_close:,.2f} · High ₹{_wk52_high:,.2f}</span>", font=dict(size=14)),
+                            gauge=dict(
+                                axis=dict(range=[0, 100]),
+                                bar=dict(color="#1565C0"),
+                                steps=[
+                                    dict(range=[0, 33], color="#ffebee"),
+                                    dict(range=[33, 66], color="#fff8e1"),
+                                    dict(range=[66, 100], color="#e8f5e9"),
+                                ],
+                                threshold=dict(line=dict(color="#c62828", width=3), value=_pos_pct),
+                            ),
+                        ))
+                        fig_range_gauge.update_layout(template="plotly_white", height=280, margin=dict(t=65, b=10, l=30, r=30))
+                        st.plotly_chart(fig_range_gauge, use_container_width=True, key=f"gauge_52wrange_{sym}")
+                        st.caption("0% = at the 52-week low, 100% = at the 52-week high. A gauge, not a Sankey — price levels aren't a splittable quantity.")
+                    else:
+                        st.info("52-week High/Low/Last Close not available for this stock.")
 
     # ==========================================
     # 🌍 NATIONAL ANALYTICS PORTAL WORKSPACE
