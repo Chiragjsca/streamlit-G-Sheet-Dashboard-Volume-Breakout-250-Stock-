@@ -3417,64 +3417,65 @@ Be specific, data-driven, and actionable for a retail investor.
                             ("RSI(14)", f"{last_rsi14:.1f}" if last_rsi14 is not None else "–"),
                         ])
 
-                        # ── Group 1: Company / classification info ──
-                        _render_group("🏢 Company Info", [
-                            ("Company Name", ["company name", "stock name"]),
-                            ("Sector", ["sector", "industry"]),
-                            ("% Delivery", ["% delivery", "delivery %", "delivery"]),
-                            ("52W High Date", ["52w high date", "52 week high date"]),
-                            ("52W Low Date", ["52w low date", "52 week low date"]),
-                            ("Volume", ["volume"]),
-                            ("Turnover", ["turnover"]),
-                        ])
+                        with st.expander("🏆 Click to view Advanced Ranking Dashboards (Top 250 Stocks)", expanded=False):
+                            # ── Group 1: Company / classification info ──
+                            _render_group("🏢 Company Info", [
+                                ("Company Name", ["company name", "stock name"]),
+                                ("Sector", ["sector", "industry"]),
+                                ("% Delivery", ["% delivery", "delivery %", "delivery"]),
+                                ("52W High Date", ["52w high date", "52 week high date"]),
+                                ("52W Low Date", ["52w low date", "52 week low date"]),
+                                ("Volume", ["volume"]),
+                                ("Turnover", ["turnover"]),
+                            ])
 
-                        # ── Group 2: Signals / system output ──
-                        _render_group("📡 Signals & System Output", [
-                            ("Output", ["output"]),
-                            ("Difference from 200 DMA", ["difference from 200 dma", "differance from 200 dma"]),
-                            ("CAR Rating", ["cumulative average rule (car) rating", "car rating"]),
-                            ("Start GTT Order", ["start gtt order", "gtt order"]),
-                            ("Volume Trend", ["volume trend"]),
-                            ("Breakout Signal", ["breakout signal"]),
-                            ("Trend", ["trend"]),
-                            ("MACD Crossover", ["macd crossover"]),
-                            ("Buy Signal", ["buy signal"]),
-                        ])
+                            # ── Group 2: Signals / system output ──
+                            _render_group("📡 Signals & System Output", [
+                                ("Output", ["output"]),
+                                ("Difference from 200 DMA", ["difference from 200 dma", "differance from 200 dma"]),
+                                ("CAR Rating", ["cumulative average rule (car) rating", "car rating"]),
+                                ("Start GTT Order", ["start gtt order", "gtt order"]),
+                                ("Volume Trend", ["volume trend"]),
+                                ("Breakout Signal", ["breakout signal"]),
+                                ("Trend", ["trend"]),
+                                ("MACD Crossover", ["macd crossover"]),
+                                ("Buy Signal", ["buy signal"]),
+                            ])
 
-                        # ── Group 3: Fundamentals ──
-                        _render_group("💰 Fundamentals", [
-                            ("Face Value", ["face value"]),
-                            ("Total Equity Capital", ["total equity capital"]),
-                            ("Market Cap", ["market cap"]),
-                            ("EPS", ["eps"]),
-                            ("RONW %", ["ronw"]),
-                            ("Promoters %", ["promoters %", "promoter"]),
-                            ("Institutional %", ["institutional %", "institutional"]),
-                            ("Pledged %", ["pledged %", "pledged"]),
-                            ("D/E Ratio", ["d/e ratio", "de ratio"]),
-                            ("Net Sales (Cr)", ["net sales"]),
-                            ("Net Profit (Cr.)", ["net profit"]),
-                            ("Reserves (Cr)", ["reserves"]),
-                            ("Total Debt (Cr)", ["total debt"]),
-                            ("Inventory (Cr)", ["inventory"]),
-                            ("Cash & Equiv (Cr)", ["cash & equiv", "cash and equiv", "cash equivalent"]),
-                            ("Operating Cash Flow (Cr)", ["operating cash flow"]),
-                            ("Trade Receivables (Cr)", ["trade receivables"]),
-                            ("Trade Payables (Cr)", ["trade payables"]),
-                            ("Fixed Assets/Net PPE (Cr)", ["fixed assets", "net ppe"]),
-                            ("Total Assets (Cr)", ["total assets"]),
-                            ("Open (₹)", ["open price", "open (", "open"]),
-                            ("High (₹)", ["day high", "high price", "high ("]),
-                            ("Low (₹)", ["day low", "low price", "low ("]),
-                            ("Prev Close (₹)", ["prev close", "previous close", "close price"]),
-                            ("Price Change (₹)", ["price change", "change (", "change in price"]),
-                            ("% Change", ["% change", "price %", "change %"]),
-                            ("Shares Outstanding (Cr)", ["shares outstanding"]),
-                            ("Book Value (₹/share)", ["book value"]),
-                            ("Public %", ["public %", "public holding"]),
-                            ("FII %", ["fii %", "fii holding", "fii"]),
-                            ("DII %", ["dii %", "dii holding", "dii"]),
-                        ])
+                            # ── Group 3: Fundamentals ──
+                            _render_group("💰 Fundamentals", [
+                                ("Face Value", ["face value"]),
+                                ("Total Equity Capital", ["total equity capital"]),
+                                ("Market Cap", ["market cap"]),
+                                ("EPS", ["eps"]),
+                                ("RONW %", ["ronw"]),
+                                ("Promoters %", ["promoters %", "promoter"]),
+                                ("Institutional %", ["institutional %", "institutional"]),
+                                ("Pledged %", ["pledged %", "pledged"]),
+                                ("D/E Ratio", ["d/e ratio", "de ratio"]),
+                                ("Net Sales (Cr)", ["net sales"]),
+                                ("Net Profit (Cr.)", ["net profit"]),
+                                ("Reserves (Cr)", ["reserves"]),
+                                ("Total Debt (Cr)", ["total debt"]),
+                                ("Inventory (Cr)", ["inventory"]),
+                                ("Cash & Equiv (Cr)", ["cash & equiv", "cash and equiv", "cash equivalent"]),
+                                ("Operating Cash Flow (Cr)", ["operating cash flow"]),
+                                ("Trade Receivables (Cr)", ["trade receivables"]),
+                                ("Trade Payables (Cr)", ["trade payables"]),
+                                ("Fixed Assets/Net PPE (Cr)", ["fixed assets", "net ppe"]),
+                                ("Total Assets (Cr)", ["total assets"]),
+                                ("Open (₹)", ["open price", "open (", "open"]),
+                                ("High (₹)", ["day high", "high price", "high ("]),
+                                ("Low (₹)", ["day low", "low price", "low ("]),
+                                ("Prev Close (₹)", ["prev close", "previous close", "close price"]),
+                                ("Price Change (₹)", ["price change", "change (", "change in price"]),
+                                ("% Change", ["% change", "price %", "change %"]),
+                                ("Shares Outstanding (Cr)", ["shares outstanding"]),
+                                ("Book Value (₹/share)", ["book value"]),
+                                ("Public %", ["public %", "public holding"]),
+                                ("FII %", ["fii %", "fii holding", "fii"]),
+                                ("DII %", ["dii %", "dii holding", "dii"]),
+                            ])
 
                         # ── Revenue & Expenses flow (Sankey) ──
                         # Built ONLY from real fields your sheet actually has: Net Sales and
