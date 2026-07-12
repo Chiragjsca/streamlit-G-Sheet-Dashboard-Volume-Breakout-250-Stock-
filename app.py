@@ -3490,6 +3490,197 @@ Be specific, data-driven, and actionable for a retail investor.
                             ("DII %", ["dii %", "dii holding", "dii"]),
                         ])
 
+                    # ── Price Change bridge (Waterfall — NOT a Sankey) ──
+                    # A price move can be negative, and Sankey flows can't be negative, so
+                    # this uses a proper Waterfall/bridge chart instead — the correct tool
+                    # for "start value → step → end value" with either sign.
+                    if prev_close and last_close is not None:
+                        _price_delta = last_close - prev_close
+                        fig_wf = go.Figure(go.Waterfall(
+                            orientation="v",
+                            measure=["absolute", "relative", "total"],
+                            x=["Prev Close", "Change", "Last Close"],
+                            y=[prev_close, _price_delta, last_close],
+                            text=[f"₹{prev_close:,.2f}", f"{_price_delta:+.2f}", f"₹{last_close:,.2f}"],
+                            textposition="outside",
+                            textfont=dict(color="#0a1758", size=13),
+                            increasing=dict(marker=dict(color="#0f9d58")),
+                            decreasing=dict(marker=dict(color="#ea4335")),
+                            totals=dict(marker=dict(color="#1565C0")),
+                            connector=dict(line=dict(color="rgba(0,0,0,0.3)")),
+                        ))
+                        fig_wf.update_layout(
+                            title=f"📈 Price Change Bridge — {sym} ({day_chg:+.2f}%)",
+                            template="plotly_white", height=300, showlegend=False,
+                            margin=dict(t=45, b=10, l=10, r=10),
+                        )
+                        st.plotly_chart(fig_wf, use_container_width=True, key=f"waterfall_price_{sym}")
+                        st.caption("Prev Close → today's Price Change → Last Close. Shown as a Waterfall, not a Sankey, since a price drop can't be a negative flow.")
+                    else:
+                        st.info("Prev Close / Last Close not available for this stock, so the Price Change bridge can't be built.")
+
+                    # ── Volume Delivery Split (Sankey) ──
+                    # Volume genuinely splits into two real parts: shares that were
+                    # delivered (taken into demat, i.e. genuine buying) vs. shares traded
+                    # intraday (squared off same day, no delivery). % Delivery is exactly
+                    # that split ratio, so this is a real flow, not a fabricated one.
+                    _vol_raw = _sheet_val(sel_row, fund_primary_row, "volume")
+                    _deliv_pct = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "% delivery", "delivery %", "delivery"))
+                    _vol_val = _to_cr_float(_vol_raw)
+                    if _vol_val is not None and _deliv_pct is not None and 0 <= _deliv_pct <= 100:
+                        _delivered_qty = _vol_val * _deliv_pct / 100
+                        _nondeliv_qty = _vol_val - _delivered_qty
+                        fig_vol = go.Figure(go.Sankey(
+                            arrangement="snap",
+                            textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
+                            node=dict(
+                                pad=30, thickness=18,
+                                line=dict(color="rgba(0,0,0,0.2)", width=0.5),
+                                label=[
+                                    f"Volume<br>{_vol_val:,.0f} shares",
+                                    f"Delivered<br>{_delivered_qty:,.0f} shares ({_deliv_pct:.1f}%)",
+                                    f"Intraday / Non-Delivery<br>{_nondeliv_qty:,.0f} shares ({100 - _deliv_pct:.1f}%)",
+                                ],
+                                color=["#37474f", "#0f9d58", "#f9a825"],
+                            ),
+                            link=dict(
+                                source=[0, 0], target=[1, 2],
+                                value=[_delivered_qty, _nondeliv_qty],
+                                color=[_hex2rgba("#0f9d58"), _hex2rgba("#f9a825")],
+                            ),
+                        ))
+                        fig_vol.update_layout(
+                            title=f"📦 Volume → Delivery Split — {sym}",
+                            template="plotly_white", height=300,
+                            margin=dict(t=45, b=10, l=10, r=10),
+                        )
+                        st.plotly_chart(fig_vol, use_container_width=True, key=f"sankey_volume_{sym}")
+                        st.caption(
+                            "Total Volume split by % Delivery into shares actually delivered (genuine buying/holding) "
+                            "vs. shares traded intraday and squared off same day."
+                        )
+                    else:
+                        st.info("Volume / % Delivery not available for this stock, so the Volume → Delivery split can't be built.")
+
+                    # ── Turnover Delivery Split (Sankey) ──
+                    # Same split, in ₹ value terms. If your sheet's Turnover is blank
+                    # (as it is for some stocks), this falls back to an estimated turnover
+                    # = Volume × Last Close — the same fallback convention already used
+                    # elsewhere in this app when a real Turnover column is missing.
+                    _turnover_raw = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "turnover"))
+                    _turnover_is_estimated = False
+                    if _turnover_raw is None and _vol_val is not None and last_close:
+                        _turnover_raw = (_vol_val * last_close) / 1e7  # ₹ → Cr
+                        _turnover_is_estimated = True
+                    if _turnover_raw is not None and _deliv_pct is not None and 0 <= _deliv_pct <= 100:
+                        _delivered_val = _turnover_raw * _deliv_pct / 100
+                        _nondeliv_val = _turnover_raw - _delivered_val
+                        fig_turn = go.Figure(go.Sankey(
+                            arrangement="snap",
+                            textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
+                            node=dict(
+                                pad=30, thickness=18,
+                                line=dict(color="rgba(0,0,0,0.2)", width=0.5),
+                                label=[
+                                    f"{'Est. ' if _turnover_is_estimated else ''}Turnover<br>₹{_turnover_raw:,.2f} Cr",
+                                    f"Delivered Value<br>₹{_delivered_val:,.2f} Cr ({_deliv_pct:.1f}%)",
+                                    f"Intraday Value<br>₹{_nondeliv_val:,.2f} Cr ({100 - _deliv_pct:.1f}%)",
+                                ],
+                                color=["#37474f", "#0f9d58", "#f9a825"],
+                            ),
+                            link=dict(
+                                source=[0, 0], target=[1, 2],
+                                value=[_delivered_val, _nondeliv_val],
+                                color=[_hex2rgba("#0f9d58"), _hex2rgba("#f9a825")],
+                            ),
+                        ))
+                        fig_turn.update_layout(
+                            title=f"💵 Turnover → Delivery Split — {sym}",
+                            template="plotly_white", height=300,
+                            margin=dict(t=45, b=10, l=10, r=10),
+                        )
+                        st.plotly_chart(fig_turn, use_container_width=True, key=f"sankey_turnover_{sym}")
+                        _turn_note = (
+                            " Your sheet's Turnover field is blank for this stock, so this uses an estimate "
+                            "(Volume × Last Close) — the same fallback this app already uses elsewhere."
+                            if _turnover_is_estimated else ""
+                        )
+                        st.caption(f"Turnover split by % Delivery, mirroring the Volume split above in ₹ terms.{_turn_note}")
+                    else:
+                        st.info("Turnover / % Delivery / Volume not available for this stock, so the Turnover → Delivery split can't be built.")
+
+                    # ── Shareholding Pattern flow (Sankey) ──
+                    # Market Cap × holding % → real ₹ value held by each category.
+                    # Pledged % is, by standard convention, a share OF the promoters'
+                    # holding (not a separate slice of the total) — so it's modeled as a
+                    # second-level split under Promoters, not a sibling of Institutional/Other.
+                    _sh_mcap = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "market cap"))
+                    _sh_prom_pct = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "promoters %", "promoter"))
+                    _sh_inst_pct = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "institutional %", "institutional"))
+                    _sh_pledged_pct = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "pledged %", "pledged"))
+
+                    if _sh_mcap is not None and _sh_mcap > 0 and (_sh_prom_pct is not None or _sh_inst_pct is not None):
+                        _sh_prom_pct = _sh_prom_pct or 0.0
+                        _sh_inst_pct = _sh_inst_pct or 0.0
+                        _sh_other_pct = max(0.0, 100.0 - _sh_prom_pct - _sh_inst_pct)
+                        _sh_prom_val = _sh_mcap * _sh_prom_pct / 100
+                        _sh_inst_val = _sh_mcap * _sh_inst_pct / 100
+                        _sh_other_val = _sh_mcap * _sh_other_pct / 100
+
+                        _sh_labels = [
+                            f"Market Cap<br>₹{_sh_mcap:,.2f} Cr",
+                            f"Promoters<br>₹{_sh_prom_val:,.2f} Cr ({_sh_prom_pct:.1f}%)",
+                            f"Institutional<br>₹{_sh_inst_val:,.2f} Cr ({_sh_inst_pct:.1f}%)",
+                            f"Public / Other<br>₹{_sh_other_val:,.2f} Cr ({_sh_other_pct:.1f}%)",
+                        ]
+                        _sh_colors = ["#37474f", "#1565C0", "#0f9d58", "#9e9e9e"]
+                        _sh_src = [0, 0, 0]
+                        _sh_tgt = [1, 2, 3]
+                        _sh_val = [_sh_prom_val, _sh_inst_val, _sh_other_val]
+                        _sh_link_colors = [_hex2rgba(c) for c in ["#1565C0", "#0f9d58", "#9e9e9e"]]
+
+                        # Second level: split Promoters holding into Pledged vs Free, only if
+                        # a real Pledged % was found for this stock.
+                        _sh_caption_extra = ""
+                        if _sh_pledged_pct is not None and _sh_prom_val > 0:
+                            _sh_pledged_val = _sh_prom_val * _sh_pledged_pct / 100
+                            _sh_free_val = _sh_prom_val - _sh_pledged_val
+                            _sh_labels += [
+                                f"Pledged (of Promoters)<br>₹{_sh_pledged_val:,.2f} Cr ({_sh_pledged_pct:.1f}%)",
+                                f"Free / Unpledged<br>₹{_sh_free_val:,.2f} Cr",
+                            ]
+                            _sh_colors += ["#c62828", "#66bb6a"]
+                            _sh_src += [1, 1]
+                            _sh_tgt += [4, 5]
+                            _sh_val += [_sh_pledged_val, _sh_free_val]
+                            _sh_link_colors += [_hex2rgba("#c62828"), _hex2rgba("#66bb6a")]
+                            _sh_caption_extra = " Promoters' holding is further split into Pledged vs Free based on Pledged %."
+
+                        fig_sh = go.Figure(go.Sankey(
+                            arrangement="snap",
+                            textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
+                            node=dict(
+                                pad=30, thickness=18,
+                                line=dict(color="rgba(0,0,0,0.2)", width=0.5),
+                                label=_sh_labels, color=_sh_colors,
+                            ),
+                            link=dict(source=_sh_src, target=_sh_tgt, value=_sh_val, color=_sh_link_colors),
+                        ))
+                        fig_sh.update_layout(
+                            title=f"🧾 Shareholding Pattern — Who Owns {sym}",
+                            template="plotly_white", height=380,
+                            margin=dict(t=45, b=10, l=10, r=10),
+                            font=dict(size=12),
+                        )
+                        st.plotly_chart(fig_sh, use_container_width=True, key=f"sankey_shareholding_{sym}")
+                        st.caption(
+                            "Market Cap × holding % from the Fundamentals data above. \"Public / Other\" absorbs "
+                            "whatever isn't reported as Promoters/Institutional (Public %, FII %, DII % show \"-\" "
+                            f"for stocks where your sheet doesn't break those out separately).{_sh_caption_extra}"
+                        )
+                    else:
+                        st.info("Market Cap / shareholding % data not available for this stock, so the Shareholding Pattern flow can't be built.")
+
                     # ── Revenue & Expenses flow (Sankey) ──
                     # Built ONLY from real fields your sheet actually has: Net Sales and
                     # Net Profit. Your sheet has no Cost-of-Revenue / SG&A / R&D / Opex
@@ -3791,197 +3982,6 @@ Be specific, data-driven, and actionable for a retail investor.
                         )
                     else:
                         st.info("Not enough financing / assets / revenue data available for this stock to build the Combined Money Flow chart.")
-
-                    # ── Shareholding Pattern flow (Sankey) ──
-                    # Market Cap × holding % → real ₹ value held by each category.
-                    # Pledged % is, by standard convention, a share OF the promoters'
-                    # holding (not a separate slice of the total) — so it's modeled as a
-                    # second-level split under Promoters, not a sibling of Institutional/Other.
-                    _sh_mcap = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "market cap"))
-                    _sh_prom_pct = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "promoters %", "promoter"))
-                    _sh_inst_pct = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "institutional %", "institutional"))
-                    _sh_pledged_pct = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "pledged %", "pledged"))
-
-                    if _sh_mcap is not None and _sh_mcap > 0 and (_sh_prom_pct is not None or _sh_inst_pct is not None):
-                        _sh_prom_pct = _sh_prom_pct or 0.0
-                        _sh_inst_pct = _sh_inst_pct or 0.0
-                        _sh_other_pct = max(0.0, 100.0 - _sh_prom_pct - _sh_inst_pct)
-                        _sh_prom_val = _sh_mcap * _sh_prom_pct / 100
-                        _sh_inst_val = _sh_mcap * _sh_inst_pct / 100
-                        _sh_other_val = _sh_mcap * _sh_other_pct / 100
-
-                        _sh_labels = [
-                            f"Market Cap<br>₹{_sh_mcap:,.2f} Cr",
-                            f"Promoters<br>₹{_sh_prom_val:,.2f} Cr ({_sh_prom_pct:.1f}%)",
-                            f"Institutional<br>₹{_sh_inst_val:,.2f} Cr ({_sh_inst_pct:.1f}%)",
-                            f"Public / Other<br>₹{_sh_other_val:,.2f} Cr ({_sh_other_pct:.1f}%)",
-                        ]
-                        _sh_colors = ["#37474f", "#1565C0", "#0f9d58", "#9e9e9e"]
-                        _sh_src = [0, 0, 0]
-                        _sh_tgt = [1, 2, 3]
-                        _sh_val = [_sh_prom_val, _sh_inst_val, _sh_other_val]
-                        _sh_link_colors = [_hex2rgba(c) for c in ["#1565C0", "#0f9d58", "#9e9e9e"]]
-
-                        # Second level: split Promoters holding into Pledged vs Free, only if
-                        # a real Pledged % was found for this stock.
-                        _sh_caption_extra = ""
-                        if _sh_pledged_pct is not None and _sh_prom_val > 0:
-                            _sh_pledged_val = _sh_prom_val * _sh_pledged_pct / 100
-                            _sh_free_val = _sh_prom_val - _sh_pledged_val
-                            _sh_labels += [
-                                f"Pledged (of Promoters)<br>₹{_sh_pledged_val:,.2f} Cr ({_sh_pledged_pct:.1f}%)",
-                                f"Free / Unpledged<br>₹{_sh_free_val:,.2f} Cr",
-                            ]
-                            _sh_colors += ["#c62828", "#66bb6a"]
-                            _sh_src += [1, 1]
-                            _sh_tgt += [4, 5]
-                            _sh_val += [_sh_pledged_val, _sh_free_val]
-                            _sh_link_colors += [_hex2rgba("#c62828"), _hex2rgba("#66bb6a")]
-                            _sh_caption_extra = " Promoters' holding is further split into Pledged vs Free based on Pledged %."
-
-                        fig_sh = go.Figure(go.Sankey(
-                            arrangement="snap",
-                            textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
-                            node=dict(
-                                pad=30, thickness=18,
-                                line=dict(color="rgba(0,0,0,0.2)", width=0.5),
-                                label=_sh_labels, color=_sh_colors,
-                            ),
-                            link=dict(source=_sh_src, target=_sh_tgt, value=_sh_val, color=_sh_link_colors),
-                        ))
-                        fig_sh.update_layout(
-                            title=f"🧾 Shareholding Pattern — Who Owns {sym}",
-                            template="plotly_white", height=380,
-                            margin=dict(t=45, b=10, l=10, r=10),
-                            font=dict(size=12),
-                        )
-                        st.plotly_chart(fig_sh, use_container_width=True, key=f"sankey_shareholding_{sym}")
-                        st.caption(
-                            "Market Cap × holding % from the Fundamentals data above. \"Public / Other\" absorbs "
-                            "whatever isn't reported as Promoters/Institutional (Public %, FII %, DII % show \"-\" "
-                            f"for stocks where your sheet doesn't break those out separately).{_sh_caption_extra}"
-                        )
-                    else:
-                        st.info("Market Cap / shareholding % data not available for this stock, so the Shareholding Pattern flow can't be built.")
-
-                    # ── Volume Delivery Split (Sankey) ──
-                    # Volume genuinely splits into two real parts: shares that were
-                    # delivered (taken into demat, i.e. genuine buying) vs. shares traded
-                    # intraday (squared off same day, no delivery). % Delivery is exactly
-                    # that split ratio, so this is a real flow, not a fabricated one.
-                    _vol_raw = _sheet_val(sel_row, fund_primary_row, "volume")
-                    _deliv_pct = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "% delivery", "delivery %", "delivery"))
-                    _vol_val = _to_cr_float(_vol_raw)
-                    if _vol_val is not None and _deliv_pct is not None and 0 <= _deliv_pct <= 100:
-                        _delivered_qty = _vol_val * _deliv_pct / 100
-                        _nondeliv_qty = _vol_val - _delivered_qty
-                        fig_vol = go.Figure(go.Sankey(
-                            arrangement="snap",
-                            textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
-                            node=dict(
-                                pad=30, thickness=18,
-                                line=dict(color="rgba(0,0,0,0.2)", width=0.5),
-                                label=[
-                                    f"Volume<br>{_vol_val:,.0f} shares",
-                                    f"Delivered<br>{_delivered_qty:,.0f} shares ({_deliv_pct:.1f}%)",
-                                    f"Intraday / Non-Delivery<br>{_nondeliv_qty:,.0f} shares ({100 - _deliv_pct:.1f}%)",
-                                ],
-                                color=["#37474f", "#0f9d58", "#f9a825"],
-                            ),
-                            link=dict(
-                                source=[0, 0], target=[1, 2],
-                                value=[_delivered_qty, _nondeliv_qty],
-                                color=[_hex2rgba("#0f9d58"), _hex2rgba("#f9a825")],
-                            ),
-                        ))
-                        fig_vol.update_layout(
-                            title=f"📦 Volume → Delivery Split — {sym}",
-                            template="plotly_white", height=300,
-                            margin=dict(t=45, b=10, l=10, r=10),
-                        )
-                        st.plotly_chart(fig_vol, use_container_width=True, key=f"sankey_volume_{sym}")
-                        st.caption(
-                            "Total Volume split by % Delivery into shares actually delivered (genuine buying/holding) "
-                            "vs. shares traded intraday and squared off same day."
-                        )
-                    else:
-                        st.info("Volume / % Delivery not available for this stock, so the Volume → Delivery split can't be built.")
-
-                    # ── Turnover Delivery Split (Sankey) ──
-                    # Same split, in ₹ value terms. If your sheet's Turnover is blank
-                    # (as it is for some stocks), this falls back to an estimated turnover
-                    # = Volume × Last Close — the same fallback convention already used
-                    # elsewhere in this app when a real Turnover column is missing.
-                    _turnover_raw = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "turnover"))
-                    _turnover_is_estimated = False
-                    if _turnover_raw is None and _vol_val is not None and last_close:
-                        _turnover_raw = (_vol_val * last_close) / 1e7  # ₹ → Cr
-                        _turnover_is_estimated = True
-                    if _turnover_raw is not None and _deliv_pct is not None and 0 <= _deliv_pct <= 100:
-                        _delivered_val = _turnover_raw * _deliv_pct / 100
-                        _nondeliv_val = _turnover_raw - _delivered_val
-                        fig_turn = go.Figure(go.Sankey(
-                            arrangement="snap",
-                            textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
-                            node=dict(
-                                pad=30, thickness=18,
-                                line=dict(color="rgba(0,0,0,0.2)", width=0.5),
-                                label=[
-                                    f"{'Est. ' if _turnover_is_estimated else ''}Turnover<br>₹{_turnover_raw:,.2f} Cr",
-                                    f"Delivered Value<br>₹{_delivered_val:,.2f} Cr ({_deliv_pct:.1f}%)",
-                                    f"Intraday Value<br>₹{_nondeliv_val:,.2f} Cr ({100 - _deliv_pct:.1f}%)",
-                                ],
-                                color=["#37474f", "#0f9d58", "#f9a825"],
-                            ),
-                            link=dict(
-                                source=[0, 0], target=[1, 2],
-                                value=[_delivered_val, _nondeliv_val],
-                                color=[_hex2rgba("#0f9d58"), _hex2rgba("#f9a825")],
-                            ),
-                        ))
-                        fig_turn.update_layout(
-                            title=f"💵 Turnover → Delivery Split — {sym}",
-                            template="plotly_white", height=300,
-                            margin=dict(t=45, b=10, l=10, r=10),
-                        )
-                        st.plotly_chart(fig_turn, use_container_width=True, key=f"sankey_turnover_{sym}")
-                        _turn_note = (
-                            " Your sheet's Turnover field is blank for this stock, so this uses an estimate "
-                            "(Volume × Last Close) — the same fallback this app already uses elsewhere."
-                            if _turnover_is_estimated else ""
-                        )
-                        st.caption(f"Turnover split by % Delivery, mirroring the Volume split above in ₹ terms.{_turn_note}")
-                    else:
-                        st.info("Turnover / % Delivery / Volume not available for this stock, so the Turnover → Delivery split can't be built.")
-
-                    # ── Price Change bridge (Waterfall — NOT a Sankey) ──
-                    # A price move can be negative, and Sankey flows can't be negative, so
-                    # this uses a proper Waterfall/bridge chart instead — the correct tool
-                    # for "start value → step → end value" with either sign.
-                    if prev_close and last_close is not None:
-                        _price_delta = last_close - prev_close
-                        fig_wf = go.Figure(go.Waterfall(
-                            orientation="v",
-                            measure=["absolute", "relative", "total"],
-                            x=["Prev Close", "Change", "Last Close"],
-                            y=[prev_close, _price_delta, last_close],
-                            text=[f"₹{prev_close:,.2f}", f"{_price_delta:+.2f}", f"₹{last_close:,.2f}"],
-                            textposition="outside",
-                            textfont=dict(color="#0a1758", size=13),
-                            increasing=dict(marker=dict(color="#0f9d58")),
-                            decreasing=dict(marker=dict(color="#ea4335")),
-                            totals=dict(marker=dict(color="#1565C0")),
-                            connector=dict(line=dict(color="rgba(0,0,0,0.3)")),
-                        ))
-                        fig_wf.update_layout(
-                            title=f"📈 Price Change Bridge — {sym} ({day_chg:+.2f}%)",
-                            template="plotly_white", height=300, showlegend=False,
-                            margin=dict(t=45, b=10, l=10, r=10),
-                        )
-                        st.plotly_chart(fig_wf, use_container_width=True, key=f"waterfall_price_{sym}")
-                        st.caption("Prev Close → today's Price Change → Last Close. Shown as a Waterfall, not a Sankey, since a price drop can't be a negative flow.")
-                    else:
-                        st.info("Prev Close / Last Close not available for this stock, so the Price Change bridge can't be built.")
 
                     # ── RSI(14) Gauge (NOT a Sankey) ──
                     # RSI is an oscillator, not a splittable amount — a gauge is the
