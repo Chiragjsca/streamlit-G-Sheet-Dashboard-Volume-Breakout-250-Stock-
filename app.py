@@ -3476,6 +3476,196 @@ Be specific, data-driven, and actionable for a retail investor.
                             ("DII %", ["dii %", "dii holding", "dii"]),
                         ])
 
+                        # ── Volume Delivery Split (Sankey) ──
+                        # Volume genuinely splits into two real parts: shares that were
+                        # delivered (taken into demat, i.e. genuine buying) vs. shares traded
+                        # intraday (squared off same day, no delivery). % Delivery is exactly
+                        # that split ratio, so this is a real flow, not a fabricated one.
+                        _vol_raw = _sheet_val(sel_row, fund_primary_row, "volume")
+                        _deliv_pct = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "% delivery", "delivery %", "delivery"))
+                        _vol_val = _to_cr_float(_vol_raw)
+                        if _vol_val is not None and _deliv_pct is not None and 0 <= _deliv_pct <= 100:
+                            _delivered_qty = _vol_val * _deliv_pct / 100
+                            _nondeliv_qty = _vol_val - _delivered_qty
+                            fig_vol = go.Figure(go.Sankey(
+                                arrangement="snap",
+                                textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
+                                node=dict(
+                                    pad=30, thickness=18,
+                                    line=dict(color="rgba(0,0,0,0.2)", width=0.5),
+                                    label=[
+                                        f"Volume<br>{_vol_val:,.0f} shares",
+                                        f"Delivered<br>{_delivered_qty:,.0f} shares ({_deliv_pct:.1f}%)",
+                                        f"Intraday / Non-Delivery<br>{_nondeliv_qty:,.0f} shares ({100 - _deliv_pct:.1f}%)",
+                                    ],
+                                    color=["#37474f", "#0f9d58", "#f9a825"],
+                                ),
+                                link=dict(
+                                    source=[0, 0], target=[1, 2],
+                                    value=[_delivered_qty, _nondeliv_qty],
+                                    color=[_hex2rgba("#0f9d58"), _hex2rgba("#f9a825")],
+                                ),
+                            ))
+                            fig_vol.update_layout(
+                                title=f"📦 Volume → Delivery Split — {sym}",
+                                template="plotly_white", height=300,
+                                margin=dict(t=45, b=10, l=10, r=10),
+                            )
+                            st.plotly_chart(fig_vol, use_container_width=True, key=f"sankey_volume_{sym}")
+                            st.caption(
+                                "Total Volume split by % Delivery into shares actually delivered (genuine buying/holding) "
+                                "vs. shares traded intraday and squared off same day."
+                            )
+                        else:
+                            st.info("Volume / % Delivery not available for this stock, so the Volume → Delivery split can't be built.")
+
+                        # ── Turnover Delivery Split (Sankey) ──
+                        # Same split, in ₹ value terms. If your sheet's Turnover is blank
+                        # (as it is for some stocks), this falls back to an estimated turnover
+                        # = Volume × Last Close — the same fallback convention already used
+                        # elsewhere in this app when a real Turnover column is missing.
+                        _turnover_raw = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "turnover"))
+                        _turnover_is_estimated = False
+                        if _turnover_raw is None and _vol_val is not None and last_close:
+                            _turnover_raw = (_vol_val * last_close) / 1e7  # ₹ → Cr
+                            _turnover_is_estimated = True
+                        if _turnover_raw is not None and _deliv_pct is not None and 0 <= _deliv_pct <= 100:
+                            _delivered_val = _turnover_raw * _deliv_pct / 100
+                            _nondeliv_val = _turnover_raw - _delivered_val
+                            fig_turn = go.Figure(go.Sankey(
+                                arrangement="snap",
+                                textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
+                                node=dict(
+                                    pad=30, thickness=18,
+                                    line=dict(color="rgba(0,0,0,0.2)", width=0.5),
+                                    label=[
+                                        f"{'Est. ' if _turnover_is_estimated else ''}Turnover<br>₹{_turnover_raw:,.2f} Cr",
+                                        f"Delivered Value<br>₹{_delivered_val:,.2f} Cr ({_deliv_pct:.1f}%)",
+                                        f"Intraday Value<br>₹{_nondeliv_val:,.2f} Cr ({100 - _deliv_pct:.1f}%)",
+                                    ],
+                                    color=["#37474f", "#0f9d58", "#f9a825"],
+                                ),
+                                link=dict(
+                                    source=[0, 0], target=[1, 2],
+                                    value=[_delivered_val, _nondeliv_val],
+                                    color=[_hex2rgba("#0f9d58"), _hex2rgba("#f9a825")],
+                                ),
+                            ))
+                            fig_turn.update_layout(
+                                title=f"💵 Turnover → Delivery Split — {sym}",
+                                template="plotly_white", height=300,
+                                margin=dict(t=45, b=10, l=10, r=10),
+                            )
+                            st.plotly_chart(fig_turn, use_container_width=True, key=f"sankey_turnover_{sym}")
+                            _turn_note = (
+                                " Your sheet's Turnover field is blank for this stock, so this uses an estimate "
+                                "(Volume × Last Close) — the same fallback this app already uses elsewhere."
+                                if _turnover_is_estimated else ""
+                            )
+                            st.caption(f"Turnover split by % Delivery, mirroring the Volume split above in ₹ terms.{_turn_note}")
+                        else:
+                            st.info("Turnover / % Delivery / Volume not available for this stock, so the Turnover → Delivery split can't be built.")
+
+                        # ── Price Change bridge (Waterfall — NOT a Sankey) ──
+                        # A price move can be negative, and Sankey flows can't be negative, so
+                        # this uses a proper Waterfall/bridge chart instead — the correct tool
+                        # for "start value → step → end value" with either sign.
+                        if prev_close and last_close is not None:
+                            _price_delta = last_close - prev_close
+                            fig_wf = go.Figure(go.Waterfall(
+                                orientation="v",
+                                measure=["absolute", "relative", "total"],
+                                x=["Prev Close", "Change", "Last Close"],
+                                y=[prev_close, _price_delta, last_close],
+                                text=[f"₹{prev_close:,.2f}", f"{_price_delta:+.2f}", f"₹{last_close:,.2f}"],
+                                textposition="outside",
+                                textfont=dict(color="#0a1758", size=13),
+                                increasing=dict(marker=dict(color="#0f9d58")),
+                                decreasing=dict(marker=dict(color="#ea4335")),
+                                totals=dict(marker=dict(color="#1565C0")),
+                                connector=dict(line=dict(color="rgba(0,0,0,0.3)")),
+                            ))
+                            fig_wf.update_layout(
+                                title=f"📈 Price Change Bridge — {sym} ({day_chg:+.2f}%)",
+                                template="plotly_white", height=300, showlegend=False,
+                                margin=dict(t=45, b=10, l=10, r=10),
+                            )
+                            st.plotly_chart(fig_wf, use_container_width=True, key=f"waterfall_price_{sym}")
+                            st.caption("Prev Close → today's Price Change → Last Close. Shown as a Waterfall, not a Sankey, since a price drop can't be a negative flow.")
+                        else:
+                            st.info("Prev Close / Last Close not available for this stock, so the Price Change bridge can't be built.")
+
+                        # ── RSI(14) Gauge (NOT a Sankey) ──
+                        # RSI is an oscillator, not a splittable amount — a gauge is the
+                        # honest way to show it, with the standard oversold/neutral/overbought zones.
+                        if last_rsi14 is not None:
+                            fig_rsi_gauge = go.Figure(go.Indicator(
+                                mode="gauge+number",
+                                value=float(last_rsi14),
+                                number=dict(font=dict(color="#0a1758", size=28)),
+                                title=dict(text=f"RSI(14) — {sym}", font=dict(size=14)),
+                                gauge=dict(
+                                    axis=dict(range=[0, 100]),
+                                    bar=dict(color="#1565C0"),
+                                    steps=[
+                                        dict(range=[0, 30], color="#e3f2fd"),
+                                        dict(range=[30, 70], color="#f5f5f5"),
+                                        dict(range=[70, 100], color="#ffebee"),
+                                    ],
+                                    threshold=dict(line=dict(color="#c62828", width=3), value=float(last_rsi14)),
+                                ),
+                            ))
+                            fig_rsi_gauge.update_layout(template="plotly_white", height=260, margin=dict(t=50, b=10, l=30, r=30))
+                            st.plotly_chart(fig_rsi_gauge, use_container_width=True, key=f"gauge_rsi_{sym}")
+                            st.caption("Below 30 = oversold, above 70 = overbought. A gauge, not a Sankey — RSI doesn't split into parts.")
+                        else:
+                            st.info("RSI(14) not available for this stock.")
+
+                        # ── 52-Week Range position Gauge (NOT a Sankey) ──
+                        # Where today's price sits between its 52W Low and High. Price levels
+                        # don't sum to anything, so — like RSI — this is a gauge, not a Sankey.
+                        _wk52_high = float(chart_df["High"].max()) if not chart_df.empty else None
+                        _wk52_low = float(chart_df["Low"].min()) if not chart_df.empty else None
+                        if _wk52_high and _wk52_low is not None and _wk52_high > _wk52_low and last_close is not None:
+                            _pos_pct = max(0.0, min(100.0, (last_close - _wk52_low) / (_wk52_high - _wk52_low) * 100))
+                            fig_range_gauge = go.Figure(go.Indicator(
+                                mode="gauge+number",
+                                value=_pos_pct,
+                                number=dict(suffix="%", font=dict(color="#0a1758", size=28)),
+                                title=dict(text=f"52W Range Position — {sym}<br><span style='font-size:11px'>Low ₹{_wk52_low:,.2f} · Last ₹{last_close:,.2f} · High ₹{_wk52_high:,.2f}</span>", font=dict(size=14)),
+                                gauge=dict(
+                                    axis=dict(range=[0, 100]),
+                                    bar=dict(color="#1565C0"),
+                                    steps=[
+                                        dict(range=[0, 33], color="#ffebee"),
+                                        dict(range=[33, 66], color="#fff8e1"),
+                                        dict(range=[66, 100], color="#e8f5e9"),
+                                    ],
+                                    threshold=dict(line=dict(color="#c62828", width=3), value=_pos_pct),
+                                ),
+                            ))
+                            fig_range_gauge.update_layout(template="plotly_white", height=280, margin=dict(t=65, b=10, l=30, r=30))
+                            st.plotly_chart(fig_range_gauge, use_container_width=True, key=f"gauge_52wrange_{sym}")
+                            st.caption("0% = at the 52-week low, 100% = at the 52-week high. A gauge, not a Sankey — price levels aren't a splittable quantity.")
+                        else:
+                            st.info("52-week High/Low/Last Close not available for this stock.")
+
+                    with rsi_tab:
+                        idx_rsi = list(chart_df.index)
+                        fig2 = go.Figure()
+                        fig2.add_trace(go.Scatter(x=idx_rsi, y=_rsi14_s, name="RSI(14)",
+                                                   line=dict(color="#AB47BC", width=2)))
+                        fig2.add_hline(y=70, line_dash="dot", line_color="#D50000", opacity=0.6)
+                        fig2.add_hline(y=30, line_dash="dot", line_color="#00C853", opacity=0.6)
+                        fig2.add_hrect(y0=45, y1=65, fillcolor="#00C853", opacity=0.06, line_width=0,
+                                        annotation_text="Ideal entry 45-65", annotation_position="top right")
+                        fig2.update_layout(template="plotly_white", height=280, yaxis=dict(range=[0, 100]),
+                                            margin=dict(t=30, b=20), plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
+                                            font=dict(color="#1A1A1A"))
+                        fig2.update_xaxes(gridcolor="rgba(0,0,0,0.08)")
+                        fig2.update_yaxes(gridcolor="rgba(0,0,0,0.08)")
+                        st.plotly_chart(fig2, use_container_width=True, key=f"rsi14_chart_{sym}")
+
                         # ── Revenue & Expenses flow (Sankey) ──
                         # Built ONLY from real fields your sheet actually has: Net Sales and
                         # Net Profit. Your sheet has no Cost-of-Revenue / SG&A / R&D / Opex
@@ -3846,196 +4036,6 @@ Be specific, data-driven, and actionable for a retail investor.
                             )
                         else:
                             st.info("Market Cap / shareholding % data not available for this stock, so the Shareholding Pattern flow can't be built.")
-
-                        # ── Volume Delivery Split (Sankey) ──
-                        # Volume genuinely splits into two real parts: shares that were
-                        # delivered (taken into demat, i.e. genuine buying) vs. shares traded
-                        # intraday (squared off same day, no delivery). % Delivery is exactly
-                        # that split ratio, so this is a real flow, not a fabricated one.
-                        _vol_raw = _sheet_val(sel_row, fund_primary_row, "volume")
-                        _deliv_pct = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "% delivery", "delivery %", "delivery"))
-                        _vol_val = _to_cr_float(_vol_raw)
-                        if _vol_val is not None and _deliv_pct is not None and 0 <= _deliv_pct <= 100:
-                            _delivered_qty = _vol_val * _deliv_pct / 100
-                            _nondeliv_qty = _vol_val - _delivered_qty
-                            fig_vol = go.Figure(go.Sankey(
-                                arrangement="snap",
-                                textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
-                                node=dict(
-                                    pad=30, thickness=18,
-                                    line=dict(color="rgba(0,0,0,0.2)", width=0.5),
-                                    label=[
-                                        f"Volume<br>{_vol_val:,.0f} shares",
-                                        f"Delivered<br>{_delivered_qty:,.0f} shares ({_deliv_pct:.1f}%)",
-                                        f"Intraday / Non-Delivery<br>{_nondeliv_qty:,.0f} shares ({100 - _deliv_pct:.1f}%)",
-                                    ],
-                                    color=["#37474f", "#0f9d58", "#f9a825"],
-                                ),
-                                link=dict(
-                                    source=[0, 0], target=[1, 2],
-                                    value=[_delivered_qty, _nondeliv_qty],
-                                    color=[_hex2rgba("#0f9d58"), _hex2rgba("#f9a825")],
-                                ),
-                            ))
-                            fig_vol.update_layout(
-                                title=f"📦 Volume → Delivery Split — {sym}",
-                                template="plotly_white", height=300,
-                                margin=dict(t=45, b=10, l=10, r=10),
-                            )
-                            st.plotly_chart(fig_vol, use_container_width=True, key=f"sankey_volume_{sym}")
-                            st.caption(
-                                "Total Volume split by % Delivery into shares actually delivered (genuine buying/holding) "
-                                "vs. shares traded intraday and squared off same day."
-                            )
-                        else:
-                            st.info("Volume / % Delivery not available for this stock, so the Volume → Delivery split can't be built.")
-
-                        # ── Turnover Delivery Split (Sankey) ──
-                        # Same split, in ₹ value terms. If your sheet's Turnover is blank
-                        # (as it is for some stocks), this falls back to an estimated turnover
-                        # = Volume × Last Close — the same fallback convention already used
-                        # elsewhere in this app when a real Turnover column is missing.
-                        _turnover_raw = _to_cr_float(_sheet_val(sel_row, fund_primary_row, "turnover"))
-                        _turnover_is_estimated = False
-                        if _turnover_raw is None and _vol_val is not None and last_close:
-                            _turnover_raw = (_vol_val * last_close) / 1e7  # ₹ → Cr
-                            _turnover_is_estimated = True
-                        if _turnover_raw is not None and _deliv_pct is not None and 0 <= _deliv_pct <= 100:
-                            _delivered_val = _turnover_raw * _deliv_pct / 100
-                            _nondeliv_val = _turnover_raw - _delivered_val
-                            fig_turn = go.Figure(go.Sankey(
-                                arrangement="snap",
-                                textfont=dict(color="#0a1758", size=13, family="Arial Black, Arial, sans-serif"),
-                                node=dict(
-                                    pad=30, thickness=18,
-                                    line=dict(color="rgba(0,0,0,0.2)", width=0.5),
-                                    label=[
-                                        f"{'Est. ' if _turnover_is_estimated else ''}Turnover<br>₹{_turnover_raw:,.2f} Cr",
-                                        f"Delivered Value<br>₹{_delivered_val:,.2f} Cr ({_deliv_pct:.1f}%)",
-                                        f"Intraday Value<br>₹{_nondeliv_val:,.2f} Cr ({100 - _deliv_pct:.1f}%)",
-                                    ],
-                                    color=["#37474f", "#0f9d58", "#f9a825"],
-                                ),
-                                link=dict(
-                                    source=[0, 0], target=[1, 2],
-                                    value=[_delivered_val, _nondeliv_val],
-                                    color=[_hex2rgba("#0f9d58"), _hex2rgba("#f9a825")],
-                                ),
-                            ))
-                            fig_turn.update_layout(
-                                title=f"💵 Turnover → Delivery Split — {sym}",
-                                template="plotly_white", height=300,
-                                margin=dict(t=45, b=10, l=10, r=10),
-                            )
-                            st.plotly_chart(fig_turn, use_container_width=True, key=f"sankey_turnover_{sym}")
-                            _turn_note = (
-                                " Your sheet's Turnover field is blank for this stock, so this uses an estimate "
-                                "(Volume × Last Close) — the same fallback this app already uses elsewhere."
-                                if _turnover_is_estimated else ""
-                            )
-                            st.caption(f"Turnover split by % Delivery, mirroring the Volume split above in ₹ terms.{_turn_note}")
-                        else:
-                            st.info("Turnover / % Delivery / Volume not available for this stock, so the Turnover → Delivery split can't be built.")
-
-                        # ── Price Change bridge (Waterfall — NOT a Sankey) ──
-                        # A price move can be negative, and Sankey flows can't be negative, so
-                        # this uses a proper Waterfall/bridge chart instead — the correct tool
-                        # for "start value → step → end value" with either sign.
-                        if prev_close and last_close is not None:
-                            _price_delta = last_close - prev_close
-                            fig_wf = go.Figure(go.Waterfall(
-                                orientation="v",
-                                measure=["absolute", "relative", "total"],
-                                x=["Prev Close", "Change", "Last Close"],
-                                y=[prev_close, _price_delta, last_close],
-                                text=[f"₹{prev_close:,.2f}", f"{_price_delta:+.2f}", f"₹{last_close:,.2f}"],
-                                textposition="outside",
-                                textfont=dict(color="#0a1758", size=13),
-                                increasing=dict(marker=dict(color="#0f9d58")),
-                                decreasing=dict(marker=dict(color="#ea4335")),
-                                totals=dict(marker=dict(color="#1565C0")),
-                                connector=dict(line=dict(color="rgba(0,0,0,0.3)")),
-                            ))
-                            fig_wf.update_layout(
-                                title=f"📈 Price Change Bridge — {sym} ({day_chg:+.2f}%)",
-                                template="plotly_white", height=300, showlegend=False,
-                                margin=dict(t=45, b=10, l=10, r=10),
-                            )
-                            st.plotly_chart(fig_wf, use_container_width=True, key=f"waterfall_price_{sym}")
-                            st.caption("Prev Close → today's Price Change → Last Close. Shown as a Waterfall, not a Sankey, since a price drop can't be a negative flow.")
-                        else:
-                            st.info("Prev Close / Last Close not available for this stock, so the Price Change bridge can't be built.")
-
-                        # ── RSI(14) Gauge (NOT a Sankey) ──
-                        # RSI is an oscillator, not a splittable amount — a gauge is the
-                        # honest way to show it, with the standard oversold/neutral/overbought zones.
-                        if last_rsi14 is not None:
-                            fig_rsi_gauge = go.Figure(go.Indicator(
-                                mode="gauge+number",
-                                value=float(last_rsi14),
-                                number=dict(font=dict(color="#0a1758", size=28)),
-                                title=dict(text=f"RSI(14) — {sym}", font=dict(size=14)),
-                                gauge=dict(
-                                    axis=dict(range=[0, 100]),
-                                    bar=dict(color="#1565C0"),
-                                    steps=[
-                                        dict(range=[0, 30], color="#e3f2fd"),
-                                        dict(range=[30, 70], color="#f5f5f5"),
-                                        dict(range=[70, 100], color="#ffebee"),
-                                    ],
-                                    threshold=dict(line=dict(color="#c62828", width=3), value=float(last_rsi14)),
-                                ),
-                            ))
-                            fig_rsi_gauge.update_layout(template="plotly_white", height=260, margin=dict(t=50, b=10, l=30, r=30))
-                            st.plotly_chart(fig_rsi_gauge, use_container_width=True, key=f"gauge_rsi_{sym}")
-                            st.caption("Below 30 = oversold, above 70 = overbought. A gauge, not a Sankey — RSI doesn't split into parts.")
-                        else:
-                            st.info("RSI(14) not available for this stock.")
-
-                        # ── 52-Week Range position Gauge (NOT a Sankey) ──
-                        # Where today's price sits between its 52W Low and High. Price levels
-                        # don't sum to anything, so — like RSI — this is a gauge, not a Sankey.
-                        _wk52_high = float(chart_df["High"].max()) if not chart_df.empty else None
-                        _wk52_low = float(chart_df["Low"].min()) if not chart_df.empty else None
-                        if _wk52_high and _wk52_low is not None and _wk52_high > _wk52_low and last_close is not None:
-                            _pos_pct = max(0.0, min(100.0, (last_close - _wk52_low) / (_wk52_high - _wk52_low) * 100))
-                            fig_range_gauge = go.Figure(go.Indicator(
-                                mode="gauge+number",
-                                value=_pos_pct,
-                                number=dict(suffix="%", font=dict(color="#0a1758", size=28)),
-                                title=dict(text=f"52W Range Position — {sym}<br><span style='font-size:11px'>Low ₹{_wk52_low:,.2f} · Last ₹{last_close:,.2f} · High ₹{_wk52_high:,.2f}</span>", font=dict(size=14)),
-                                gauge=dict(
-                                    axis=dict(range=[0, 100]),
-                                    bar=dict(color="#1565C0"),
-                                    steps=[
-                                        dict(range=[0, 33], color="#ffebee"),
-                                        dict(range=[33, 66], color="#fff8e1"),
-                                        dict(range=[66, 100], color="#e8f5e9"),
-                                    ],
-                                    threshold=dict(line=dict(color="#c62828", width=3), value=_pos_pct),
-                                ),
-                            ))
-                            fig_range_gauge.update_layout(template="plotly_white", height=280, margin=dict(t=65, b=10, l=30, r=30))
-                            st.plotly_chart(fig_range_gauge, use_container_width=True, key=f"gauge_52wrange_{sym}")
-                            st.caption("0% = at the 52-week low, 100% = at the 52-week high. A gauge, not a Sankey — price levels aren't a splittable quantity.")
-                        else:
-                            st.info("52-week High/Low/Last Close not available for this stock.")
-
-                    with rsi_tab:
-                        idx_rsi = list(chart_df.index)
-                        fig2 = go.Figure()
-                        fig2.add_trace(go.Scatter(x=idx_rsi, y=_rsi14_s, name="RSI(14)",
-                                                   line=dict(color="#AB47BC", width=2)))
-                        fig2.add_hline(y=70, line_dash="dot", line_color="#D50000", opacity=0.6)
-                        fig2.add_hline(y=30, line_dash="dot", line_color="#00C853", opacity=0.6)
-                        fig2.add_hrect(y0=45, y1=65, fillcolor="#00C853", opacity=0.06, line_width=0,
-                                        annotation_text="Ideal entry 45-65", annotation_position="top right")
-                        fig2.update_layout(template="plotly_white", height=280, yaxis=dict(range=[0, 100]),
-                                            margin=dict(t=30, b=20), plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
-                                            font=dict(color="#1A1A1A"))
-                        fig2.update_xaxes(gridcolor="rgba(0,0,0,0.08)")
-                        fig2.update_yaxes(gridcolor="rgba(0,0,0,0.08)")
-                        st.plotly_chart(fig2, use_container_width=True, key=f"rsi14_chart_{sym}")
 
     # ==========================================
     # 🌍 NATIONAL ANALYTICS PORTAL WORKSPACE
