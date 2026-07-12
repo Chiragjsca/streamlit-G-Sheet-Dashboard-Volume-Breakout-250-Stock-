@@ -3417,7 +3417,7 @@ Be specific, data-driven, and actionable for a retail investor.
                             ("RSI(14)", f"{last_rsi14:.1f}" if last_rsi14 is not None else "–"),
                         ])
 
-                        with st.expander("🏆 Company Price Dashboards", expanded=False):
+                        with st.expander("📋 Company Price Dashboard", expanded=False):
                             # ── Group 1: Company / classification info ──
                             _render_group("🏢 Company Info", [
                                 ("Company Name", ["company name", "stock name"]),
