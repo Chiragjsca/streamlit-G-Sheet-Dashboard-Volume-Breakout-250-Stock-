@@ -3059,7 +3059,7 @@ Be specific, data-driven, and actionable for a retail investor.
                         st.info(f"No recent news found for {sym}.")
 
             with ws_tabs[0]:
-            # Notice how this line is indented further to the right
+
             with st.expander("🏆 Click to view Price Chart", expanded=False):
                 st.markdown(f"### 🕯️ Price Chart & Technical Indicators — {sym}")
 
