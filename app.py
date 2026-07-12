@@ -3058,11 +3058,10 @@ Be specific, data-driven, and actionable for a retail investor.
                     else:
                         st.info(f"No recent news found for {sym}.")
 
-            with ws_tabs[0]:
+with ws_tabs[0]:
                 
-                # ── 1. THIS OPENS THE EXPANDER ──
+                # ── The expander block ──
                 with st.expander("🏆 Click to view Price Chart", expanded=False):
-                    
                     st.markdown(f"### 🕯️ Price Chart & Technical Indicators — {sym}")
 
                     hist_period = st.select_slider(
@@ -3316,11 +3315,17 @@ Be specific, data-driven, and actionable for a retail investor.
                                     "**H-M panel:** Green fill = RSI above 50. Red fill = RSI below 50 (pullback zone). "
                                     "🟢 circles = RSI(9) cross above 50 (entry). For informational purposes only."
                                 )
-                
                 # ── 2. THE EXPANDER ENDS HERE ──
                 # Everything below this line is out of the expander box and back on the main page.
                 
                 st.markdown(f"### 📋 {sym} — Google Sheet Data")
+                
+                # ── NEW: Fetch NSE Fundamentals as PRIMARY Data ──
+                fund_primary_row = {}
+                
+                # ✅ perfectly lined up
+                if selected_sheet != "NSE Fundamentals":
+                    pass # (Your actual code for this if-statement goes here)
                 
                 # ==========================================
                 # 📋 GOOGLE SHEET COLUMN DATA — shown below the Price Chart
