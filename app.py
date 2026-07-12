@@ -3059,6 +3059,8 @@ Be specific, data-driven, and actionable for a retail investor.
                         st.info(f"No recent news found for {sym}.")
 
             with ws_tabs[0]:
+                
+                # ── 1. THIS OPENS THE EXPANDER ──
                 with st.expander("🏆 Click to view Price Chart", expanded=False):
                     
                     st.markdown(f"### 🕯️ Price Chart & Technical Indicators — {sym}")
@@ -3314,7 +3316,12 @@ Be specific, data-driven, and actionable for a retail investor.
                                     "**H-M panel:** Green fill = RSI above 50. Red fill = RSI below 50 (pullback zone). "
                                     "🟢 circles = RSI(9) cross above 50 (entry). For informational purposes only."
                                 )
-                            
+                
+                # ── 2. THE EXPANDER ENDS HERE ──
+                # Everything below this line is out of the expander box and back on the main page.
+                
+                st.markdown(f"### 📋 {sym} — Google Sheet Data")
+
                         # ==========================================
                         # 📋 GOOGLE SHEET COLUMN DATA — shown below the Price Chart
                         # ==========================================
