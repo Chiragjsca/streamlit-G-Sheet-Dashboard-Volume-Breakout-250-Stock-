@@ -3573,6 +3573,61 @@ Be specific, data-driven, and actionable for a retail investor.
                     else:
                         st.info("Volume / % Delivery not available for this stock, so the Volume → Delivery split can't be built.")
 
+                    # ── RSI(14) Gauge (NOT a Sankey) ──
+                    # RSI is an oscillator, not a splittable amount — a gauge is the
+                    # honest way to show it, with the standard oversold/neutral/overbought zones.
+                    if last_rsi14 is not None:
+                        fig_rsi_gauge = go.Figure(go.Indicator(
+                            mode="gauge+number",
+                            value=float(last_rsi14),
+                            number=dict(font=dict(color="#0a1758", size=28)),
+                            title=dict(text=f"RSI(14) — {sym}", font=dict(size=14)),
+                            gauge=dict(
+                                axis=dict(range=[0, 100]),
+                                bar=dict(color="#1565C0"),
+                                steps=[
+                                    dict(range=[0, 30], color="#e3f2fd"),
+                                    dict(range=[30, 70], color="#f5f5f5"),
+                                    dict(range=[70, 100], color="#ffebee"),
+                                ],
+                                threshold=dict(line=dict(color="#c62828", width=3), value=float(last_rsi14)),
+                            ),
+                        ))
+                        fig_rsi_gauge.update_layout(template="plotly_white", height=260, margin=dict(t=50, b=10, l=30, r=30))
+                        st.plotly_chart(fig_rsi_gauge, use_container_width=True, key=f"gauge_rsi_{sym}")
+                        st.caption("Below 30 = oversold, above 70 = overbought. A gauge, not a Sankey — RSI doesn't split into parts.")
+                    else:
+                        st.info("RSI(14) not available for this stock.")
+
+                    # ── 52-Week Range position Gauge (NOT a Sankey) ──
+                    # Where today's price sits between its 52W Low and High. Price levels
+                    # don't sum to anything, so — like RSI — this is a gauge, not a Sankey.
+                    _wk52_high = float(chart_df["High"].max()) if not chart_df.empty else None
+                    _wk52_low = float(chart_df["Low"].min()) if not chart_df.empty else None
+                    if _wk52_high and _wk52_low is not None and _wk52_high > _wk52_low and last_close is not None:
+                        _pos_pct = max(0.0, min(100.0, (last_close - _wk52_low) / (_wk52_high - _wk52_low) * 100))
+                        fig_range_gauge = go.Figure(go.Indicator(
+                            mode="gauge+number",
+                            value=_pos_pct,
+                            number=dict(suffix="%", font=dict(color="#0a1758", size=28)),
+                            title=dict(text=f"52W Range Position — {sym}<br><span style='font-size:11px'>Low ₹{_wk52_low:,.2f} · Last ₹{last_close:,.2f} · High ₹{_wk52_high:,.2f}</span>", font=dict(size=14)),
+                            gauge=dict(
+                                axis=dict(range=[0, 100]),
+                                bar=dict(color="#1565C0"),
+                                steps=[
+                                    dict(range=[0, 33], color="#ffebee"),
+                                    dict(range=[33, 66], color="#fff8e1"),
+                                    dict(range=[66, 100], color="#e8f5e9"),
+                                ],
+                                threshold=dict(line=dict(color="#c62828", width=3), value=_pos_pct),
+                            ),
+                        ))
+                        fig_range_gauge.update_layout(template="plotly_white", height=280, margin=dict(t=65, b=10, l=30, r=30))
+                        st.plotly_chart(fig_range_gauge, use_container_width=True, key=f"gauge_52wrange_{sym}")
+                        st.caption("0% = at the 52-week low, 100% = at the 52-week high. A gauge, not a Sankey — price levels aren't a splittable quantity.")
+                    else:
+                        st.info("52-week High/Low/Last Close not available for this stock.")
+
                     # ── Turnover Delivery Split (Sankey) ──
                     # Same split, in ₹ value terms. If your sheet's Turnover is blank
                     # (as it is for some stocks), this falls back to an estimated turnover
@@ -3982,61 +4037,6 @@ Be specific, data-driven, and actionable for a retail investor.
                         )
                     else:
                         st.info("Not enough financing / assets / revenue data available for this stock to build the Combined Money Flow chart.")
-
-                    # ── RSI(14) Gauge (NOT a Sankey) ──
-                    # RSI is an oscillator, not a splittable amount — a gauge is the
-                    # honest way to show it, with the standard oversold/neutral/overbought zones.
-                    if last_rsi14 is not None:
-                        fig_rsi_gauge = go.Figure(go.Indicator(
-                            mode="gauge+number",
-                            value=float(last_rsi14),
-                            number=dict(font=dict(color="#0a1758", size=28)),
-                            title=dict(text=f"RSI(14) — {sym}", font=dict(size=14)),
-                            gauge=dict(
-                                axis=dict(range=[0, 100]),
-                                bar=dict(color="#1565C0"),
-                                steps=[
-                                    dict(range=[0, 30], color="#e3f2fd"),
-                                    dict(range=[30, 70], color="#f5f5f5"),
-                                    dict(range=[70, 100], color="#ffebee"),
-                                ],
-                                threshold=dict(line=dict(color="#c62828", width=3), value=float(last_rsi14)),
-                            ),
-                        ))
-                        fig_rsi_gauge.update_layout(template="plotly_white", height=260, margin=dict(t=50, b=10, l=30, r=30))
-                        st.plotly_chart(fig_rsi_gauge, use_container_width=True, key=f"gauge_rsi_{sym}")
-                        st.caption("Below 30 = oversold, above 70 = overbought. A gauge, not a Sankey — RSI doesn't split into parts.")
-                    else:
-                        st.info("RSI(14) not available for this stock.")
-
-                    # ── 52-Week Range position Gauge (NOT a Sankey) ──
-                    # Where today's price sits between its 52W Low and High. Price levels
-                    # don't sum to anything, so — like RSI — this is a gauge, not a Sankey.
-                    _wk52_high = float(chart_df["High"].max()) if not chart_df.empty else None
-                    _wk52_low = float(chart_df["Low"].min()) if not chart_df.empty else None
-                    if _wk52_high and _wk52_low is not None and _wk52_high > _wk52_low and last_close is not None:
-                        _pos_pct = max(0.0, min(100.0, (last_close - _wk52_low) / (_wk52_high - _wk52_low) * 100))
-                        fig_range_gauge = go.Figure(go.Indicator(
-                            mode="gauge+number",
-                            value=_pos_pct,
-                            number=dict(suffix="%", font=dict(color="#0a1758", size=28)),
-                            title=dict(text=f"52W Range Position — {sym}<br><span style='font-size:11px'>Low ₹{_wk52_low:,.2f} · Last ₹{last_close:,.2f} · High ₹{_wk52_high:,.2f}</span>", font=dict(size=14)),
-                            gauge=dict(
-                                axis=dict(range=[0, 100]),
-                                bar=dict(color="#1565C0"),
-                                steps=[
-                                    dict(range=[0, 33], color="#ffebee"),
-                                    dict(range=[33, 66], color="#fff8e1"),
-                                    dict(range=[66, 100], color="#e8f5e9"),
-                                ],
-                                threshold=dict(line=dict(color="#c62828", width=3), value=_pos_pct),
-                            ),
-                        ))
-                        fig_range_gauge.update_layout(template="plotly_white", height=280, margin=dict(t=65, b=10, l=30, r=30))
-                        st.plotly_chart(fig_range_gauge, use_container_width=True, key=f"gauge_52wrange_{sym}")
-                        st.caption("0% = at the 52-week low, 100% = at the 52-week high. A gauge, not a Sankey — price levels aren't a splittable quantity.")
-                    else:
-                        st.info("52-week High/Low/Last Close not available for this stock.")
 
     # ==========================================
     # 🌍 NATIONAL ANALYTICS PORTAL WORKSPACE
