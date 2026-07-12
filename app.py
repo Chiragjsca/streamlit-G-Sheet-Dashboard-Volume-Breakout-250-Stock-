@@ -3363,10 +3363,6 @@ Be specific, data-driven, and actionable for a retail investor.
                     ])
 
                     with st.expander("📋 Company Price Dashboard", expanded=False):
-                        # ── Top 30 Nearest 52W High/Low + Top 30 Below/Above 200 DMA (same universe lists as Executive Dashboard) ──
-                        _render_top30_market_lists("cpd")
-                        st.markdown("<hr style='margin:10px 0;'>", unsafe_allow_html=True)
-
                         # ── Group 1: Company / classification info ──
                         _render_group("🏢 Company Info", [
                             ("Company Name", ["company name", "stock name"]),
