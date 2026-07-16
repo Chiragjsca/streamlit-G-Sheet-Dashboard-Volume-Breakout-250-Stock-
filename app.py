@@ -2093,9 +2093,7 @@ if not raw_df.empty:
         _render_top30_market_lists("dash")
 
         # ---------- Chart row 4: 52-week range positioning + Difference from 200 DMA positioning (both clickable → NSE chart + quick-links) ----------
-        # Replaced st.columns(2) with st.container() so both charts take 100% width and stack vertically
-        dash_c7 = st.container()
-        dash_c8 = st.container()
+        dash_c7, dash_c8 = st.columns(2)
 
         with dash_c7:
             if cmp_series.notna().any() and high_series.notna().any() and low_series.notna().any():
@@ -4534,8 +4532,7 @@ Be specific, data-driven, and actionable for a retail investor.
         temp_df = filtered_df.copy()
         temp_df[pct_target] = pd.to_numeric(temp_df[pct_target].astype(str).str.replace(r'[%,]', '', regex=True), errors='coerce')
         temp_df = temp_df.dropna(subset=[pct_target])
-        top_10 = temp_df.nlargest(10, pct_tar
-get)
+        top_10 = temp_df.nlargest(10, pct_target)
         bottom_10 = temp_df.nsmallest(10, pct_target)
 
         colA, colB = st.columns(2)
