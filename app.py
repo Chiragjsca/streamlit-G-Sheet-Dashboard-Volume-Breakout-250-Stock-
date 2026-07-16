@@ -2098,8 +2098,6 @@ if not raw_df.empty:
         dash_c7 = st.container()
         dash_c8 = st.container()
 
-        
-
         with dash_c7:
             if cmp_series.notna().any() and high_series.notna().any() and low_series.notna().any():
                 span = (high_series - low_series).replace(0, np.nan)
