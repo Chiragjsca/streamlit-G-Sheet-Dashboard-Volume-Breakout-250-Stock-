@@ -19,7 +19,7 @@ from plotly.subplots import make_subplots
 # ==========================================
 # ⚙️ PAGE CONFIGURATION
 # ==========================================
-st.set_page_config(page_title="NF-750-Delivery % (+V)", layout="wide", page_icon="📊")
+st.set_page_config(page_title="Top 250 NSE Stock-Volume Breakout Dashboard", layout="wide", page_icon="📊")
 
 # ==========================================
 # 🧩 FRAGMENT HELPER — isolates a section's own widgets (search/sort/filter)
@@ -281,13 +281,13 @@ Rule 3 → Buy Only 52-Week Low Stocks
 #      Letters are counted left-to-right exactly as in Google Sheets, so this also works for
 #      blank/empty-header columns that have no text to match on.
 #
-# sheet_names = ["NSE Price Data", "NSE Fundamentals", "Final List", "Final List 2", "-Diff @ 200 DMA", "+Diff @ 200 DMA", "+%", "-%"]
+# sheet_names = ["Top 250 Stocks", "NSE Fundamentals", "Final List", "Final List 2", "Diff @ 200 DMA", "+%", "-%"]
 #
 # Add/edit a key for any sheet name above. A sheet with no key (or an empty list) shows all its columns.
 # To stop hiding something, just delete its line from the list below.
 
 HIDDEN_COLUMNS_BY_NAME = {
-    "NSE Price Data": [
+    "Top 250 Stocks": [
         "50 DMA",
         "100 DMA",
         "200 DMA",
@@ -303,8 +303,7 @@ HIDDEN_COLUMNS_BY_NAME = {
     "NSE Fundamentals": [],
     "Final List": [],
     "Final List 2": [],
-    "-Diff @ 200 DMA": [],
-    "+Diff @ 200 DMA": [],
+    "Diff @ 200 DMA": [],
     "+%": [],
     "-%": [],
 }
@@ -313,15 +312,14 @@ HIDDEN_COLUMNS_BY_NAME = {
 # columns in the actual Google Sheet (no header text to hide them by name). Add more
 # letters for any sheet to hide other columns by position, or delete letters to unhide.
 HIDDEN_COLUMNS_BY_LETTER = {
-    "NSE Price Data": [
+    "Top 250 Stocks": [
         "E", "F", "G",
         "AA", "AB", "AC", "AD", "AE", "AF", "AG", "AH",
     ],
     "NSE Fundamentals": [],
     "Final List": [],
     "Final List 2": [],
-    "-Diff @ 200 DMA": [],
-    "+Diff @ 200 DMA": [],
+    "Diff @ 200 DMA": [],
     "+%": [],
     "-%": [],
 }
@@ -364,12 +362,11 @@ def get_hidden_columns(sheet_name: str, ordered_columns) -> set:
 # named "NSE Code", "Symbol", "Ticker", "Stock Symbol", "Id" or "Stock"). To force a
 # specific column instead, set the exact header text below.
 LOCKED_SYMBOL_COLUMN = {
-    "NSE Price Data": None,
+    "Top 250 Stocks": None,
     "NSE Fundamentals": None,
     "Final List": None,
     "Final List 2": None,
-    "-Diff @ 200 DMA": None,
-    "+Diff @ 200 DMA": None,
+    "Diff @ 200 DMA": None,
     "+%": None,
     "-%": None,
 }
@@ -386,15 +383,15 @@ LOCKED_SYMBOL_COLUMN = {
 # then name-list). Any column you don't list keeps its original relative position and is simply
 # appended afterwards. The locked Symbol column is always placed first, ahead of this list.
 #
-# sheet_names = ["NSE Price Data", "NSE Fundamentals", "Final List", "Final List 2", "-Diff @ 200 DMA", "+Diff @ 200 DMA", "+%", "-%"]
+# sheet_names = ["Top 250 Stocks", "NSE Fundamentals", "Final List", "Final List 2", "Diff @ 200 DMA", "+%", "-%"]
 #
 # Add/edit a key for any sheet name above. A sheet with no key (or two empty lists) keeps the
 # app's original automatic ordering for that sheet.
 
 COLUMN_ORDER_BY_NAME = {
-    "NSE Price Data": [
-        "% Delivery",
+    "Top 250 Stocks": [
         "Volume",
+        "% Delivery",
         "Close Price",
         "CMP",
         "Price %",
@@ -407,8 +404,7 @@ COLUMN_ORDER_BY_NAME = {
     "NSE Fundamentals": [],
     "Final List": [],
     "Final List 2": [],
-    "-Diff @ 200 DMA": [],
-    "+Diff @ 200 DMA": [],
+    "Diff @ 200 DMA": [],
     "+%": [],
     "-%": [],
 }
@@ -417,12 +413,11 @@ COLUMN_ORDER_BY_NAME = {
 # add letters for any other sheet, reorder them, or remove letters to drop them from priority
 # (a dropped column simply falls back to its normal position instead of disappearing).
 COLUMN_ORDER_BY_LETTER = {
-    "NSE Price Data": ["B", "C", "D", "L"],
+    "Top 250 Stocks": ["B", "C", "D", "L"],
     "NSE Fundamentals": [],
     "Final List": [],
     "Final List 2": [],
-    "-Diff @ 200 DMA": [],
-    "+Diff @ 200 DMA": [],
+    "Diff @ 200 DMA": [],
     "+%": [],
     "-%": [],
 }
@@ -505,7 +500,7 @@ if "grid_reset_token" not in st.session_state:
 
 if not st.session_state.logged_in:
     # Top hint
-    st.markdown("<p style='text-align: center; margin-top: 100px; color: Green; font-size: 18px;'>NF-750-Delivery % (+V) Dashboard</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; margin-top: 100px; color: Green; font-size: 18px;'>250-V Dashboard</p>", unsafe_allow_html=True)
     st.markdown("<h1 style='text-align: center; margin-top: 0px; font-size: 20px;'>🔐 Admin Login</h1>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 1, 1])
@@ -556,7 +551,7 @@ import yfinance as yf
 import streamlit as st
 from datetime import datetime
 
-st.markdown("<p style='font-size:0.85rem; font-weight:bold; margin:0; padding:0;'>📊 NF-750-Delivery % (+V)</p>", unsafe_allow_html=True)
+st.markdown("<p style='font-size:0.85rem; font-weight:bold; margin:0; padding:0;'>📊 Top 250 NSE Stock-Volume Breakout Dashboard</p>", unsafe_allow_html=True)
 st.caption(f"Data refreshed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 @st.cache_data(ttl=60)
@@ -687,7 +682,7 @@ def load_sheet_data_with_colors(sheet_name):
         creds = Credentials.from_service_account_info(service_account_info, scopes=scope)
         client = gspread.authorize(creds)
 
-        spreadsheet_id = "1ayxuNlYGuJ0FKKCb7RoRL90ifwsAAx2aN6mmhO-37P8"
+        spreadsheet_id = "1SFhuZbLLlwwFsNo1k2RRx_Zp6bAkRR20W0F_zTwgdwU"
         encoded_sheet = urllib.parse.quote(sheet_name)
 
         authed_session = AuthorizedSession(creds)
@@ -912,7 +907,7 @@ st.write("---")
 @st.cache_data(ttl=300)
 def get_sheet_stocks_data():
     # Fetching strictly from the requested tab
-    df = load_sheet_data_with_colors("NSE Price Data")
+    df = load_sheet_data_with_colors("Top 250 Stocks")
     data_grid = {}
     
     if df.empty:
@@ -924,9 +919,6 @@ def get_sheet_stocks_data():
     sym_col = next((c for c in actual_cols if c.lower() in ["nse code", "symbol", "ticker", "stock symbol", "id", "stock"]), None)
     cmp_col = next((c for c in actual_cols if "cmp" in c.lower()), None)
     pct_col = next((c for c in actual_cols if "price %" in c.lower() or "change" in c.lower()), None)
-
-    # 👇 UPDATED: Stricter check to guarantee we get the Percentage column, not Absolute Change
-    pct_col = next((c for c in actual_cols if "%" in c or "pct" in c.lower() or "percent" in c.lower()), None)
     
     if not sym_col or not cmp_col:
         return data_grid
@@ -987,7 +979,7 @@ sheet_cards_html += "</div>"
 with st.expander("📈 Click to view Top 250 Stocks Matrix", expanded=False):
     # Failsafe if the sheet is completely empty or all rows returned "No Data"
     if sheet_valid_cards_count == 0:
-        st.info("Stock matrix data is currently unavailable. Please check the 'NSE Price Data' sheet.")
+        st.info("Stock matrix data is currently unavailable. Please check the 'Top 250 Stocks' sheet.")
     else:
         st.markdown(sheet_cards_html, unsafe_allow_html=True)
 
@@ -998,7 +990,7 @@ st.write("---")
 # ==========================================
 @st.cache_data(ttl=300)
 def get_ranked_sheet_data():
-    df = load_sheet_data_with_colors("NSE Price Data")
+    df = load_sheet_data_with_colors("Top 250 Stocks")
     if df.empty:
         return pd.DataFrame()
         
@@ -1006,13 +998,7 @@ def get_ranked_sheet_data():
     
     sym_col = next((c for c in actual_cols if c.lower() in ["nse code", "symbol", "ticker", "stock symbol", "id", "stock"]), None)
     cmp_col = next((c for c in actual_cols if "cmp" in c.lower()), None)
-
-    # 👇 UPDATED: Stricter parsing to prioritize the True Percentage column over Absolute Change
-
-    pct_col = next((c for c in actual_cols if "%" in c or "pct" in c.lower() or "percent" in c.lower()), None)
-
     pct_col = next((c for c in actual_cols if "price %" in c.lower() or "change" in c.lower()), None)
-
     vol_col = next((c for c in actual_cols if "volume" in c.lower()), None)
     
     # Look for specific Value and Turnover columns
@@ -1102,9 +1088,9 @@ def build_ranking_cards_html(dataframe, metric_label="change"):
 # Fetch Data
 rank_data = get_ranked_sheet_data()
 
-with st.expander("🏆 Click to view Advanced Ranking Dashboards (NSE Price Data)", expanded=False):
+with st.expander("🏆 Click to view Advanced Ranking Dashboards (Top 250 Stocks)", expanded=False):
     if rank_data.empty:
-        st.info("Ranking data is currently unavailable. Please check the 'NSE Price Data' sheet.")
+        st.info("Ranking data is currently unavailable. Please check the 'Top 250 Stocks' sheet.")
     else:
         # 1. Top 20 Gainers/Losers
         df_gainers = rank_data.nlargest(20, 'Pct_Change')
@@ -1220,8 +1206,8 @@ def compute_bottom_fishing_score(row, actual_cols):
             else:
                 reasons.append(f"❌ CMP {diff_pct:.1f}% below 200 DMA (downtrend)")
 
-    # 3. Turnover/Activity (max 10 pts)
-    vol = get_num(["turnover", "volume"])
+    # 3. Volume/Activity (max 10 pts)
+    vol = get_num(["volume"])
     if vol and vol > 0:
         if vol >= 10_000_000:
             score += 10
@@ -1296,25 +1282,15 @@ def compute_bottom_fishing_score(row, actual_cols):
         else:
             reasons.append(f"❌ High Pledge: {pledge:.1f}%")
 
-    # 9. High % Delivery (max 10 pts) — genuine buying vs intraday speculation
-    delivery_pct = get_num(["% delivery", "delivery"])
-    if delivery_pct is not None:
-        if delivery_pct >= 70:
-            score += 10
-            reasons.append(f"✅ % Delivery: {delivery_pct:.1f}% (strong institutional buying)")
-        elif delivery_pct >= 50:
-            score += 6
-            reasons.append(f"🟡 % Delivery: {delivery_pct:.1f}% (moderate genuine buying)")
-        elif delivery_pct >= 30:
-            score += 3
-            reasons.append(f"⚠️ % Delivery: {delivery_pct:.1f}% (mostly intraday)")
-        else:
-            reasons.append(f"❌ % Delivery: {delivery_pct:.1f}% (speculative / intraday dominated)")
-
-    # 10. Good Revenue / Net Sales (max 0 pts — qualitative flag)
+    # 9. Good Revenue / Net Sales (max 0 pts — qualitative flag)
     sales = get_num(["net sales", "net sale"])
     if sales and sales > 0:
         reasons.append(f"📊 Net Sales: ₹{sales:.1f} Cr")
+
+    # 10. % Delivery (max 0 pts — qualitative flag)
+    delivery_pct = get_num(["delivery"])
+    if delivery_pct is not None:
+        reasons.append(f"📦 % Delivery: {delivery_pct:.1f}%")
 
     # Grade
     if score >= 75:
@@ -1345,7 +1321,7 @@ def get_gspread_client():
     creds = Credentials.from_service_account_info(info, scopes=scope)
     return gspread.authorize(creds)
 
-SPREADSHEET_ID = "1ayxuNlYGuJ0FKKCb7RoRL90ifwsAAx2aN6mmhO-37P8"
+SPREADSHEET_ID = "1SFhuZbLLlwwFsNo1k2RRx_Zp6bAkRR20W0F_zTwgdwU"
 
 def ensure_watchlist_sheet(client):
     """Create Watchlist sheet if it doesn't exist; return worksheet."""
@@ -1520,7 +1496,7 @@ search_query = st.sidebar.text_input("Search by Symbol, Name, etc...", key="sear
 
 st.sidebar.markdown("---")
 st.sidebar.header("📑 Select a Tab")
-sheet_names = ["NSE Price Data", "NSE Fundamentals", "Final List", "Final List 2", "-Diff @ 200 DMA", "+Diff @ 200 DMA", "+%", "-%"]
+sheet_names = ["Top 250 Stocks", "NSE Fundamentals", "Final List", "Final List 2", "Diff @ 200 DMA", "+%", "-%"]
 selected_sheet = st.sidebar.selectbox("Choose sheet", sheet_names, key="filter_sheet")
 
 # ---------- Main Execution ----------
@@ -1737,44 +1713,16 @@ if not raw_df.empty:
     if selected_symbol_col in filtered_df.columns:
         core_sequence.append(selected_symbol_col)
 
-    # ── % Delivery goes 2nd — right after NSE Code ──────────────────────────
-    delivery_target = next((c for c in actual_cols if "delivery" in c.lower()), None)
-    if delivery_target and delivery_target not in core_sequence:
-        core_sequence.append(delivery_target)
-
-    deliv_target = next((c for c in actual_cols if "delivery" in c.lower()), None)
-    if deliv_target and deliv_target not in core_sequence:
-        core_sequence.append(deliv_target)
-
-    vol_target = next((c for c in actual_cols if "Volume" in c.lower()), None)
-    if vol_target and vol_target not in core_sequence: core_sequence.append(vol_target)
-
-    close_target = next((c for c in actual_cols if "close price" in c.lower() or "prev" in c.lower()), None)
-    if close_target and close_target not in core_sequence: core_sequence.append(close_target)
-
-    cmp_target = next((c for c in actual_cols if "cmp" in c.lower()), None)
-    if cmp_target and cmp_target not in core_sequence: core_sequence.append(cmp_target)
-
-    pct_target = next((c for c in actual_cols if "price %" in c.lower()), None)
-    if pct_target and pct_target not in core_sequence: core_sequence.append(pct_target)
-
-    high_target = next((c for c in actual_cols if "52" in c.lower() and "high" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
-    if high_target and high_target not in core_sequence: core_sequence.append(high_target)
-
-    low_target = next((c for c in actual_cols if "52" in c.lower() and "low" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
-    if low_target and low_target not in core_sequence: core_sequence.append(low_target)
-
     # NOTE: these "smart-guess" columns are always detected, even when a custom priority
     # order is configured below — several other features further down the app (Watchlist,
     # Breakout Finder, Horizon Performance, etc.) rely on these exact variables existing.
-    deliv_target = next((c for c in actual_cols if "delivery" in c.lower()), None)
-    delivery_target = next((c for c in actual_cols if "delivery" in c.lower()), None)
     vol_target = next((c for c in actual_cols if "volume" in c.lower()), None)
     close_target = next((c for c in actual_cols if "close price" in c.lower() or "prev" in c.lower()), None)
     cmp_target = next((c for c in actual_cols if "cmp" in c.lower()), None)
     pct_target = next((c for c in actual_cols if "price %" in c.lower()), None)
     high_target = next((c for c in actual_cols if "52" in c.lower() and "high" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
     low_target = next((c for c in actual_cols if "52" in c.lower() and "low" in c.lower() and "date" not in c.lower() and "%" not in c.lower()), None)
+    deliv_target = next((c for c in actual_cols if "delivery" in c.lower()), None)
 
     # ── Additional smart-guess columns used by the Multi-Horizon Performance
     # Summary Matrix and the Bottom Fishing Scanner (RSI, Volume Trend,
@@ -2145,9 +2093,7 @@ if not raw_df.empty:
         _render_top30_market_lists("dash")
 
         # ---------- Chart row 4: 52-week range positioning + Difference from 200 DMA positioning (both clickable → NSE chart + quick-links) ----------
-        # Replaced st.columns(2) with st.container() so both charts take 100% width and stack vertically
-        dash_c7 = st.container()
-        dash_c8 = st.container()
+        dash_c7, dash_c8 = st.columns(2)
 
         with dash_c7:
             if cmp_series.notna().any() and high_series.notna().any() and low_series.notna().any():
@@ -2342,11 +2288,6 @@ if not raw_df.empty:
         if is_first_visible_column: is_first_visible_column = False
 
         c_low = col.lower()
-        # Default sort: % Delivery column sorts descending on load
-        is_delivery_col = "delivery" in c_low
-        sort_val   = "desc" if is_delivery_col else None
-        sort_index = 0      if is_delivery_col else None
-
         if is_symbol_col or any(k in c_low for k in ["trading view", "history data", "screener", "zerodha", "chartlink", "market smith", "official nse", "nse"]):
             gb.configure_column(col, width=width, minWidth=min_width, sortable=True, filter=True, resizable=True,
                 editable=False, pinned=pinned_value, lockPinned=is_symbol_col, suppressMovable=is_symbol_col,
@@ -2653,7 +2594,6 @@ Formatting Requirements:
 | 6 | **RONW %** | 10 | Return on Net Worth ≥ 15% = strong business |
 | 7 | **Promoter Holding** | 8 | ≥ 50% shows management confidence |
 | 8 | **Zero Pledge** | 7 | No pledged shares = no financial stress |
-| 9 | **% Delivery** | 10 | ≥ 70% = institutional/genuine buying (not intraday) |
 """
                 st.markdown(criteria_md)
 
@@ -3054,7 +2994,7 @@ Be specific, data-driven, and actionable for a retail investor.
                 with st.expander(f"🕯️ Price Chart & Technical Indicators — {sym}", expanded=True):
 
                     hist_period = st.select_slider(
-                        "History range:", options=["1doy", "3mo", "6mo", "1y", "2y", "5y"],
+                        "History range:", options=["3mo", "6mo", "1y", "2y", "5y"],
                         value="1y", key=f"chart_period_{sym}"
                     )
 
@@ -4582,125 +4522,6 @@ Be specific, data-driven, and actionable for a retail investor.
             st.info(f"No stocks found with BF Score ≥ {min_bf_score}. Try lowering the minimum score.")
 
     render_bottom_fishing_scanner()
-
-    # ==========================================
-    # 🔬 STANDALONE BOTTOM FISHING SCANNER (OPTION-2)
-    # ==========================================
-    st.markdown("---")
-    st.markdown("### 🔬 Bottom Fishing Scanner — Buy from Bottom Candidates")
-    st.caption("Stocks that are 8–15% above 52W Low, in uptrend, with high volume + strong fundamentals")
-
-    bf_width_col1, bf_width_col2 = st.columns([4, 1])
-    with bf_width_col1:
-        bf_sizing_mode = st.radio(
-            "📏 Column Width Adjustment:",
-            ["Default", "✅ Fit to Row 1", "✅✅ Fit to Row 2"],
-            horizontal=True,
-            help="Automatically adjust column widths based on text length of the selected row.",
-            key="bf_scanner_sizing_mode"
-        )
-
-    bf_col1, bf_col2, bf_col3 = st.columns([2, 2, 2])
-    with bf_col1:
-        min_bf_score = st.slider("Minimum BF Score:", min_value=0, max_value=100, value=55, step=5, key="bf_min_score")
-    with bf_col2:
-        bf_sort = st.radio("Sort by:", ["Score (High→Low)", "Score (Low→High)"], horizontal=True, key="bf_sort")
-    with bf_col3:
-        bf_search = st.text_input("Search symbol:", placeholder="e.g. WIPRO", key="bf_search")
-
-    bf_results = []
-    for idx, row in filtered_df.iterrows():
-        clean_r = {k: v for k, v in row.items() if not str(k).startswith('_')}
-        bf_s, bf_g, bf_rsns = compute_bottom_fishing_score(clean_r, actual_cols)
-        if bf_s >= min_bf_score:
-            ticker = str(row.get('_raw_symbol_', '')).strip()
-            cmp_v = clean_r.get(cmp_target, "") if cmp_target else ""
-            sector_col = next((c for c in actual_cols if "sector" in c.lower()), None)
-            sector_v = clean_r.get(sector_col, "") if sector_col else ""
-            delivery_col = next((c for c in actual_cols if "delivery" in c.lower()), None)
-            delivery_v = clean_r.get(delivery_col, "") if delivery_col else ""
-            nse_chart_url = f"https://charting.nseindia.com/?symbol={ticker}-EQ"
-            symbol_link = f'<a href="{nse_chart_url}" target="_blank" style="text-decoration:none; color:#000000; font-weight:bold;">{ticker}</a>'
-            bf_results.append({
-                "Symbol": symbol_link,
-                "Score": bf_s,
-                "Grade": bf_g,
-                "CMP": cmp_v,
-                "% Delivery": delivery_v,
-                "Sector": str(sector_v)[:30],
-                "Key Reasons": " | ".join(bf_rsns[:3])
-            })
-
-    if bf_search:
-        bf_results = [r for r in bf_results if bf_search.upper() in re.sub(r'<[^>]*>', '', r["Symbol"]).upper()]
-
-    bf_results.sort(key=lambda x: x["Score"], reverse=(bf_sort == "Score (High→Low)"))
-
-    if bf_results:
-        st.success(f"✅ Found **{len(bf_results)}** stocks matching your bottom-fishing criteria (score ≥ {min_bf_score})")
-        bf_scan_df = pd.DataFrame(bf_results)
-
-        bf_gb = GridOptionsBuilder.from_dataframe(bf_scan_df)
-
-        bf_score_style = JsCode("""
-        function(params) {
-            let val = parseFloat(params.value);
-            if (val >= 75) return { 'backgroundColor': '#16e37f33', 'color': '#000', 'fontWeight': 'bold' };
-            if (val >= 55) return { 'backgroundColor': '#f4b40033', 'color': '#000', 'fontWeight': 'bold' };
-            if (val >= 35) return { 'backgroundColor': '#ff990033', 'color': '#000' };
-            return { 'backgroundColor': '#ea433533', 'color': '#000' };
-        }
-        """)
-
-        bf_default_widths = {"Symbol": 120, "Score": 90, "Grade": 160, "CMP": 100, "% Delivery": 120, "Sector": 200, "Key Reasons": 400}
-
-        delivery_style = JsCode("""
-        function(params) {
-            let val = parseFloat(String(params.value).replace('%','').replace(',',''));
-            if (isNaN(val)) return null;
-            if (val >= 70) return { 'backgroundColor': '#e6f4ea', 'color': '#000', 'fontWeight': 'bold' };
-            if (val >= 50) return { 'backgroundColor': '#fff9e6', 'color': '#000', 'fontWeight': 'bold' };
-            if (val >= 30) return { 'backgroundColor': '#fff3e0', 'color': '#000' };
-            return { 'backgroundColor': '#fce8e6', 'color': '#000' };
-        }
-        """)
-
-        for col in bf_scan_df.columns:
-            if bf_sizing_mode == "✅ Fit to Row 1" and len(bf_scan_df) > 0:
-                char_count = get_clean_text_length(bf_scan_df.iloc[0][col])
-                header_count = len(str(col))
-                dyn_w = int(max(char_count, header_count) * 7 + 22)
-            elif bf_sizing_mode == "✅✅ Fit to Row 2" and len(bf_scan_df) > 1:
-                char_count = get_clean_text_length(bf_scan_df.iloc[1][col])
-                header_count = len(str(col))
-                dyn_w = int(max(char_count, header_count) * 7 + 22)
-            else:
-                dyn_w = bf_default_widths.get(col, 120)
-
-            pinned = "left" if col == "Symbol" else None
-            if col == "Score":
-                bf_gb.configure_column(col, width=dyn_w, pinned=pinned, cellStyle=bf_score_style)
-            elif col == "Symbol":
-                bf_gb.configure_column(col, width=dyn_w, pinned=pinned, cellRenderer=html_renderer)
-            elif col == "% Delivery":
-                bf_gb.configure_column(col, width=dyn_w, pinned=pinned, cellStyle=delivery_style)
-            else:
-                bf_gb.configure_column(col, width=dyn_w, pinned=pinned)
-
-        bf_gb.configure_grid_options(domLayout="normal", rowHeight=40, headerHeight=45)
-        bf_grid_ops = bf_gb.build()
-
-        AgGrid(bf_scan_df, gridOptions=bf_grid_ops, theme="streamlit", allow_unsafe_jscode=True, fit_columns_on_grid_load=False, height=400, width='100%', key="bf_scanner_grid")
-
-        # Export BF Scanner results
-        bf_buffer = io.BytesIO()
-        with pd.ExcelWriter(bf_buffer, engine='openpyxl') as writer:
-            clean_for_export(bf_scan_df).to_excel(writer, index=False, sheet_name="Bottom Fishing")
-        st.download_button("📥 Download BF Scanner Results", data=bf_buffer.getvalue(),
-            file_name=f"BottomFishing_{pd.Timestamp.now().strftime('%Y%m%d')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    else:
-        st.info(f"No stocks found with BF Score ≥ {min_bf_score}. Try lowering the minimum score.")
 
     # ==========================================
     # 🏆 DAILY DIRECT BADGES LEADERBOARD
