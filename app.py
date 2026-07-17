@@ -2100,6 +2100,9 @@ if not raw_df.empty:
 
         # ---------- Chart row 4: 52-week range positioning + Difference from 200 DMA positioning (both clickable → NSE chart + quick-links) ----------
         dash_c7, dash_c8 = st.columns(2)
+        # Replaced st.columns(2) with st.container() so both charts take 100% width and stack vertically
+        dash_c7 = st.container()
+        dash_c8 = st.container()
 
         with dash_c7:
             if cmp_series.notna().any() and high_series.notna().any() and low_series.notna().any():
